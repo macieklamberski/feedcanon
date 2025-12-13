@@ -20,3 +20,10 @@ export type VerifyFn = (url: string) => boolean | Promise<boolean>
 
 // Hash function type.
 export type HashFn = (content: string) => string | Promise<string>
+
+// URL normalization options.
+export type NormalizeOptions = {
+  protocol?: boolean // http ↔ https
+  www?: boolean // www ↔ non-www
+  trailingSlash?: boolean // /feed/ ↔ /feed
+}
