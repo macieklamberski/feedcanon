@@ -160,3 +160,11 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     return url
   }
 }
+
+export const isSimilarUrl = (
+  url1: string,
+  url2: string,
+  options: NormalizeOptions = defaultNormalizeOptions,
+): boolean => {
+  return normalizeUrl(url1, options) === normalizeUrl(url2, options)
+}
