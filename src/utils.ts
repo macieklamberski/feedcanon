@@ -119,3 +119,44 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
     return
   }
 }
+
+import type { NormalizeOptions } from './types.js'
+
+const defaultNormalizeOptions: NormalizeOptions = {
+  protocol: true,
+  www: true,
+  trailingSlash: true,
+}
+
+export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
+  try {
+    const parsed = new URL(url)
+
+    // Lowercase hostname.
+    parsed.hostname = parsed.hostname.toLowerCase()
+
+    // Strip www prefix.
+    if (options.www && parsed.hostname.startsWith('www.')) {
+      parsed.hostname = parsed.hostname.slice(4)
+    }
+
+    // Handle trailing slash.
+    let pathname = parsed.pathname
+    if (options.trailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1)
+    }
+    parsed.pathname = pathname
+
+    // Build result URL.
+    let result = parsed.href
+
+    // Strip protocol for comparison.
+    if (options.protocol) {
+      result = result.replace(/^https?:\/\//, '')
+    }
+
+    return result
+  } catch {
+    return url
+  }
+}
