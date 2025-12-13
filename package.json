@@ -1,0 +1,7 @@
+{
+  "name": "feedcanon",
+  "description": "Canonical URL selection for web feeds.",
+  "license": "MIT",
+  "author": "Maciej Lamberski",
+  "type": "module"
+}
