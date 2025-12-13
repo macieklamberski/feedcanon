@@ -27,3 +27,17 @@ export type NormalizeOptions = {
   www?: boolean // www ↔ non-www
   trailingSlash?: boolean // /feed/ ↔ /feed
 }
+
+// Result of canonicalize function.
+export type CanonicalizeResult = {
+  url: string
+  reason: CanonicalizeReason
+}
+
+// Reason codes for canonicalize result.
+export type CanonicalizeReason =
+  | 'no_self_url' // selfUrl not provided.
+  | 'same_url' // selfUrl === responseUrl.
+  | 'normalize' // URLs match after normalization → selfUrl.
+  | 'fetch_failed' // selfUrl fetch failed → responseUrl.
+  | 'fallback' // No method matched → responseUrl.
