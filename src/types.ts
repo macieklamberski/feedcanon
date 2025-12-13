@@ -41,3 +41,9 @@ export type CanonicalizeReason =
   | 'normalize' // URLs match after normalization → selfUrl.
   | 'fetch_failed' // selfUrl fetch failed → responseUrl.
   | 'fallback' // No method matched → responseUrl.
+
+// Result of areEquivalent function.
+export type EquivalentResult = {
+  equivalent: boolean
+  method: 'normalize' | null
+}
