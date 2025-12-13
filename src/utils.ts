@@ -84,3 +84,38 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
 
   return `${protocol}://${url}`
 }
+
+// Resolves a URL by converting feed protocols, resolving relative URLs,
+// and ensuring it's a valid HTTP(S) URL.
+export const resolveUrl = (url: string, base?: string): string | undefined => {
+  let processed = url
+
+  // Step 1: Convert feed-related protocols.
+  processed = resolveNonStandardFeedUrl(processed)
+
+  // Step 2: Resolve relative URLs if base is provided.
+  if (base) {
+    try {
+      processed = new URL(processed, base).href
+    } catch {
+      return
+    }
+  }
+
+  // Step 3: Add protocol if missing.
+  processed = addMissingProtocol(processed)
+
+  // Step 4: Validate using URL constructor.
+  try {
+    const parsed = new URL(processed)
+
+    // Reject non-HTTP(S) protocols.
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
+
+    return parsed.href
+  } catch {
+    return
+  }
+}
