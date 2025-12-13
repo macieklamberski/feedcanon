@@ -28,3 +28,59 @@ export const resolveNonStandardFeedUrl = (url: string): string => {
 
   return url
 }
+
+// Adds protocol to URLs missing a scheme. Handles both protocol-relative
+// URLs (//example.com) and bare domains (example.com). Examples:
+// - //example.com/feed → https://example.com/feed
+// - example.com/feed → https://example.com/feed
+// - /path/to/feed → /path/to/feed (unchanged, relative path)
+export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
+  // Skip if URL already has a protocol.
+  try {
+    const parsed = new URL(url)
+    if (!parsed.protocol.includes('.') && parsed.protocol !== 'localhost:') {
+      return url
+    }
+  } catch {
+    // Not a valid URL yet, continue with protocol addition.
+  }
+
+  // Case 1: Protocol-relative URL (//example.com).
+  if (url.startsWith('//') && !url.startsWith('///')) {
+    try {
+      const parsed = new URL(`${protocol}:${url}`)
+      const hostname = parsed.hostname
+
+      // Valid web hostnames must have a dot or be localhost.
+      if (hostname.indexOf('.') !== -1 || hostname === 'localhost') {
+        return parsed.href
+      }
+
+      return url
+    } catch {
+      return url
+    }
+  }
+
+  // Case 2: Bare domain (example.com/feed).
+  if (url.startsWith('/') || url.startsWith('.')) {
+    return url
+  }
+
+  // Dot must be in the hostname (before first slash), not in the path.
+  const slashIndex = url.indexOf('/')
+  const dotIndex = url.indexOf('.')
+  if (dotIndex === -1 || (slashIndex !== -1 && dotIndex > slashIndex)) {
+    if (!url.startsWith('localhost')) {
+      return url
+    }
+  }
+
+  // Check if it looks like a domain.
+  const firstChar = url.charAt(0)
+  if (firstChar === ' ' || firstChar === '\t' || firstChar === '\n') {
+    return url
+  }
+
+  return `${protocol}://${url}`
+}
