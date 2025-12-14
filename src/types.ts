@@ -65,5 +65,6 @@ export type CanonicalizeOptions<T = unknown> = {
 // Options for areEquivalent function.
 export type EquivalentOptions = {
   normalizeOptions?: NormalizeOptions
+  fetchFn?: FetchFn
   verifyFn?: VerifyFn
 }
