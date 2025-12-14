@@ -1,5 +1,4 @@
-// Known feed-related protocol schemes.
-const feedProtocols = ['feed:', 'rss:', 'pcast:', 'itpc:']
+import { defaultFeedProtocols } from './defaults.js'
 
 // Convert known feed-related protocols to HTTPS. Examples:
 // - feed://example.com/rss.xml → https://example.com/rss.xml
@@ -7,10 +6,13 @@ const feedProtocols = ['feed:', 'rss:', 'pcast:', 'itpc:']
 // - rss://example.com/feed.xml → https://example.com/feed.xml
 // - pcast://example.com/podcast.xml → https://example.com/podcast.xml
 // - itpc://example.com/podcast.xml → https://example.com/podcast.xml
-export const resolveNonStandardFeedUrl = (url: string): string => {
+export const resolveNonStandardFeedUrl = (
+  url: string,
+  protocols = defaultFeedProtocols,
+): string => {
   const urlLower = url.toLowerCase()
 
-  for (const scheme of feedProtocols) {
+  for (const scheme of protocols) {
     if (!urlLower.startsWith(scheme)) {
       continue
     }
