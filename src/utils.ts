@@ -1,4 +1,4 @@
-import { defaultFeedProtocols } from './defaults.js'
+import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
 
 // Convert known feed-related protocols to HTTPS. Examples:
 // - feed://example.com/rss.xml → https://example.com/rss.xml
@@ -123,12 +123,6 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 }
 
 import type { NormalizeOptions } from './types.js'
-
-const defaultNormalizeOptions: NormalizeOptions = {
-  protocol: true,
-  www: true,
-  trailingSlash: true,
-}
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
   try {
