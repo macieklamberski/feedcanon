@@ -49,6 +49,11 @@ export const canonicalize = async <T>(
     return { url: responseUrl, reason: 'fallback' }
   }
 
+  // Step 4: Check if selfUrl equals responseUrl.
+  if (selfUrl === responseUrl) {
+    return { url: responseUrl, reason: 'same_url' }
+  }
+
   // Method: Normalize - Check if URLs match after normalization.
   if (isSimilarUrl(selfUrl, responseUrl, defaultNormalizeOptions)) {
     return { url: selfUrl, reason: 'normalize' }
