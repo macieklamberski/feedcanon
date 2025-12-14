@@ -1,6 +1,6 @@
-import { defaultFetchFn } from './defaults.js'
+import { defaultFetchFn, defaultNormalizeOptions } from './defaults.js'
 import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
-import { resolveUrl } from './utils.js'
+import { isSimilarUrl, resolveUrl } from './utils.js'
 
 export const canonicalize = async <T>(
   url: string,
@@ -47,6 +47,11 @@ export const canonicalize = async <T>(
 
   if (!selfUrl) {
     return { url: responseUrl, reason: 'fallback' }
+  }
+
+  // Method: Normalize - Check if URLs match after normalization.
+  if (isSimilarUrl(selfUrl, responseUrl, defaultNormalizeOptions)) {
+    return { url: selfUrl, reason: 'normalize' }
   }
 
   // Fallback: Return responseUrl.
