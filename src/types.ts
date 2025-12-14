@@ -53,3 +53,9 @@ export type ParserAdapter<T> = {
   parse: (body: string) => T | undefined
   getSelfUrl: (parsed: T) => string | undefined
 }
+
+// Options for canonicalize function.
+export type CanonicalizeOptions<T = unknown> = {
+  parser?: ParserAdapter<T>
+  fetchFn?: FetchFn
+}
