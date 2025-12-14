@@ -1,4 +1,4 @@
-import { defaultFetchFn, defaultNormalizeOptions } from './defaults.js'
+import { defaultFetchFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
 import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
 import { isSimilarUrl, resolveUrl } from './utils.js'
 
@@ -7,6 +7,7 @@ export const canonicalize = async <T>(
   options?: CanonicalizeOptions<T>,
 ): Promise<CanonicalizeResult> => {
   const fetchFn = options?.fetchFn ?? defaultFetchFn
+  const verifyFn = options?.verifyFn ?? defaultVerifyFn
   const parser = options?.parser
 
   // Step 1: Fetch the input URL.
@@ -52,6 +53,13 @@ export const canonicalize = async <T>(
   // Step 4: Check if selfUrl equals responseUrl.
   if (selfUrl === responseUrl) {
     return { url: responseUrl, reason: 'same_url' }
+  }
+
+  // Step 5: Verify selfUrl is safe (e.g., SSRF protection).
+  const isVerified = await verifyFn(selfUrl)
+
+  if (!isVerified) {
+    return { url: responseUrl, reason: 'verification_failed' }
   }
 
   // Method: Normalize - Check if URLs match after normalization.

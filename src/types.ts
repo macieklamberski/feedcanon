@@ -38,6 +38,7 @@ export type CanonicalizeResult = {
 export type CanonicalizeReason =
   | 'no_self_url' // selfUrl not provided.
   | 'same_url' // selfUrl === responseUrl.
+  | 'verification_failed' // verifyFn returned false for selfUrl.
   | 'normalize' // URLs match after normalization → selfUrl.
   | 'fetch_failed' // selfUrl fetch failed → responseUrl.
   | 'fallback' // No method matched → responseUrl.
@@ -58,4 +59,5 @@ export type ParserAdapter<T> = {
 export type CanonicalizeOptions<T = unknown> = {
   parser?: ParserAdapter<T>
   fetchFn?: FetchFn
+  verifyFn?: VerifyFn
 }
