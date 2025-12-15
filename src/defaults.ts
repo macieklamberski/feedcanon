@@ -9,6 +9,8 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   www: true,
   port: true,
   trailingSlash: true,
+  singleSlash: true,
+  slashes: true,
   hash: true,
   textFragment: true,
 }

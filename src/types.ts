@@ -27,6 +27,8 @@ export type NormalizeOptions = {
   www?: boolean // www ↔ non-www
   port?: boolean // strip default ports (:80, :443)
   trailingSlash?: boolean // /feed/ ↔ /feed
+  singleSlash?: boolean // example.com/ ↔ example.com
+  slashes?: boolean // collapse /// → /
   hash?: boolean // strip #fragment
   textFragment?: boolean // strip #:~:text=
 }

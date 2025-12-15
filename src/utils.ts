@@ -156,11 +156,24 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       parsed.hash = ''
     }
 
-    // Handle trailing slash.
+    // Handle pathname normalization.
     let pathname = parsed.pathname
+
+    // Collapse multiple slashes.
+    if (options.slashes) {
+      pathname = pathname.replace(/\/+/g, '/')
+    }
+
+    // Handle trailing slash.
     if (options.trailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1)
     }
+
+    // Handle single slash (root path).
+    if (options.singleSlash && pathname === '/') {
+      pathname = ''
+    }
+
     parsed.pathname = pathname
 
     // Build result URL.
