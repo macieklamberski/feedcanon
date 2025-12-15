@@ -27,6 +27,8 @@ export type NormalizeOptions = {
   www?: boolean // www ↔ non-www
   port?: boolean // strip default ports (:80, :443)
   trailingSlash?: boolean // /feed/ ↔ /feed
+  hash?: boolean // strip #fragment
+  textFragment?: boolean // strip #:~:text=
 }
 
 // Result of canonicalize function.

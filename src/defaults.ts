@@ -9,6 +9,8 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   www: true,
   port: true,
   trailingSlash: true,
+  hash: true,
+  textFragment: true,
 }
 
 export const defaultFetchFn: FetchFn = async (url, options) => {

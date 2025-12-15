@@ -146,6 +146,16 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       }
     }
 
+    // Strip hash/fragment.
+    if (options.hash) {
+      parsed.hash = ''
+    }
+
+    // Strip text fragments (Chrome's #:~:text= feature).
+    if (options.textFragment && parsed.hash.startsWith('#:~:')) {
+      parsed.hash = ''
+    }
+
     // Handle trailing slash.
     let pathname = parsed.pathname
     if (options.trailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
