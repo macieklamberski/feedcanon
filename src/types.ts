@@ -52,6 +52,7 @@ export type CanonicalizeReason =
   | 'same_url' // selfUrl === responseUrl.
   | 'verification_failed' // verifyFn returned false for selfUrl.
   | 'normalize' // URLs match after normalization → selfUrl.
+  | 'redirects' // selfUrl redirects to responseUrl → selfUrl.
   | 'fetch_failed' // selfUrl fetch failed → responseUrl.
   | 'fallback' // No method matched → responseUrl.
 

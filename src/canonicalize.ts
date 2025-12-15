@@ -67,6 +67,18 @@ export const canonicalize = async <T>(
     return { url: selfUrl, reason: 'normalize' }
   }
 
+  // Method: Redirects - Check if selfUrl redirects to responseUrl.
+  try {
+    const selfResponse = await fetchFn(selfUrl)
+    const selfOk = selfResponse.status >= 200 && selfResponse.status < 300
+
+    if (selfOk && isSimilarUrl(selfResponse.url, responseUrl, defaultNormalizeOptions)) {
+      return { url: selfUrl, reason: 'redirects' }
+    }
+  } catch {
+    // selfUrl fetch failed, continue to fallback.
+  }
+
   // Fallback: Return responseUrl.
   return { url: responseUrl, reason: 'fallback' }
 }
