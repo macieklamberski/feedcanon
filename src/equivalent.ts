@@ -40,5 +40,19 @@ export const areEquivalent = async (
     return { equivalent: false, method: null }
   }
 
+  // Method 2: Redirects (check if URLs redirect to same destination).
+  if (isSimilarUrl(response1.url, response2.url, normalizeOptions)) {
+    return { equivalent: true, method: 'redirects' }
+  }
+
+  // Check if one URL redirects to the other.
+  if (isSimilarUrl(response1.url, url2, normalizeOptions)) {
+    return { equivalent: true, method: 'redirects' }
+  }
+
+  if (isSimilarUrl(response2.url, url1, normalizeOptions)) {
+    return { equivalent: true, method: 'redirects' }
+  }
+
   return { equivalent: false, method: null }
 }
