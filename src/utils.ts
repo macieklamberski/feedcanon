@@ -223,6 +223,16 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 
     parsed.pathname = pathname
 
+    // Sort query parameters.
+    if (options.queryOrder) {
+      parsed.searchParams.sort()
+    }
+
+    // Remove empty query string.
+    if (options.emptyQuery && parsed.search === '?') {
+      parsed.search = ''
+    }
+
     // Build result URL.
     let result = parsed.href
 

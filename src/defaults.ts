@@ -18,6 +18,8 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   case: true,
   unicode: true,
   punycode: true,
+  queryOrder: true,
+  emptyQuery: true,
 }
 
 export const defaultFetchFn: FetchFn = async (url, options) => {

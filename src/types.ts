@@ -36,6 +36,8 @@ export type NormalizeOptions = {
   case?: boolean // lowercase hostname
   unicode?: boolean // NFC normalization
   punycode?: boolean // IDNA/Punycode normalization
+  queryOrder?: boolean // sort query params
+  emptyQuery?: boolean // /feed? ↔ /feed
 }
 
 // Result of canonicalize function.
