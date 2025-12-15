@@ -1,3 +1,4 @@
+import { domainToASCII } from 'node:url'
 import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
 
 // Characters that are safe in URL path segments and don't need percent encoding.
@@ -146,6 +147,20 @@ import type { NormalizeOptions } from './types.js'
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
   try {
     const parsed = new URL(url)
+
+    // Unicode normalization.
+    if (options.unicode) {
+      parsed.hostname = parsed.hostname.normalize('NFC')
+      parsed.pathname = parsed.pathname.normalize('NFC')
+    }
+
+    // Punycode normalization (IDN to ASCII).
+    if (options.punycode) {
+      const ascii = domainToASCII(parsed.hostname)
+      if (ascii) {
+        parsed.hostname = ascii
+      }
+    }
 
     // Lowercase hostname.
     if (options.case) {

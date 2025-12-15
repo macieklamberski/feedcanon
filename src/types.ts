@@ -34,6 +34,8 @@ export type NormalizeOptions = {
   textFragment?: boolean // strip #:~:text=
   encoding?: boolean // normalize %XX
   case?: boolean // lowercase hostname
+  unicode?: boolean // NFC normalization
+  punycode?: boolean // IDNA/Punycode normalization
 }
 
 // Result of canonicalize function.
