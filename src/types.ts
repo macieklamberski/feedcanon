@@ -32,6 +32,7 @@ export type NormalizeOptions = {
   slashes?: boolean // collapse /// → /
   hash?: boolean // strip #fragment
   textFragment?: boolean // strip #:~:text=
+  encoding?: boolean // normalize %XX
 }
 
 // Result of canonicalize function.

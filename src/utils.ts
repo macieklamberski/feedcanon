@@ -1,5 +1,24 @@
 import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
 
+// Characters that are safe in URL path segments and don't need percent encoding.
+const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
+
+// Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
+const decodeAndNormalizeEncoding = (str: string): string => {
+  return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
+    const charCode = Number.parseInt(hex, 16)
+    const char = String.fromCharCode(charCode)
+
+    // Decode if it's a safe character that doesn't need encoding.
+    if (safePathChars.test(char)) {
+      return char
+    }
+
+    // Keep encoded but normalize to uppercase.
+    return `%${hex.toUpperCase()}`
+  })
+}
+
 // Convert known feed-related protocols to HTTPS. Examples:
 // - feed://example.com/rss.xml → https://example.com/rss.xml
 // - feed:https://example.com/rss.xml → https://example.com/rss.xml
@@ -164,6 +183,11 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 
     // Handle pathname normalization.
     let pathname = parsed.pathname
+
+    // Normalize percent encoding (decode unnecessarily encoded chars, uppercase hex).
+    if (options.encoding) {
+      pathname = decodeAndNormalizeEncoding(pathname)
+    }
 
     // Collapse multiple slashes.
     if (options.slashes) {
