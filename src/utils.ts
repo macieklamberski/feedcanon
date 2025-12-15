@@ -136,6 +136,16 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       parsed.hostname = parsed.hostname.slice(4)
     }
 
+    // Strip default ports.
+    if (options.port) {
+      if (
+        (parsed.protocol === 'https:' && parsed.port === '443') ||
+        (parsed.protocol === 'http:' && parsed.port === '80')
+      ) {
+        parsed.port = ''
+      }
+    }
+
     // Handle trailing slash.
     let pathname = parsed.pathname
     if (options.trailingSlash && pathname.length > 1 && pathname.endsWith('/')) {

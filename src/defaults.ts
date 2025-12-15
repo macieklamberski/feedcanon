@@ -7,6 +7,7 @@ export const defaultFeedProtocols = ['feed:', 'rss:', 'pcast:', 'itpc:']
 export const defaultNormalizeOptions: NormalizeOptions = {
   protocol: true,
   www: true,
+  port: true,
   trailingSlash: true,
 }
 

@@ -25,6 +25,7 @@ export type HashFn = (content: string) => string | Promise<string>
 export type NormalizeOptions = {
   protocol?: boolean // http ↔ https
   www?: boolean // www ↔ non-www
+  port?: boolean // strip default ports (:80, :443)
   trailingSlash?: boolean // /feed/ ↔ /feed
 }
 
