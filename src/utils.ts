@@ -131,6 +131,12 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     // Lowercase hostname.
     parsed.hostname = parsed.hostname.toLowerCase()
 
+    // Strip authentication.
+    if (options.authentication) {
+      parsed.username = ''
+      parsed.password = ''
+    }
+
     // Strip www prefix.
     if (options.www && parsed.hostname.startsWith('www.')) {
       parsed.hostname = parsed.hostname.slice(4)
