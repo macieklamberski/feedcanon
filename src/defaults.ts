@@ -15,6 +15,7 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   hash: true,
   textFragment: true,
   encoding: true,
+  case: true,
 }
 
 export const defaultFetchFn: FetchFn = async (url, options) => {

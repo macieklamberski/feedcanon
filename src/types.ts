@@ -33,6 +33,7 @@ export type NormalizeOptions = {
   hash?: boolean // strip #fragment
   textFragment?: boolean // strip #:~:text=
   encoding?: boolean // normalize %XX
+  case?: boolean // lowercase hostname
 }
 
 // Result of canonicalize function.

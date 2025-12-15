@@ -148,7 +148,9 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     const parsed = new URL(url)
 
     // Lowercase hostname.
-    parsed.hostname = parsed.hostname.toLowerCase()
+    if (options.case) {
+      parsed.hostname = parsed.hostname.toLowerCase()
+    }
 
     // Strip authentication.
     if (options.authentication) {
