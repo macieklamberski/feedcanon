@@ -43,3 +43,15 @@ export const defaultHashFn: HashFn = async (content) => {
 export const defaultVerifyFn: VerifyFn = () => {
   return true
 }
+
+// Default methods to use for areEquivalent.
+export const defaultEquivalentMethods = {
+  normalize: true,
+  redirects: true,
+}
+
+// Default methods to use for canonicalize.
+export const defaultCanonicalizeMethods = {
+  normalize: true,
+  redirects: true,
+}
