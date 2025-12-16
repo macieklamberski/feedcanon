@@ -53,6 +53,7 @@ export type CanonicalizeReason =
   | 'verification_failed' // verifyFn returned false for selfUrl.
   | 'normalize' // URLs match after normalization → selfUrl.
   | 'redirects' // selfUrl redirects to responseUrl → selfUrl.
+  | 'response_hash' // Content hash matches → selfUrl.
   | 'fetch_failed' // selfUrl fetch failed → responseUrl.
   | 'fallback' // No method matched → responseUrl.
 
@@ -73,6 +74,7 @@ export type CanonicalizeOptions<T = unknown> = {
   parser?: ParserAdapter<T>
   fetchFn?: FetchFn
   verifyFn?: VerifyFn
+  hashFn?: HashFn
 }
 
 // Options for areEquivalent function.

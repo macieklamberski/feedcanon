@@ -1,4 +1,4 @@
-import { defaultFetchFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
+import { defaultFetchFn, defaultHashFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
 import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
 import { isSimilarUrl, resolveUrl } from './utils.js'
 
@@ -8,6 +8,7 @@ export const canonicalize = async <T>(
 ): Promise<CanonicalizeResult> => {
   const fetchFn = options?.fetchFn ?? defaultFetchFn
   const verifyFn = options?.verifyFn ?? defaultVerifyFn
+  const hashFn = options?.hashFn ?? defaultHashFn
   const parser = options?.parser
 
   // Step 1: Fetch the input URL.
@@ -68,8 +69,10 @@ export const canonicalize = async <T>(
   }
 
   // Method: Redirects - Check if selfUrl redirects to responseUrl.
+  let selfResponse: Awaited<ReturnType<typeof fetchFn>> | undefined
+
   try {
-    const selfResponse = await fetchFn(selfUrl)
+    selfResponse = await fetchFn(selfUrl)
     const selfOk = selfResponse.status >= 200 && selfResponse.status < 300
 
     if (selfOk && isSimilarUrl(selfResponse.url, responseUrl, defaultNormalizeOptions)) {
@@ -77,6 +80,18 @@ export const canonicalize = async <T>(
     }
   } catch {
     // selfUrl fetch failed, continue to fallback.
+  }
+
+  // Method: ResponseHash - Check if content hashes match.
+  if (selfResponse && selfResponse.status >= 200 && selfResponse.status < 300) {
+    const [responseHash, selfHash] = await Promise.all([
+      hashFn(responseBody),
+      hashFn(selfResponse.body),
+    ])
+
+    if (responseHash === selfHash) {
+      return { url: selfUrl, reason: 'response_hash' }
+    }
   }
 
   // Fallback: Return responseUrl.
