@@ -54,6 +54,7 @@ export type CanonicalizeReason =
   | 'normalize' // URLs match after normalization → selfUrl.
   | 'redirects' // selfUrl redirects to responseUrl → selfUrl.
   | 'response_hash' // Content hash matches → selfUrl.
+  | 'feed_data_hash' // Feed signature hash matches → selfUrl.
   | 'fetch_failed' // selfUrl fetch failed → responseUrl.
   | 'fallback' // No method matched → responseUrl.
 

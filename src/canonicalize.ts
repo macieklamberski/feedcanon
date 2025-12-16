@@ -102,6 +102,27 @@ export const canonicalize = async <T>(
     if (cachedHash === selfHash) {
       return { url: selfUrl, reason: 'response_hash' }
     }
+
+    // Method: FeedDataHash - Check if feed signatures match.
+    if (parser.getSignature) {
+      const selfParsed = parser.parse(selfResponse.body)
+
+      if (selfParsed) {
+        const responseSig = parser.getSignature(parsed)
+        const selfSig = parser.getSignature(selfParsed)
+
+        if (responseSig && selfSig) {
+          const [responseSigHash, selfSigHash] = await Promise.all([
+            hashFn(JSON.stringify(responseSig)),
+            hashFn(JSON.stringify(selfSig)),
+          ])
+
+          if (responseSigHash === selfSigHash) {
+            return { url: selfUrl, reason: 'feed_data_hash' }
+          }
+        }
+      }
+    }
   }
 
   // Fallback: Return responseUrl.
