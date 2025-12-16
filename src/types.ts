@@ -63,6 +63,18 @@ export type EquivalentResult = {
   method: 'normalize' | 'redirects' | 'responseHash' | null
 }
 
+// Normalized feed data for signature comparison.
+export type FeedData = {
+  title?: string
+  description?: string
+  items: Array<{
+    id?: string
+    title?: string
+    link?: string
+    date?: string
+  }>
+}
+
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
   parse: (body: string) => T | undefined

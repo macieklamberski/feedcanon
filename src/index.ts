@@ -6,6 +6,7 @@ export type {
   CanonicalizeResult,
   EquivalentOptions,
   EquivalentResult,
+  FeedData,
   FetchFn,
   FetchFnOptions,
   FetchFnResponse,
