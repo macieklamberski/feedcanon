@@ -27,6 +27,16 @@ export const canonicalize = async <T>(
   const responseUrl = response.url
   const responseBody = response.body
 
+  // Compute response hash lazily (only when needed).
+  let responseHash: string | undefined
+
+  const getResponseHash = async () => {
+    if (responseHash === undefined) {
+      responseHash = await hashFn(responseBody)
+    }
+    return responseHash
+  }
+
   // Step 2: Parse response to extract selfUrl.
   if (!parser) {
     return { url: responseUrl, reason: 'no_self_url' }
@@ -84,12 +94,12 @@ export const canonicalize = async <T>(
 
   // Method: ResponseHash - Check if content hashes match.
   if (selfResponse && selfResponse.status >= 200 && selfResponse.status < 300) {
-    const [responseHash, selfHash] = await Promise.all([
-      hashFn(responseBody),
+    const [cachedHash, selfHash] = await Promise.all([
+      getResponseHash(),
       hashFn(selfResponse.body),
     ])
 
-    if (responseHash === selfHash) {
+    if (cachedHash === selfHash) {
       return { url: selfUrl, reason: 'response_hash' }
     }
   }
