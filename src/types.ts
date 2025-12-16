@@ -59,7 +59,7 @@ export type CanonicalizeReason =
 // Result of areEquivalent function.
 export type EquivalentResult = {
   equivalent: boolean
-  method: 'normalize' | 'redirects' | null
+  method: 'normalize' | 'redirects' | 'responseHash' | null
 }
 
 // Parser adapter interface for generic feed parser support.
@@ -80,4 +80,5 @@ export type EquivalentOptions = {
   normalizeOptions?: NormalizeOptions
   fetchFn?: FetchFn
   verifyFn?: VerifyFn
+  hashFn?: HashFn
 }

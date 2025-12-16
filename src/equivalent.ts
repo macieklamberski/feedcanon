@@ -1,4 +1,4 @@
-import { defaultFetchFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
+import { defaultFetchFn, defaultHashFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
 import type { EquivalentOptions, EquivalentResult, FetchFnResponse } from './types.js'
 import { isSimilarUrl } from './utils.js'
 
@@ -10,6 +10,7 @@ export const areEquivalent = async (
   const normalizeOptions = options?.normalizeOptions ?? defaultNormalizeOptions
   const fetchFn = options?.fetchFn ?? defaultFetchFn
   const verifyFn = options?.verifyFn ?? defaultVerifyFn
+  const hashFn = options?.hashFn ?? defaultHashFn
 
   // Method 1: Normalize (URL normalization).
   if (isSimilarUrl(url1, url2, normalizeOptions)) {
@@ -52,6 +53,13 @@ export const areEquivalent = async (
 
   if (isSimilarUrl(response2.url, url1, normalizeOptions)) {
     return { equivalent: true, method: 'redirects' }
+  }
+
+  // Method 3: ResponseHash (compare content hashes).
+  const [hash1, hash2] = await Promise.all([hashFn(response1.body), hashFn(response2.body)])
+
+  if (hash1 === hash2) {
+    return { equivalent: true, method: 'responseHash' }
   }
 
   return { equivalent: false, method: null }
