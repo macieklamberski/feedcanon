@@ -55,6 +55,7 @@ export type CanonicalizeReason =
   | 'redirects' // selfUrl redirects to responseUrl → selfUrl.
   | 'response_hash' // Content hash matches → selfUrl.
   | 'feed_data_hash' // Feed signature hash matches → selfUrl.
+  | 'upgrade_https' // HTTP → HTTPS upgrade successful → selfUrl.
   | 'fetch_failed' // selfUrl fetch failed → responseUrl.
   | 'fallback' // No method matched → responseUrl.
 

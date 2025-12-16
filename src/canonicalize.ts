@@ -125,6 +125,22 @@ export const canonicalize = async <T>(
     }
   }
 
+  // Method: UpgradeHttps - Try HTTPS version of HTTP selfUrl.
+  if (selfUrl.startsWith('http://')) {
+    const httpsUrl = selfUrl.replace('http://', 'https://')
+
+    try {
+      const httpsResponse = await fetchFn(httpsUrl)
+      const httpsOk = httpsResponse.status >= 200 && httpsResponse.status < 300
+
+      if (httpsOk) {
+        return { url: httpsUrl, reason: 'upgrade_https' }
+      }
+    } catch {
+      // HTTPS upgrade failed, continue to fallback.
+    }
+  }
+
   // Fallback: Return responseUrl.
   return { url: responseUrl, reason: 'fallback' }
 }
