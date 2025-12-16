@@ -48,10 +48,15 @@ export const defaultVerifyFn: VerifyFn = () => {
 export const defaultEquivalentMethods = {
   normalize: true,
   redirects: true,
+  responseHash: true,
+  feedDataHash: true,
 }
 
 // Default methods to use for canonicalize.
 export const defaultCanonicalizeMethods = {
   normalize: true,
   redirects: true,
+  responseHash: true,
+  feedDataHash: true,
+  upgradeHttps: true,
 }
