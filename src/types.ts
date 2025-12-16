@@ -79,6 +79,7 @@ export type FeedData = {
 export type ParserAdapter<T> = {
   parse: (body: string) => T | undefined
   getSelfUrl: (parsed: T) => string | undefined
+  getSignature?: (parsed: T) => FeedData | undefined
 }
 
 // Options for canonicalize function.
