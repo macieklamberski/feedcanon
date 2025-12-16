@@ -60,7 +60,7 @@ export type CanonicalizeReason =
 // Result of areEquivalent function.
 export type EquivalentResult = {
   equivalent: boolean
-  method: 'normalize' | 'redirects' | 'responseHash' | null
+  method: 'normalize' | 'redirects' | 'responseHash' | 'feedDataHash' | null
 }
 
 // Normalized feed data for signature comparison.
@@ -91,9 +91,10 @@ export type CanonicalizeOptions<T = unknown> = {
 }
 
 // Options for areEquivalent function.
-export type EquivalentOptions = {
+export type EquivalentOptions<T = unknown> = {
   normalizeOptions?: NormalizeOptions
   fetchFn?: FetchFn
   verifyFn?: VerifyFn
   hashFn?: HashFn
+  parser?: ParserAdapter<T>
 }

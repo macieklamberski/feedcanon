@@ -2,15 +2,16 @@ import { defaultFetchFn, defaultHashFn, defaultNormalizeOptions, defaultVerifyFn
 import type { EquivalentOptions, EquivalentResult, FetchFnResponse } from './types.js'
 import { isSimilarUrl } from './utils.js'
 
-export const areEquivalent = async (
+export const areEquivalent = async <T>(
   url1: string,
   url2: string,
-  options?: EquivalentOptions,
+  options?: EquivalentOptions<T>,
 ): Promise<EquivalentResult> => {
   const normalizeOptions = options?.normalizeOptions ?? defaultNormalizeOptions
   const fetchFn = options?.fetchFn ?? defaultFetchFn
   const verifyFn = options?.verifyFn ?? defaultVerifyFn
   const hashFn = options?.hashFn ?? defaultHashFn
+  const parser = options?.parser
 
   // Method 1: Normalize (URL normalization).
   if (isSimilarUrl(url1, url2, normalizeOptions)) {
@@ -60,6 +61,28 @@ export const areEquivalent = async (
 
   if (hash1 === hash2) {
     return { equivalent: true, method: 'responseHash' }
+  }
+
+  // Method 4: FeedDataHash (compare parsed feed signatures).
+  if (parser?.getSignature) {
+    const parsed1 = parser.parse(response1.body)
+    const parsed2 = parser.parse(response2.body)
+
+    if (parsed1 && parsed2) {
+      const sig1 = parser.getSignature(parsed1)
+      const sig2 = parser.getSignature(parsed2)
+
+      if (sig1 && sig2) {
+        const [sigHash1, sigHash2] = await Promise.all([
+          hashFn(JSON.stringify(sig1)),
+          hashFn(JSON.stringify(sig2)),
+        ])
+
+        if (sigHash1 === sigHash2) {
+          return { equivalent: true, method: 'feedDataHash' }
+        }
+      }
+    }
   }
 
   return { equivalent: false, method: null }
