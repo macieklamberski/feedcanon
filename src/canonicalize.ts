@@ -134,7 +134,15 @@ export const canonicalize = async <T>(
       const httpsOk = httpsResponse.status >= 200 && httpsResponse.status < 300
 
       if (httpsOk) {
-        return { url: httpsUrl, reason: 'upgrade_https' }
+        // Verify HTTPS content matches original HTTP content.
+        const [cachedHash, httpsHash] = await Promise.all([
+          getResponseHash(),
+          hashFn(httpsResponse.body),
+        ])
+
+        if (cachedHash === httpsHash) {
+          return { url: httpsUrl, reason: 'upgrade_https' }
+        }
       }
     } catch {
       // HTTPS upgrade failed, continue to fallback.
