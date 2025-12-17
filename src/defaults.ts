@@ -60,3 +60,13 @@ export const defaultCanonicalizeMethods = {
   feedDataHash: true,
   upgradeHttps: true,
 }
+
+// Default tracking parameters to strip from URLs.
+export const defaultStrippedParams = [
+  // UTM parameters (Google Analytics).
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+]
