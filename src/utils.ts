@@ -223,6 +223,13 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 
     parsed.pathname = pathname
 
+    // Strip tracking parameters.
+    if (options.strippedParams && options.strippedParams.length > 0) {
+      for (const param of options.strippedParams) {
+        parsed.searchParams.delete(param)
+      }
+    }
+
     // Sort query parameters.
     if (options.queryOrder) {
       parsed.searchParams.sort()

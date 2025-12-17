@@ -38,6 +38,7 @@ export type NormalizeOptions = {
   punycode?: boolean // IDNA/Punycode normalization
   queryOrder?: boolean // sort query params
   emptyQuery?: boolean // /feed? ↔ /feed
+  strippedParams?: string[] // tracking params to remove
 }
 
 // Result of canonicalize function.
