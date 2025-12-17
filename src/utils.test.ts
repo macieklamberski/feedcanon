@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { addMissingProtocol, resolveNonStandardFeedUrl, resolveUrl } from './utils.js'
+import { addMissingProtocol, normalizeUrl, resolveNonStandardFeedUrl, resolveUrl } from './utils.js'
 
 describe('resolveNonStandardFeedUrl', () => {
   it('converts feed:// to https://', () => {
@@ -124,5 +124,49 @@ describe('resolveUrl', () => {
 
   it('returns undefined for javascript: URLs', () => {
     expect(resolveUrl('javascript:alert(1)')).toBeUndefined()
+  })
+})
+
+describe('normalizeUrl', () => {
+  it('strips protocol by default', () => {
+    expect(normalizeUrl('https://example.com/feed')).toBe('example.com/feed')
+    expect(normalizeUrl('http://example.com/feed')).toBe('example.com/feed')
+  })
+
+  it('strips www by default', () => {
+    expect(normalizeUrl('https://www.example.com/feed')).toBe('example.com/feed')
+  })
+
+  it('strips trailing slash by default', () => {
+    expect(normalizeUrl('https://example.com/feed/')).toBe('example.com/feed')
+  })
+
+  it('strips hash by default', () => {
+    expect(normalizeUrl('https://example.com/feed#section')).toBe('example.com/feed')
+  })
+
+  it('sorts query parameters by default', () => {
+    expect(normalizeUrl('https://example.com/feed?z=1&a=2')).toBe('example.com/feed?a=2&z=1')
+  })
+
+  it('strips default ports', () => {
+    expect(normalizeUrl('https://example.com:443/feed')).toBe('example.com/feed')
+    expect(normalizeUrl('http://example.com:80/feed')).toBe('example.com/feed')
+  })
+
+  it('preserves non-default ports', () => {
+    expect(normalizeUrl('https://example.com:8080/feed')).toBe('example.com:8080/feed')
+  })
+
+  it('strips authentication by default', () => {
+    expect(normalizeUrl('https://user:pass@example.com/feed')).toBe('example.com/feed')
+  })
+
+  it('collapses multiple slashes', () => {
+    expect(normalizeUrl('https://example.com//foo///bar/feed')).toBe('example.com/foo/bar/feed')
+  })
+
+  it('lowercases hostname', () => {
+    expect(normalizeUrl('https://EXAMPLE.COM/Feed')).toBe('example.com/Feed')
   })
 })
