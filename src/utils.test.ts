@@ -170,3 +170,25 @@ describe('normalizeUrl', () => {
     expect(normalizeUrl('https://EXAMPLE.COM/Feed')).toBe('example.com/Feed')
   })
 })
+
+describe('normalizeUrl edge cases', () => {
+  it('handles IPv6 addresses', () => {
+    expect(normalizeUrl('https://[::1]/feed')).toBe('[::1]/feed')
+  })
+
+  it('handles punycode domains', () => {
+    expect(normalizeUrl('https://münchen.de/feed')).toBe('xn--mnchen-3ya.de/feed')
+  })
+
+  it('normalizes percent encoding', () => {
+    expect(normalizeUrl('https://example.com/%48%65llo')).toBe('example.com/Hello')
+  })
+
+  it('handles empty query strings', () => {
+    expect(normalizeUrl('https://example.com/feed?')).toBe('example.com/feed')
+  })
+
+  it('handles text fragments', () => {
+    expect(normalizeUrl('https://example.com/page#:~:text=Hello')).toBe('example.com/page')
+  })
+})
