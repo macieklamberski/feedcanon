@@ -1,3 +1,4 @@
+import type { Got } from 'got'
 import type { FetchFn, FetchFnOptions } from './types.js'
 
 // Options for native fetch adapter.
@@ -34,6 +35,35 @@ export const createNativeFetchAdapter = (adapterOptions?: NativeFetchAdapterOpti
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+    }
+  }
+}
+
+// Options for got adapter.
+export type GotAdapterOptions = {
+  timeout?: number
+  headers?: Record<string, string>
+}
+
+// Creates a fetch adapter using got library.
+export const createGotAdapter = (got: Got, adapterOptions?: GotAdapterOptions): FetchFn => {
+  return async (url: string, options?: FetchFnOptions) => {
+    const response = await got(url, {
+      method: options?.method || 'GET',
+      headers: {
+        ...adapterOptions?.headers,
+        ...options?.headers,
+      },
+      timeout: adapterOptions?.timeout ? { request: adapterOptions.timeout } : undefined,
+      followRedirect: true,
+      throwHttpErrors: false,
+    })
+
+    return {
+      headers: new Headers(response.headers as Record<string, string>),
+      body: response.body,
+      url: response.url,
+      status: response.statusCode,
     }
   }
 }

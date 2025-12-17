@@ -1,4 +1,4 @@
-export { createNativeFetchAdapter } from './adapters.js'
+export { createGotAdapter, createNativeFetchAdapter } from './adapters.js'
 export { canonicalize } from './canonicalize.js'
 export { areEquivalent } from './equivalent.js'
 export type {
