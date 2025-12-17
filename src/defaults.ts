@@ -69,4 +69,14 @@ export const defaultStrippedParams = [
   'utm_campaign',
   'utm_term',
   'utm_content',
+
+  // Social media click identifiers.
+  'fbclid', // Facebook
+  'twclid', // Twitter
+  'gclid', // Google Ads
+  'dclid', // DoubleClick
+  'msclkid', // Microsoft Ads
+  'li_fat_id', // LinkedIn
+  'igshid', // Instagram
+  'ttclid', // TikTok
 ]
