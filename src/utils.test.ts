@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { addMissingProtocol, normalizeUrl, resolveNonStandardFeedUrl, resolveUrl } from './utils.js'
+import {
+  addMissingProtocol,
+  isSimilarUrl,
+  normalizeUrl,
+  resolveNonStandardFeedUrl,
+  resolveUrl,
+} from './utils.js'
 
 describe('resolveNonStandardFeedUrl', () => {
   it('converts feed:// to https://', () => {
@@ -190,5 +196,35 @@ describe('normalizeUrl edge cases', () => {
 
   it('handles text fragments', () => {
     expect(normalizeUrl('https://example.com/page#:~:text=Hello')).toBe('example.com/page')
+  })
+})
+
+describe('isSimilarUrl', () => {
+  it('returns true for identical URLs', () => {
+    expect(isSimilarUrl('https://example.com/feed', 'https://example.com/feed')).toBe(true)
+  })
+
+  it('returns true for URLs differing only by protocol', () => {
+    expect(isSimilarUrl('http://example.com/feed', 'https://example.com/feed')).toBe(true)
+  })
+
+  it('returns true for URLs differing only by www', () => {
+    expect(isSimilarUrl('https://www.example.com/feed', 'https://example.com/feed')).toBe(true)
+  })
+
+  it('returns true for URLs differing only by trailing slash', () => {
+    expect(isSimilarUrl('https://example.com/feed/', 'https://example.com/feed')).toBe(true)
+  })
+
+  it('returns false for different paths', () => {
+    expect(isSimilarUrl('https://example.com/feed1', 'https://example.com/feed2')).toBe(false)
+  })
+
+  it('returns false for different domains', () => {
+    expect(isSimilarUrl('https://example1.com/feed', 'https://example2.com/feed')).toBe(false)
+  })
+
+  it('handles query parameter order', () => {
+    expect(isSimilarUrl('https://example.com?a=1&b=2', 'https://example.com?b=2&a=1')).toBe(true)
   })
 })
