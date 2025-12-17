@@ -1,7 +1,46 @@
 {
   "name": "feedcanon",
+  "version": "0.1.0",
   "description": "Canonical URL selection for web feeds.",
   "license": "MIT",
   "author": "Maciej Lamberski",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "axios": "^1.0.0",
+    "got": "^14.0.0",
+    "ky": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "axios": {
+      "optional": true
+    },
+    "got": {
+      "optional": true
+    },
+    "ky": {
+      "optional": true
+    }
+  }
 }
