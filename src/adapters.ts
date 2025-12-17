@@ -1,3 +1,4 @@
+import type { AxiosInstance } from 'axios'
 import type { Got } from 'got'
 import type { FetchFn, FetchFnOptions } from './types.js'
 
@@ -64,6 +65,40 @@ export const createGotAdapter = (got: Got, adapterOptions?: GotAdapterOptions): 
       body: response.body,
       url: response.url,
       status: response.statusCode,
+    }
+  }
+}
+
+// Options for axios adapter.
+export type AxiosAdapterOptions = {
+  timeout?: number
+  headers?: Record<string, string>
+}
+
+// Creates a fetch adapter using axios library.
+export const createAxiosAdapter = (
+  axios: AxiosInstance,
+  adapterOptions?: AxiosAdapterOptions,
+): FetchFn => {
+  return async (url: string, options?: FetchFnOptions) => {
+    const response = await axios({
+      url,
+      method: options?.method || 'GET',
+      headers: {
+        ...adapterOptions?.headers,
+        ...options?.headers,
+      },
+      timeout: adapterOptions?.timeout,
+      maxRedirects: 10,
+      validateStatus: () => true,
+      responseType: 'text',
+    })
+
+    return {
+      headers: new Headers(response.headers as Record<string, string>),
+      body: response.data,
+      url: response.request?.res?.responseUrl || url,
+      status: response.status,
     }
   }
 }
