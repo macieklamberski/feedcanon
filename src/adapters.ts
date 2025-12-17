@@ -1,5 +1,6 @@
 import type { AxiosInstance } from 'axios'
 import type { Got } from 'got'
+import type { KyInstance } from 'ky'
 import type { FetchFn, FetchFnOptions } from './types.js'
 
 // Options for native fetch adapter.
@@ -98,6 +99,35 @@ export const createAxiosAdapter = (
       headers: new Headers(response.headers as Record<string, string>),
       body: response.data,
       url: response.request?.res?.responseUrl || url,
+      status: response.status,
+    }
+  }
+}
+
+// Options for ky adapter.
+export type KyAdapterOptions = {
+  timeout?: number
+  headers?: Record<string, string>
+}
+
+// Creates a fetch adapter using ky library.
+export const createKyAdapter = (ky: KyInstance, adapterOptions?: KyAdapterOptions): FetchFn => {
+  return async (url: string, options?: FetchFnOptions) => {
+    const response = await ky(url, {
+      method: options?.method || 'GET',
+      headers: {
+        ...adapterOptions?.headers,
+        ...options?.headers,
+      },
+      timeout: adapterOptions?.timeout,
+      redirect: 'follow',
+      throwHttpErrors: false,
+    })
+
+    return {
+      headers: response.headers,
+      body: await response.text(),
+      url: response.url,
       status: response.status,
     }
   }

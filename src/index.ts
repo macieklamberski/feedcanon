@@ -1,4 +1,9 @@
-export { createAxiosAdapter, createGotAdapter, createNativeFetchAdapter } from './adapters.js'
+export {
+  createAxiosAdapter,
+  createGotAdapter,
+  createKyAdapter,
+  createNativeFetchAdapter,
+} from './adapters.js'
 export { canonicalize } from './canonicalize.js'
 export { areEquivalent } from './equivalent.js'
 export type {
