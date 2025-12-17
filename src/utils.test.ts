@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { addMissingProtocol, resolveNonStandardFeedUrl } from './utils.js'
+import { addMissingProtocol, resolveNonStandardFeedUrl, resolveUrl } from './utils.js'
 
 describe('resolveNonStandardFeedUrl', () => {
   it('converts feed:// to https://', () => {
@@ -92,5 +92,37 @@ describe('addMissingProtocol', () => {
 
   it('can add http:// instead of https://', () => {
     expect(addMissingProtocol('example.com/feed', 'http')).toBe('http://example.com/feed')
+  })
+})
+
+describe('resolveUrl', () => {
+  it('resolves absolute URLs', () => {
+    expect(resolveUrl('https://example.com/feed.xml')).toBe('https://example.com/feed.xml')
+  })
+
+  it('resolves feed:// URLs', () => {
+    expect(resolveUrl('feed://example.com/feed.xml')).toBe('https://example.com/feed.xml')
+  })
+
+  it('resolves relative URLs with base', () => {
+    expect(resolveUrl('/feed.xml', 'https://example.com/page')).toBe(
+      'https://example.com/feed.xml',
+    )
+  })
+
+  it('resolves bare domains', () => {
+    expect(resolveUrl('example.com/feed.xml')).toBe('https://example.com/feed.xml')
+  })
+
+  it('returns undefined for invalid URLs', () => {
+    expect(resolveUrl('not a url at all')).toBeUndefined()
+  })
+
+  it('returns undefined for non-HTTP protocols', () => {
+    expect(resolveUrl('ftp://example.com/feed.xml')).toBeUndefined()
+  })
+
+  it('returns undefined for javascript: URLs', () => {
+    expect(resolveUrl('javascript:alert(1)')).toBeUndefined()
   })
 })
