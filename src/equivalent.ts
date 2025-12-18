@@ -1,4 +1,9 @@
-import { defaultFetchFn, defaultHashFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
+import {
+  defaultEquivalentMethods,
+  defaultFetchFn,
+  defaultHashFn,
+  defaultVerifyFn,
+} from './defaults.js'
 import type { EquivalentOptions, EquivalentResult, FetchFnResponse } from './types.js'
 import { isSimilarUrl } from './utils.js'
 
@@ -7,15 +12,17 @@ export const areEquivalent = async <T>(
   url2: string,
   options?: EquivalentOptions<T>,
 ): Promise<EquivalentResult> => {
-  const normalizeOptions = options?.normalizeOptions ?? defaultNormalizeOptions
+  const methods = options?.methods ?? defaultEquivalentMethods
   const fetchFn = options?.fetchFn ?? defaultFetchFn
   const verifyFn = options?.verifyFn ?? defaultVerifyFn
   const hashFn = options?.hashFn ?? defaultHashFn
   const parser = options?.parser
 
   // Method 1: Normalize (URL normalization).
-  if (isSimilarUrl(url1, url2, normalizeOptions)) {
-    return { equivalent: true, method: 'normalize' }
+  if (methods.normalize) {
+    if (isSimilarUrl(url1, url2, methods.normalize)) {
+      return { equivalent: true, method: 'normalize' }
+    }
   }
 
   // Verify URLs before fetching.
@@ -42,45 +49,45 @@ export const areEquivalent = async <T>(
     return { equivalent: false, method: null }
   }
 
-  // Method 2: Redirects (check if URLs redirect to same destination).
-  if (isSimilarUrl(response1.url, response2.url, normalizeOptions)) {
-    return { equivalent: true, method: 'redirects' }
+  // Method 2: Redirects (check if URLs redirect to each other).
+  if (methods.redirects !== false) {
+    const finalUrl1 = response1.url
+    const finalUrl2 = response2.url
+
+    // Check if they redirect to the same URL.
+    if (finalUrl1 === finalUrl2) {
+      return { equivalent: true, method: 'redirects' }
+    }
+
+    // Check if one redirects to the other's original URL.
+    if (finalUrl1 === url2 || finalUrl2 === url1) {
+      return { equivalent: true, method: 'redirects' }
+    }
   }
 
-  // Check if one URL redirects to the other.
-  if (isSimilarUrl(response1.url, url2, normalizeOptions)) {
-    return { equivalent: true, method: 'redirects' }
+  // Method 3: Response hash (compare content).
+  if (methods.responseHash !== false) {
+    const hash1 = response1.body ? await hashFn(response1.body) : null
+    const hash2 = response2.body ? await hashFn(response2.body) : null
+
+    if (hash1 && hash2 && hash1 === hash2) {
+      return { equivalent: true, method: 'response_hash' }
+    }
   }
 
-  if (isSimilarUrl(response2.url, url1, normalizeOptions)) {
-    return { equivalent: true, method: 'redirects' }
-  }
-
-  // Method 3: ResponseHash (compare content hashes).
-  const [hash1, hash2] = await Promise.all([hashFn(response1.body), hashFn(response2.body)])
-
-  if (hash1 === hash2) {
-    return { equivalent: true, method: 'responseHash' }
-  }
-
-  // Method 4: FeedDataHash (compare parsed feed signatures).
-  if (parser?.getSignature) {
+  // Method 4: Feed data hash - Compare parsed feed signatures.
+  if (methods.feedDataHash === true && parser && response1.body && response2.body) {
     const parsed1 = parser.parse(response1.body)
     const parsed2 = parser.parse(response2.body)
 
     if (parsed1 && parsed2) {
-      const sig1 = parser.getSignature(parsed1)
-      const sig2 = parser.getSignature(parsed2)
+      const signature1 = JSON.stringify(parser.getSignature(parsed1))
+      const signature2 = JSON.stringify(parser.getSignature(parsed2))
+      const signatureHash1 = await hashFn(signature1)
+      const signatureHash2 = await hashFn(signature2)
 
-      if (sig1 && sig2) {
-        const [sigHash1, sigHash2] = await Promise.all([
-          hashFn(JSON.stringify(sig1)),
-          hashFn(JSON.stringify(sig2)),
-        ])
-
-        if (sigHash1 === sigHash2) {
-          return { equivalent: true, method: 'feedDataHash' }
-        }
+      if (signatureHash1 === signatureHash2) {
+        return { equivalent: true, method: 'feed_data_hash' }
       }
     }
   }

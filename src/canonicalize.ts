@@ -1,4 +1,9 @@
-import { defaultFetchFn, defaultHashFn, defaultNormalizeOptions, defaultVerifyFn } from './defaults.js'
+import {
+  defaultCanonicalizeMethods,
+  defaultFetchFn,
+  defaultHashFn,
+  defaultVerifyFn,
+} from './defaults.js'
 import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
 import { isSimilarUrl, resolveUrl } from './utils.js'
 
@@ -6,6 +11,7 @@ export const canonicalize = async <T>(
   url: string,
   options?: CanonicalizeOptions<T>,
 ): Promise<CanonicalizeResult> => {
+  const methods = options?.methods ?? defaultCanonicalizeMethods
   const fetchFn = options?.fetchFn ?? defaultFetchFn
   const verifyFn = options?.verifyFn ?? defaultVerifyFn
   const hashFn = options?.hashFn ?? defaultHashFn
@@ -26,16 +32,7 @@ export const canonicalize = async <T>(
 
   const responseUrl = response.url
   const responseBody = response.body
-
-  // Compute response hash lazily (only when needed).
-  let responseHash: string | undefined
-
-  const getResponseHash = async () => {
-    if (responseHash === undefined) {
-      responseHash = await hashFn(responseBody)
-    }
-    return responseHash
-  }
+  const responseHash = responseBody ? await hashFn(responseBody) : undefined
 
   // Step 2: Parse response to extract selfUrl.
   if (!parser) {
@@ -54,11 +51,11 @@ export const canonicalize = async <T>(
     return { url: responseUrl, reason: 'no_self_url' }
   }
 
-  // Step 3: Resolve selfUrl.
+  // Step 3: Resolve selfUrl (convert protocols, resolve relative URLs).
   const selfUrl = resolveUrl(rawSelfUrl, responseUrl)
 
   if (!selfUrl) {
-    return { url: responseUrl, reason: 'fallback' }
+    return { url: responseUrl, reason: 'verification_failed' }
   }
 
   // Step 4: Check if selfUrl equals responseUrl.
@@ -74,78 +71,83 @@ export const canonicalize = async <T>(
   }
 
   // Method: Normalize - Check if URLs match after normalization.
-  if (isSimilarUrl(selfUrl, responseUrl, defaultNormalizeOptions)) {
-    return { url: selfUrl, reason: 'normalize' }
+  if (methods.normalize) {
+    if (isSimilarUrl(selfUrl, responseUrl, methods.normalize)) {
+      return { url: selfUrl, reason: 'normalize' }
+    }
   }
 
   // Method: Redirects - Check if selfUrl redirects to responseUrl.
-  let selfResponse: Awaited<ReturnType<typeof fetchFn>> | undefined
+  if (methods.redirects !== false) {
+    try {
+      const selfResponse = await fetchFn(selfUrl)
 
-  try {
-    selfResponse = await fetchFn(selfUrl)
-    const selfOk = selfResponse.status >= 200 && selfResponse.status < 300
+      if (selfResponse.status >= 200 && selfResponse.status < 300) {
+        if (selfResponse.url === responseUrl) {
+          return { url: responseUrl, reason: 'redirects' }
+        }
 
-    if (selfOk && isSimilarUrl(selfResponse.url, responseUrl, defaultNormalizeOptions)) {
-      return { url: selfUrl, reason: 'redirects' }
-    }
-  } catch {
-    // selfUrl fetch failed, continue to fallback.
-  }
+        // Method: Response hash - Check if content matches.
+        if (methods.responseHash !== false && responseHash) {
+          const selfHash = selfResponse.body ? await hashFn(selfResponse.body) : null
 
-  // Method: ResponseHash - Check if content hashes match.
-  if (selfResponse && selfResponse.status >= 200 && selfResponse.status < 300) {
-    const [cachedHash, selfHash] = await Promise.all([
-      getResponseHash(),
-      hashFn(selfResponse.body),
-    ])
+          if (selfHash && responseHash === selfHash) {
+            return { url: selfUrl, reason: 'response_hash' }
+          }
 
-    if (cachedHash === selfHash) {
-      return { url: selfUrl, reason: 'response_hash' }
-    }
+          // Hashes don't match - content is different.
+          if (selfHash && responseHash !== selfHash) {
+            return { url: responseUrl, reason: 'different_content' }
+          }
+        }
 
-    // Method: FeedDataHash - Check if feed signatures match.
-    if (parser.getSignature) {
-      const selfParsed = parser.parse(selfResponse.body)
+        // Method: Feed data hash - Compare parsed feed signatures.
+        if (methods.feedDataHash === true && selfResponse.body) {
+          const selfParsed = parser.parse(selfResponse.body)
 
-      if (selfParsed) {
-        const responseSig = parser.getSignature(parsed)
-        const selfSig = parser.getSignature(selfParsed)
+          if (parsed && selfParsed) {
+            const responseSignature = JSON.stringify(parser.getSignature(parsed))
+            const selfSignature = JSON.stringify(parser.getSignature(selfParsed))
+            const responseSignatureHash = await hashFn(responseSignature)
+            const selfSignatureHash = await hashFn(selfSignature)
 
-        if (responseSig && selfSig) {
-          const [responseSigHash, selfSigHash] = await Promise.all([
-            hashFn(JSON.stringify(responseSig)),
-            hashFn(JSON.stringify(selfSig)),
-          ])
+            if (responseSignatureHash === selfSignatureHash) {
+              return { url: selfUrl, reason: 'feed_data_hash' }
+            }
 
-          if (responseSigHash === selfSigHash) {
-            return { url: selfUrl, reason: 'feed_data_hash' }
+            // Signatures don't match - content is different.
+            return { url: responseUrl, reason: 'different_content' }
           }
         }
       }
+    } catch {
+      return { url: responseUrl, reason: 'fetch_failed' }
     }
   }
 
-  // Method: UpgradeHttps - Try HTTPS version of HTTP selfUrl.
-  if (selfUrl.startsWith('http://')) {
+  // Method: Upgrade HTTPS - Try HTTPS version of HTTP selfUrl.
+  if (methods.upgradeHttps !== false && selfUrl.startsWith('http://')) {
     const httpsUrl = selfUrl.replace('http://', 'https://')
+    const isHttpsVerified = await verifyFn(httpsUrl)
 
-    try {
-      const httpsResponse = await fetchFn(httpsUrl)
-      const httpsOk = httpsResponse.status >= 200 && httpsResponse.status < 300
+    if (isHttpsVerified) {
+      try {
+        const httpsResponse = await fetchFn(httpsUrl)
 
-      if (httpsOk) {
-        // Verify HTTPS content matches original HTTP content.
-        const [cachedHash, httpsHash] = await Promise.all([
-          getResponseHash(),
-          hashFn(httpsResponse.body),
-        ])
-
-        if (cachedHash === httpsHash) {
-          return { url: httpsUrl, reason: 'upgrade_https' }
+        if (httpsResponse.status >= 200 && httpsResponse.status < 300) {
+          // If we have responseHash, verify HTTPS content matches.
+          if (responseHash) {
+            const httpsHash = httpsResponse.body ? await hashFn(httpsResponse.body) : null
+            if (httpsHash && httpsHash === responseHash) {
+              return { url: httpsUrl, reason: 'upgrade_https' }
+            }
+          } else {
+            return { url: httpsUrl, reason: 'upgrade_https' }
+          }
         }
+      } catch {
+        // HTTPS upgrade failed, continue to fallback.
       }
-    } catch {
-      // HTTPS upgrade failed, continue to fallback.
     }
   }
 
