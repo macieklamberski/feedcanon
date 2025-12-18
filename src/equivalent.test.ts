@@ -57,7 +57,7 @@ describe('areEquivalent', () => {
     expect(result.method).toBe('redirects')
   })
 
-  it('returns true with responseHash method when content hashes match', async () => {
+  it('returns true with response_hash method when content hashes match', async () => {
     const mockFetch = async (url: string) => ({
       headers: new Headers(),
       body: '<feed><item>Same content</item></feed>',
@@ -70,7 +70,7 @@ describe('areEquivalent', () => {
     })
 
     expect(result.equivalent).toBe(true)
-    expect(result.method).toBe('responseHash')
+    expect(result.method).toBe('response_hash')
   })
 
   it('returns false when URLs are different and content differs', async () => {

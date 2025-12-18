@@ -1,24 +1,16 @@
 import { domainToASCII } from 'node:url'
 import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
+import type { NormalizeOptions } from './types.js'
+
+const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+
+// IPv6 addresses have 2-7 colons with hex segments. This is intentionally
+// loose - URL constructor validates the actual format, this just filters
+// obvious non-IPv6 strings like single-label hostnames.
+const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
-
-// Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
-const decodeAndNormalizeEncoding = (str: string): string => {
-  return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
-    const charCode = Number.parseInt(hex, 16)
-    const char = String.fromCharCode(charCode)
-
-    // Decode if it's a safe character that doesn't need encoding.
-    if (safePathChars.test(char)) {
-      return char
-    }
-
-    // Keep encoded but normalize to uppercase.
-    return `%${hex.toUpperCase()}`
-  })
-}
 
 // Convert known feed-related protocols to HTTPS. Examples:
 // - feed://example.com/rss.xml → https://example.com/rss.xml
@@ -54,10 +46,15 @@ export const resolveNonStandardFeedUrl = (
 // Adds protocol to URLs missing a scheme. Handles both protocol-relative
 // URLs (//example.com) and bare domains (example.com). Examples:
 // - //example.com/feed → https://example.com/feed
+// - //localhost/api → https://localhost/api
+// - //Users/file.xml → //Users/file.xml (unchanged, not a valid URL)
 // - example.com/feed → https://example.com/feed
 // - /path/to/feed → /path/to/feed (unchanged, relative path)
 export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-  // Skip if URL already has a protocol.
+  // Skip if URL already has a real protocol (http://, mailto:, tel:, etc.).
+  // URL constructor may incorrectly parse "example.com:8080" as protocol "example.com:"
+  // or "localhost:3000" as "localhost:". Real URI schemes don't contain dots (RFC 3986),
+  // so a dot in the protocol reveals it was actually a hostname:port, not a scheme.
   try {
     const parsed = new URL(url)
     if (!parsed.protocol.includes('.') && parsed.protocol !== 'localhost:') {
@@ -73,8 +70,14 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
       const parsed = new URL(`${protocol}:${url}`)
       const hostname = parsed.hostname
 
-      // Valid web hostnames must have a dot or be localhost.
-      if (hostname.indexOf('.') !== -1 || hostname === 'localhost') {
+      // Valid web hostnames must have at least one of:
+      // Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
+      if (
+        hostname.indexOf('.') !== -1 ||
+        hostname === 'localhost' ||
+        ipv4Pattern.test(hostname) ||
+        ipv6Pattern.test(hostname.replace(/^\[|\]$/g, ''))
+      ) {
         return parsed.href
       }
 
@@ -85,6 +88,7 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
   }
 
   // Case 2: Bare domain (example.com/feed).
+  // Skip if is a path.
   if (url.startsWith('/') || url.startsWith('.')) {
     return url
   }
@@ -93,12 +97,13 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
   const slashIndex = url.indexOf('/')
   const dotIndex = url.indexOf('.')
   if (dotIndex === -1 || (slashIndex !== -1 && dotIndex > slashIndex)) {
+    // Exception: localhost is valid without a dot.
     if (!url.startsWith('localhost')) {
       return url
     }
   }
 
-  // Check if it looks like a domain.
+  // Check if it looks like a domain (no spaces or special chars at start).
   const firstChar = url.charAt(0)
   if (firstChar === ' ' || firstChar === '\t' || firstChar === '\n') {
     return url
@@ -124,10 +129,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
     }
   }
 
-  // Step 3: Add protocol if missing.
+  // Step 3: Add protocol if missing (handles both // and bare domains).
   processed = addMissingProtocol(processed)
 
-  // Step 4: Validate using URL constructor.
+  // Step 4: Normalize using native URL constructor.
   try {
     const parsed = new URL(processed)
 
@@ -142,7 +147,21 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   }
 }
 
-import type { NormalizeOptions } from './types.js'
+// Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
+const decodeAndNormalizeEncoding = (str: string): string => {
+  return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
+    const charCode = Number.parseInt(hex, 16)
+    const char = String.fromCharCode(charCode)
+
+    // Decode if it's a safe character that doesn't need encoding.
+    if (safePathChars.test(char)) {
+      return char
+    }
+
+    // Keep encoded but normalize to uppercase.
+    return `%${hex.toUpperCase()}`
+  })
+}
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
   try {
@@ -223,8 +242,8 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 
     parsed.pathname = pathname
 
-    // Strip tracking parameters.
-    if (options.strippedParams && options.strippedParams.length > 0) {
+    // Remove tracking/specified parameters.
+    if (options.strippedParams) {
       for (const param of options.strippedParams) {
         parsed.searchParams.delete(param)
       }

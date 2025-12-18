@@ -6,6 +6,7 @@ import type { ParserAdapter } from './types.js'
 const createMockParser = (selfUrl: string | undefined): ParserAdapter<string> => ({
   parse: (body: string) => body,
   getSelfUrl: () => selfUrl,
+  getSignature: (parsed: string) => ({ content: parsed }),
 })
 
 describe('canonicalize', () => {
