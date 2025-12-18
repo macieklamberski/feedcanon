@@ -1,30 +1,70 @@
 {
   "name": "feedcanon",
-  "version": "0.1.0",
   "description": "Canonical URL selection for web feeds.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/macieklamberski/feedcanon.git"
+  },
+  "homepage": "https://feedcanon.dev",
+  "bugs": {
+    "url": "https://github.com/macieklamberski/feedcanon/issues"
+  },
   "license": "MIT",
   "author": "Maciej Lamberski",
+  "sideEffects": false,
+  "keywords": [
+    "rss",
+    "atom",
+    "feed",
+    "canonical",
+    "url",
+    "normalize",
+    "dedupe"
+  ],
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./defaults": {
+      "import": {
+        "types": "./dist/defaults.d.ts",
+        "default": "./dist/defaults.js"
+      },
+      "require": {
+        "types": "./dist/defaults.d.cts",
+        "default": "./dist/defaults.cjs"
+      }
+    },
+    "./adapters": {
+      "import": {
+        "types": "./dist/adapters.d.ts",
+        "default": "./dist/adapters.js"
+      },
+      "require": {
+        "types": "./dist/adapters.d.cts",
+        "default": "./dist/adapters.cjs"
+      }
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "test": "bun test",
-    "lint": "biome check .",
-    "format": "biome format --write ."
+    "prepare": "lefthook install",
+    "build": "tsdown src/index.ts src/defaults.ts src/adapters.ts --format cjs,esm --dts --clean --unbundle --no-fixed-extension"
   },
+  "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/bun": "^1.1.14",
-    "typescript": "^5.7.2"
+    "@types/bun": "^1.3.4",
+    "kvalita": "1.8.0",
+    "tsdown": "^0.17.2"
   }
 }
