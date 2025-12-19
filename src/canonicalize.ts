@@ -1,6 +1,6 @@
-import { defaultHashFn, defaultTiers, defaultVerifyFn } from './defaults.js'
-import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
-import { defaultFetchFn, normalizeUrl, resolveUrl } from './utils.js'
+import { defaultHashFn, defaultPlatforms, defaultTiers, defaultVerifyFn } from './defaults.js'
+import type { CanonicalizeOptions, CanonicalizeReason, CanonicalizeResult } from './types.js'
+import { applyPlatformHandlers, defaultFetchFn, normalizeUrl, resolveUrl } from './utils.js'
 
 export const canonicalize = async <T>(
   inputUrl: string,
@@ -10,29 +10,33 @@ export const canonicalize = async <T>(
     fetchFn = defaultFetchFn,
     verifyFn = defaultVerifyFn,
     hashFn = defaultHashFn,
+    existsFn,
     parser,
     tiers = defaultTiers,
-    existsFn,
+    platforms = defaultPlatforms,
   } = options ?? {}
 
   // Phase 1: Initial Fetch.
+  // Apply platform handlers to convert aliases to canonical domains before fetching.
+  const platformizedInputUrl = applyPlatformHandlers(inputUrl, platforms)
   let response: Awaited<ReturnType<typeof fetchFn>>
 
   try {
-    response = await fetchFn(inputUrl)
+    response = await fetchFn(platformizedInputUrl)
   } catch {
-    return { url: inputUrl, reason: 'fetch_failed' }
+    return { url: platformizedInputUrl, reason: 'fetch_failed' }
   }
 
   if (response.status < 200 || response.status >= 300) {
-    return { url: inputUrl, reason: 'fetch_failed' }
+    return { url: platformizedInputUrl, reason: 'fetch_failed' }
   }
 
-  const responseUrl = response.url
+  // Apply platform handlers to responseUrl (in case of redirects to an alias).
+  const responseUrl = applyPlatformHandlers(response.url, platforms)
   const responseBody = response.body
   const responseHash = responseBody ? await hashFn(responseBody) : undefined
 
-  // Phase 2: Extract and Normalize Self URL.
+  // Phase 2: Extract and normalize self URL.
   let selfUrl: string | undefined
 
   if (parser) {
@@ -45,17 +49,21 @@ export const canonicalize = async <T>(
         const resolved = resolveUrl(rawSelfUrl, responseUrl)
 
         if (resolved) {
-          const isVerified = await verifyFn(resolved)
+          // Apply platform handlers to convert selfUrl aliases to canonical domains.
+          const platformizedSelfUrl = applyPlatformHandlers(resolved, platforms)
+          const isVerified = await verifyFn(platformizedSelfUrl)
 
           if (isVerified) {
-            selfUrl = resolved
+            selfUrl = platformizedSelfUrl
           }
         }
       }
     }
   }
 
-  // Phase 3: Validate Self URL.
+  // Phase 3: Validate self URL.
+  // TODO: Collect all working aliases (e.g., original selfUrl before redirect) for potential
+  // return alongside the canonical URL. This would help callers build alias → canonical mappings.
   let variantSource = responseUrl
 
   if (selfUrl && selfUrl !== responseUrl && responseHash) {
@@ -66,8 +74,8 @@ export const canonicalize = async <T>(
         const selfHash = selfResponse.body ? await hashFn(selfResponse.body) : undefined
 
         if (selfHash === responseHash) {
-          // selfUrl is valid - use it as source for variants.
-          variantSource = selfUrl
+          // selfUrl is valid - use destination URL (after redirects) as source for variants.
+          variantSource = applyPlatformHandlers(selfResponse.url, platforms)
         }
       }
     } catch {
@@ -79,10 +87,18 @@ export const canonicalize = async <T>(
   }
 
   // Phase 4: Generate Variants.
-  const variants = new Set(tiers.map((tier) => normalizeUrl(variantSource, tier)))
+  // Apply platform handlers to each variant to normalize platform aliases.
+  const variants = new Set(
+    tiers.map((tier) => {
+      return applyPlatformHandlers(normalizeUrl(variantSource, tier), platforms)
+    }),
+  )
   variants.add(variantSource)
 
   // Phase 5: Test Variants (in tier order, first match wins).
+  let winningUrl = variantSource
+  let winningReason: CanonicalizeReason = 'fallback'
+
   for (const variant of variants) {
     // Check if variant exists in database.
     if (existsFn) {
@@ -100,7 +116,9 @@ export const canonicalize = async <T>(
 
     // Skip if same as responseUrl (already known to work).
     if (variant === responseUrl) {
-      return { url: responseUrl, reason: 'content_verified' }
+      winningUrl = responseUrl
+      winningReason = 'content_verified'
+      break
     }
 
     // Verify URL is safe.
@@ -120,16 +138,18 @@ export const canonicalize = async <T>(
       const variantHash = variantResponse.body ? await hashFn(variantResponse.body) : undefined
 
       if (responseHash && variantHash === responseHash) {
-        return { url: variant, reason: 'content_verified' }
+        winningUrl = variant
+        winningReason = 'content_verified'
+        break
       }
     } catch {
       // Variant fetch failed, try next.
     }
   }
 
-  // Phase 6: HTTPS Upgrade.
-  if (variantSource.startsWith('http://')) {
-    const httpsUrl = variantSource.replace('http://', 'https://')
+  // Phase 6: HTTPS Upgrade on winning URL.
+  if (winningUrl.startsWith('http://')) {
+    const httpsUrl = winningUrl.replace('http://', 'https://')
     const isHttpsVerified = await verifyFn(httpsUrl)
 
     if (isHttpsVerified) {
@@ -149,6 +169,5 @@ export const canonicalize = async <T>(
     }
   }
 
-  // Fallback: Return variantSource.
-  return { url: variantSource, reason: 'fallback' }
+  return { url: winningUrl, reason: winningReason }
 }

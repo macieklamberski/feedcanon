@@ -1,6 +1,6 @@
 import { domainToASCII } from 'node:url'
 import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
-import type { FetchFn, NormalizeOptions } from './types.js'
+import type { FetchFn, PlatformHandler } from './types.js'
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
@@ -147,8 +147,8 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   }
 }
 
-// Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
 const decodeAndNormalizeEncoding = (str: string): string => {
+  // Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
   return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
     const charCode = Number.parseInt(hex, 16)
     const char = String.fromCharCode(charCode)
@@ -165,18 +165,7 @@ const decodeAndNormalizeEncoding = (str: string): string => {
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
   try {
-    let parsed = new URL(url)
-
-    // Platform-specific normalization (e.g., FeedBurner domain aliasing).
-    // Run early because handlers may change hostname/query params.
-    if (options.platforms) {
-      for (const handler of options.platforms) {
-        if (handler.match(parsed)) {
-          parsed = handler.normalize(parsed)
-          break
-        }
-      }
-    }
+    const parsed = new URL(url)
 
     // Unicode normalization.
     if (options.normalizeUnicode) {
@@ -287,7 +276,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 export const isSimilarUrl = (
   url1: string,
   url2: string,
-  options: NormalizeOptions = defaultNormalizeOptions,
+  options = defaultNormalizeOptions,
 ): boolean => {
   return normalizeUrl(url1, options) === normalizeUrl(url2, options)
 }
@@ -303,5 +292,23 @@ export const defaultFetchFn: FetchFn = async (url, options) => {
     body: await response.text(),
     url: response.url,
     status: response.status,
+  }
+}
+
+// Apply platform handlers to a URL (e.g., FeedBurner domain normalization).
+export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHandler>): string => {
+  try {
+    let parsed = new URL(url)
+
+    for (const handler of platforms) {
+      if (handler.match(parsed)) {
+        parsed = handler.normalize(parsed)
+        break
+      }
+    }
+
+    return parsed.href
+  } catch {
+    return url
   }
 }

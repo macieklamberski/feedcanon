@@ -172,7 +172,6 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   lowercaseHostname: true,
   normalizeUnicode: true,
   convertToPunycode: true,
-  platforms: defaultPlatforms,
 }
 
 export const defaultEquivalentMethods: EquivalentMethods = {
@@ -202,7 +201,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
     lowercaseHostname: true,
     normalizeUnicode: true,
     convertToPunycode: true,
-    platforms: defaultPlatforms,
   },
   // Tier 2: Keep www, strip trailing slash.
   {
@@ -222,7 +220,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
     lowercaseHostname: true,
     normalizeUnicode: true,
     convertToPunycode: true,
-    platforms: defaultPlatforms,
   },
   // Tier 3: Keep www and trailing slash.
   {
@@ -242,7 +239,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
     lowercaseHostname: true,
     normalizeUnicode: true,
     convertToPunycode: true,
-    platforms: defaultPlatforms,
   },
 ]
 
