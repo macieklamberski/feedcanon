@@ -5,6 +5,12 @@ export type ParserAdapter<T> = {
   getSignature: (parsed: T) => object
 }
 
+// Platform handler for URL normalization (e.g., FeedBurner domain aliasing).
+export type PlatformHandler = {
+  match: (url: URL) => boolean
+  normalize: (url: URL) => URL
+}
+
 // URL normalization options.
 export type NormalizeOptions = {
   protocol?: boolean // strip protocol (http ↔ https treated same)
@@ -23,6 +29,7 @@ export type NormalizeOptions = {
   case?: boolean // lowercase hostname
   unicode?: boolean // NFC normalization
   punycode?: boolean // IDNA/Punycode normalization
+  platforms?: Array<PlatformHandler> | false // platform-specific normalization (false to disable)
 }
 
 // Methods configuration for canonicalize.
