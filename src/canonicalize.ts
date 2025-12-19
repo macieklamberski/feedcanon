@@ -1,21 +1,22 @@
 import {
   defaultCanonicalizeMethods,
-  defaultFetchFn,
   defaultHashFn,
   defaultVerifyFn,
 } from './defaults.js'
 import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
-import { isSimilarUrl, resolveUrl } from './utils.js'
+import { defaultFetchFn, isSimilarUrl, resolveUrl } from './utils.js'
 
 export const canonicalize = async <T>(
   url: string,
   options?: CanonicalizeOptions<T>,
 ): Promise<CanonicalizeResult> => {
-  const methods = options?.methods ?? defaultCanonicalizeMethods
-  const fetchFn = options?.fetchFn ?? defaultFetchFn
-  const verifyFn = options?.verifyFn ?? defaultVerifyFn
-  const hashFn = options?.hashFn ?? defaultHashFn
-  const parser = options?.parser
+  const {
+    methods = defaultCanonicalizeMethods,
+    fetchFn = defaultFetchFn,
+    verifyFn = defaultVerifyFn,
+    hashFn = defaultHashFn,
+    parser,
+  } = options ?? {}
 
   // Step 1: Fetch the input URL.
   let response: Awaited<ReturnType<typeof fetchFn>>

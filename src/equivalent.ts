@@ -1,22 +1,23 @@
 import {
   defaultEquivalentMethods,
-  defaultFetchFn,
   defaultHashFn,
   defaultVerifyFn,
 } from './defaults.js'
 import type { EquivalentOptions, EquivalentResult, FetchFnResponse } from './types.js'
-import { isSimilarUrl } from './utils.js'
+import { defaultFetchFn, isSimilarUrl } from './utils.js'
 
 export const areEquivalent = async <T>(
   url1: string,
   url2: string,
   options?: EquivalentOptions<T>,
 ): Promise<EquivalentResult> => {
-  const methods = options?.methods ?? defaultEquivalentMethods
-  const fetchFn = options?.fetchFn ?? defaultFetchFn
-  const verifyFn = options?.verifyFn ?? defaultVerifyFn
-  const hashFn = options?.hashFn ?? defaultHashFn
-  const parser = options?.parser
+  const {
+    methods = defaultEquivalentMethods,
+    fetchFn = defaultFetchFn,
+    verifyFn = defaultVerifyFn,
+    hashFn = defaultHashFn,
+    parser,
+  } = options ?? {}
 
   // Method 1: Normalize (URL normalization).
   if (methods.normalize) {

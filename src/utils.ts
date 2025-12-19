@@ -1,6 +1,20 @@
 import { domainToASCII } from 'node:url'
 import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions } from './types.js'
+import type { FetchFn, NormalizeOptions } from './types.js'
+
+export const defaultFetchFn: FetchFn = async (url, options) => {
+  const response = await fetch(url, {
+    method: options?.method ?? 'GET',
+    headers: options?.headers,
+  })
+
+  return {
+    headers: response.headers,
+    body: await response.text(),
+    url: response.url,
+    status: response.status,
+  }
+}
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 

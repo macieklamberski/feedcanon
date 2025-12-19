@@ -7,8 +7,8 @@ export type ParserAdapter<T> = {
 
 // URL normalization options.
 export type NormalizeOptions = {
-  protocol?: boolean // http ↔ https
-  authentication?: boolean // strip user:pass@
+  protocol?: boolean // strip protocol (http ↔ https treated same)
+  authentication?: boolean // strip user:pass@ (default: false - keep auth)
   www?: boolean // www ↔ non-www
   port?: boolean // strip default ports (:80, :443)
   trailingSlash?: boolean // /feed/ ↔ /feed

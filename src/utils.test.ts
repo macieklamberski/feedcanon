@@ -1,13 +1,162 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions } from './types.js'
+import type { FetchFnResponse, NormalizeOptions } from './types.js'
 import {
   addMissingProtocol,
+  defaultFetchFn,
   isSimilarUrl,
   normalizeUrl,
   resolveNonStandardFeedUrl,
   resolveUrl,
 } from './utils.js'
+
+describe('defaultFetchFn', () => {
+  // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
+  const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
+    implementation: T,
+  ) => {
+    return implementation as unknown as typeof fetch
+  }
+
+  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
+
+  const createMockResponse = (partial: Partial<MockResponse>): Response => {
+    return {
+      headers: partial.headers ?? new Headers(),
+      text: partial.text ?? (async () => ''),
+      url: partial.url ?? '',
+      status: partial.status ?? 200,
+    } as Response
+  }
+
+  const fetchSpy = spyOn(globalThis, 'fetch')
+
+  afterEach(() => {
+    fetchSpy.mockReset()
+  })
+
+  it('should call native fetch with correct URL', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async (url: string) => {
+        return createMockResponse({
+          url,
+          text: async () => 'response body',
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.url).toBe('https://example.com/feed.xml')
+  })
+
+  it('should default to GET method when not specified', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock(async (_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(capturedOptions?.method).toBe('GET')
+  })
+
+  it('should use specified method from options', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock(async (_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetchFn('https://example.com/feed.xml', { method: 'HEAD' })
+
+    expect(capturedOptions?.method).toBe('HEAD')
+  })
+
+  it('should pass headers to fetch', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock(async (_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetchFn('https://example.com/feed.xml', {
+      headers: { 'X-Custom': 'value' },
+    })
+
+    expect(capturedOptions?.headers).toEqual({ 'X-Custom': 'value' })
+  })
+
+  it('should return response with correct structure', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          headers: new Headers({ 'content-type': 'application/rss+xml' }),
+          text: async () => 'feed content',
+          url: 'https://example.com/feed.xml',
+          status: 200,
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+    const expected: FetchFnResponse = {
+      headers: new Headers({ 'content-type': 'application/rss+xml' }),
+      body: 'feed content',
+      url: 'https://example.com/feed.xml',
+      status: 200,
+    }
+
+    expect(result.headers.get('content-type')).toBe(expected.headers.get('content-type'))
+    expect(result.body).toBe(expected.body)
+    expect(result.url).toBe(expected.url)
+    expect(result.status).toBe(expected.status)
+  })
+
+  it('should preserve response URL for redirect handling', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          url: 'https://redirect.example.com/feed.xml',
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.url).toBe('https://redirect.example.com/feed.xml')
+  })
+
+  it('should convert response body to text', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          text: async () => '<rss>feed content</rss>',
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.body).toBe('<rss>feed content</rss>')
+  })
+
+  it('should pass through status', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          status: 404,
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.status).toBe(404)
+  })
+})
 
 describe('resolveNonStandardFeedUrl', () => {
   it('should convert feed:// to https://', () => {
@@ -922,27 +1071,27 @@ describe('normalizeUrl', () => {
     })
   })
 
-  describe('Authentication stripping', () => {
-    it('should strip username and password by default', () => {
+  describe('Authentication handling', () => {
+    it('should preserve username and password by default', () => {
       const value = 'https://user:pass@example.com/feed'
       const result = normalizeUrl(value)
-      const expected = 'example.com/feed'
+      const expected = 'user:pass@example.com/feed'
 
       expect(result).toBe(expected)
     })
 
-    it('should strip username only by default', () => {
+    it('should preserve username only by default', () => {
       const value = 'https://user@example.com/feed'
       const result = normalizeUrl(value)
-      const expected = 'example.com/feed'
+      const expected = 'user@example.com/feed'
 
       expect(result).toBe(expected)
     })
 
-    it('should preserve authentication when authentication option is false', () => {
+    it('should strip authentication when authentication option is true', () => {
       const value = 'https://user:pass@example.com/feed'
-      const result = normalizeUrl(value, { authentication: false, protocol: false })
-      const expected = 'https://user:pass@example.com/feed'
+      const result = normalizeUrl(value, { authentication: true, protocol: false })
+      const expected = 'https://example.com/feed'
 
       expect(result).toBe(expected)
     })
@@ -1362,7 +1511,7 @@ describe('normalizeUrl', () => {
       const value =
         'https://user:pass@www.EXAMPLE.COM:443/path//to/feed/?utm_source=test&z=2&a=1#section'
       const result = normalizeUrl(value)
-      const expected = 'example.com/path/to/feed?a=1&z=2'
+      const expected = 'user:pass@example.com/path/to/feed?a=1&z=2'
 
       expect(result).toBe(expected)
     })
@@ -1908,9 +2057,18 @@ describe('isSimilarUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should match feed with auth stripped', () => {
+    it('should not match feed with different auth', () => {
       const value1 = 'https://user:pass@example.com/feed.xml'
       const value2 = 'https://example.com/feed.xml'
+      const result = isSimilarUrl(value1, value2)
+      const expected = false
+
+      expect(result).toBe(expected)
+    })
+
+    it('should match feed with same auth', () => {
+      const value1 = 'https://user:pass@example.com/feed.xml'
+      const value2 = 'https://user:pass@example.com/feed.xml'
       const result = isSimilarUrl(value1, value2)
       const expected = true
 
