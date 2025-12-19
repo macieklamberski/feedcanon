@@ -32,22 +32,17 @@ export type NormalizeOptions = {
   platforms?: Array<PlatformHandler> | false // platform-specific normalization (false to disable)
 }
 
-// Methods configuration for canonicalize.
-export type CanonicalizeMethods = {
-  normalize?: NormalizeOptions // Options for URL normalization.
-  redirects?: boolean // Check if selfUrl redirects to responseUrl.
-  responseHash?: boolean // Compare raw response content hash.
-  feedDataHash?: boolean // Compare parsed feed data hash.
-  upgradeHttps?: boolean // Try HTTPS version of HTTP selfUrl.
-}
+// Callback to check if URLs exist in database (early termination).
+export type ExistsFn = (url: string) => Promise<boolean>
 
 // Options for canonicalize function.
 export type CanonicalizeOptions<T = unknown> = {
-  methods?: CanonicalizeMethods
   parser?: ParserAdapter<T> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn
   verifyFn?: VerifyFn
   hashFn?: HashFn
+  tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
+  existsFn?: ExistsFn // Check if URLs exist in database.
 }
 
 // Result of canonicalize function.
@@ -58,19 +53,11 @@ export type CanonicalizeResult = {
 
 // Reason codes for canonicalize result.
 export type CanonicalizeReason =
-  // Early exits (no fetch needed).
-  | 'no_self_url' // selfUrl not provided.
-  | 'same_url' // selfUrl === responseUrl.
-  | 'verification_failed' // verifyFn returned false for selfUrl.
-  | 'normalize' // URLs match after normalization → selfUrl.
-  // After fetch.
-  | 'fetch_failed' // selfUrl fetch failed → responseUrl.
-  | 'redirects' // selfUrl redirects to responseUrl → responseUrl.
-  | 'response_hash' // Raw content hash matches → selfUrl.
-  | 'feed_data_hash' // Parsed feed data matches → selfUrl.
-  | 'upgrade_https' // HTTPS version works and matches → HTTPS selfUrl.
-  | 'different_content' // Content differs → responseUrl.
-  | 'fallback' // No method matched → responseUrl.
+  | 'exists_in_db' // URL exists in database (early exit via existsFn).
+  | 'content_verified' // Cleaner variant verified via content hash match.
+  | 'upgrade_https' // HTTPS version works and matches.
+  | 'fetch_failed' // Initial fetch failed.
+  | 'fallback' // No cleaner variant worked, using variantSource.
 
 // Methods configuration for areEquivalent.
 export type EquivalentMethods = {
@@ -92,7 +79,7 @@ export type EquivalentOptions<T = unknown> = {
 // Result of areEquivalent function.
 export type EquivalentResult = {
   equivalent: boolean
-  method: 'normalize' | 'redirects' | 'response_hash' | 'feed_data_hash' | null
+  method?: 'normalize' | 'redirects' | 'response_hash' | 'feed_data_hash'
 }
 
 // Options for fetch function.

@@ -26,7 +26,7 @@ export const areEquivalent = async <T>(
   const [verify1, verify2] = await Promise.all([verifyFn(url1), verifyFn(url2)])
 
   if (!verify1 || !verify2) {
-    return { equivalent: false, method: null }
+    return { equivalent: false }
   }
 
   // Fetch both URLs.
@@ -36,14 +36,14 @@ export const areEquivalent = async <T>(
   try {
     ;[response1, response2] = await Promise.all([fetchFn(url1), fetchFn(url2)])
   } catch {
-    return { equivalent: false, method: null }
+    return { equivalent: false }
   }
 
   const isOk1 = response1.status >= 200 && response1.status < 300
   const isOk2 = response2.status >= 200 && response2.status < 300
 
   if (!isOk1 || !isOk2) {
-    return { equivalent: false, method: null }
+    return { equivalent: false }
   }
 
   // Method 2: Redirects (check if URLs redirect to each other).
@@ -64,8 +64,8 @@ export const areEquivalent = async <T>(
 
   // Method 3: Response hash (compare content).
   if (methods.responseHash !== false) {
-    const hash1 = response1.body ? await hashFn(response1.body) : null
-    const hash2 = response2.body ? await hashFn(response2.body) : null
+    const hash1 = response1.body ? await hashFn(response1.body) : undefined
+    const hash2 = response2.body ? await hashFn(response2.body) : undefined
 
     if (hash1 && hash2 && hash1 === hash2) {
       return { equivalent: true, method: 'response_hash' }
@@ -89,5 +89,5 @@ export const areEquivalent = async <T>(
     }
   }
 
-  return { equivalent: false, method: null }
+  return { equivalent: false }
 }

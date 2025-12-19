@@ -1,15 +1,15 @@
 export { canonicalize } from './canonicalize.js'
-export { defaultPlatforms, defaultStrippedParams } from './defaults.js'
+export { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
 export { areEquivalent } from './equivalent.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
-  CanonicalizeMethods,
   CanonicalizeOptions,
   CanonicalizeReason,
   CanonicalizeResult,
   EquivalentMethods,
   EquivalentOptions,
   EquivalentResult,
+  ExistsFn,
   FeedData,
   FetchFn,
   FetchFnOptions,
