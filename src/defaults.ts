@@ -1,14 +1,19 @@
 import { createHash } from 'node:crypto'
+import { feedburnerHandler } from './platforms/feedburner.js'
 import type {
   CanonicalizeMethods,
   EquivalentMethods,
   HashFn,
   NormalizeOptions,
+  PlatformHandler,
   VerifyFn,
 } from './types.js'
 
 // Known feed-related protocol schemes that should be converted to https://.
 export const defaultFeedProtocols = ['feed:', 'rss:', 'pcast:', 'itpc:']
+
+// Platform handlers for domain-specific URL normalization.
+export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [
@@ -168,6 +173,7 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   case: true,
   unicode: true,
   punycode: true,
+  platforms: defaultPlatforms,
 }
 
 export const defaultEquivalentMethods: EquivalentMethods = {

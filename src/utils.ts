@@ -165,7 +165,18 @@ const decodeAndNormalizeEncoding = (str: string): string => {
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
   try {
-    const parsed = new URL(url)
+    let parsed = new URL(url)
+
+    // Platform-specific normalization (e.g., FeedBurner domain aliasing).
+    // Run early because handlers may change hostname/query params.
+    if (options.platforms) {
+      for (const handler of options.platforms) {
+        if (handler.match(parsed)) {
+          parsed = handler.normalize(parsed)
+          break
+        }
+      }
+    }
 
     // Unicode normalization.
     if (options.unicode) {
