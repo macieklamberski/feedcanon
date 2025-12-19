@@ -83,13 +83,13 @@ export const defaultStrippedParams = [
   'pk_source',
 
   // General tracking / referral.
-  'ref',
-  'ref_src',
-  'ref_url',
-  'source',
   'ncid',
   'sr_share',
-  'via',
+  // 'ref', // Too generic, often functional.
+  // 'ref_src', // Too generic, often functional.
+  // 'ref_url', // Too generic, often functional.
+  // 'source', // Too generic, often functional.
+  // 'via', // Too generic, often functional.
 
   // Hubspot.
   'hsa_acc',
