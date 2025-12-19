@@ -75,7 +75,7 @@ export const canonicalize = async <T>(
   }
 
   // Method: Redirects - Check if selfUrl redirects to responseUrl.
-  if (methods.redirects !== false) {
+  if (methods.redirects) {
     try {
       const selfResponse = await fetchFn(selfUrl)
 
@@ -85,7 +85,7 @@ export const canonicalize = async <T>(
         }
 
         // Method: Response hash - Check if content matches.
-        if (methods.responseHash !== false && responseHash) {
+        if (methods.responseHash && responseHash) {
           const selfHash = selfResponse.body ? await hashFn(selfResponse.body) : null
 
           if (selfHash && responseHash === selfHash) {
@@ -123,7 +123,7 @@ export const canonicalize = async <T>(
   }
 
   // Method: Upgrade HTTPS - Try HTTPS version of HTTP selfUrl.
-  if (methods.upgradeHttps !== false && selfUrl.startsWith('http://')) {
+  if (methods.upgradeHttps && selfUrl.startsWith('http://')) {
     const httpsUrl = selfUrl.replace('http://', 'https://')
     const isHttpsVerified = await verifyFn(httpsUrl)
 
