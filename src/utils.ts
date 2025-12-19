@@ -179,13 +179,13 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     }
 
     // Unicode normalization.
-    if (options.unicode) {
+    if (options.normalizeUnicode) {
       parsed.hostname = parsed.hostname.normalize('NFC')
       parsed.pathname = parsed.pathname.normalize('NFC')
     }
 
     // Punycode normalization (IDN to ASCII).
-    if (options.punycode) {
+    if (options.convertToPunycode) {
       const ascii = domainToASCII(parsed.hostname)
       if (ascii) {
         parsed.hostname = ascii
@@ -193,23 +193,23 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     }
 
     // Lowercase hostname.
-    if (options.case) {
+    if (options.lowercaseHostname) {
       parsed.hostname = parsed.hostname.toLowerCase()
     }
 
     // Strip authentication.
-    if (options.authentication) {
+    if (options.stripAuthentication) {
       parsed.username = ''
       parsed.password = ''
     }
 
     // Strip www prefix.
-    if (options.www && parsed.hostname.startsWith('www.')) {
+    if (options.stripWww && parsed.hostname.startsWith('www.')) {
       parsed.hostname = parsed.hostname.slice(4)
     }
 
     // Strip default ports.
-    if (options.port) {
+    if (options.stripDefaultPorts) {
       if (
         (parsed.protocol === 'https:' && parsed.port === '443') ||
         (parsed.protocol === 'http:' && parsed.port === '80')
@@ -219,12 +219,12 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     }
 
     // Strip hash/fragment.
-    if (options.hash) {
+    if (options.stripHash) {
       parsed.hash = ''
     }
 
     // Strip text fragments (Chrome's #:~:text= feature).
-    if (options.textFragment && parsed.hash.startsWith('#:~:')) {
+    if (options.stripTextFragment && parsed.hash.startsWith('#:~:')) {
       parsed.hash = ''
     }
 
@@ -232,41 +232,41 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     let pathname = parsed.pathname
 
     // Normalize percent encoding (decode unnecessarily encoded chars, uppercase hex).
-    if (options.encoding) {
+    if (options.normalizeEncoding) {
       pathname = decodeAndNormalizeEncoding(pathname)
     }
 
     // Collapse multiple slashes.
-    if (options.slashes) {
+    if (options.collapseSlashes) {
       pathname = pathname.replace(/\/+/g, '/')
     }
 
     // Handle trailing slash.
-    if (options.trailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
+    if (options.stripTrailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1)
     }
 
     // Handle single slash (root path).
-    if (options.singleSlash && pathname === '/') {
+    if (options.stripRootSlash && pathname === '/') {
       pathname = ''
     }
 
     parsed.pathname = pathname
 
     // Remove tracking/specified parameters.
-    if (options.strippedParams) {
-      for (const param of options.strippedParams) {
+    if (options.stripParams) {
+      for (const param of options.stripParams) {
         parsed.searchParams.delete(param)
       }
     }
 
     // Sort query parameters.
-    if (options.queryOrder) {
+    if (options.sortQueryParams) {
       parsed.searchParams.sort()
     }
 
     // Remove empty query string.
-    if (options.emptyQuery && parsed.search === '?') {
+    if (options.stripEmptyQuery && parsed.search === '?') {
       parsed.search = ''
     }
 
@@ -274,7 +274,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     let result = parsed.href
 
     // Strip protocol for comparison.
-    if (options.protocol) {
+    if (options.stripProtocol) {
       result = result.replace(/^https?:\/\//, '')
     }
 

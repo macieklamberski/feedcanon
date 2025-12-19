@@ -934,9 +934,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve protocol when protocol option is false', () => {
+    it('should preserve protocol when stripProtocol option is false', () => {
       const value = 'https://example.com/feed'
-      const result = normalizeUrl(value, { protocol: false })
+      const result = normalizeUrl(value, { stripProtocol: false })
       const expected = 'https://example.com/feed'
 
       expect(result).toBe(expected)
@@ -960,9 +960,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should strip authentication when authentication option is true', () => {
+    it('should strip authentication when stripAuthentication option is true', () => {
       const value = 'https://user:pass@example.com/feed'
-      const result = normalizeUrl(value, { authentication: true, protocol: false })
+      const result = normalizeUrl(value, { stripAuthentication: true, stripProtocol: false })
       const expected = 'https://example.com/feed'
 
       expect(result).toBe(expected)
@@ -978,9 +978,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve www when www option is false', () => {
+    it('should preserve www when stripWww option is false', () => {
       const value = 'https://www.example.com/feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, www: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripWww: false })
       const expected = 'www.example.com/feed'
 
       expect(result).toBe(expected)
@@ -1028,9 +1028,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should not additionally strip port when port option is false', () => {
+    it('should not additionally strip port when stripDefaultPorts option is false', () => {
       const value = 'https://example.com:8080/feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, port: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripDefaultPorts: false })
       const expected = 'example.com:8080/feed'
 
       expect(result).toBe(expected)
@@ -1062,12 +1062,12 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve trailing slash when trailingSlash option is false', () => {
+    it('should preserve trailing slash when stripTrailingSlash option is false', () => {
       const value = 'https://example.com/feed/'
       const result = normalizeUrl(value, {
         ...defaultNormalizeOptions,
-        trailingSlash: false,
-        singleSlash: false,
+        stripTrailingSlash: false,
+        stripRootSlash: false,
       })
       const expected = 'example.com/feed/'
 
@@ -1110,9 +1110,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve multiple slashes when slashes option is false', () => {
+    it('should preserve multiple slashes when collapseSlashes option is false', () => {
       const value = 'https://example.com/path//to///feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, slashes: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, collapseSlashes: false })
       const expected = 'example.com/path//to///feed'
 
       expect(result).toBe(expected)
@@ -1128,9 +1128,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve hash when hash option is false', () => {
+    it('should preserve hash when stripHash option is false', () => {
       const value = 'https://example.com/feed#section'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, hash: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripHash: false })
       const expected = 'example.com/feed#section'
 
       expect(result).toBe(expected)
@@ -1146,20 +1146,20 @@ describe('normalizeUrl', () => {
   })
 
   describe('Text fragment stripping', () => {
-    it('should strip text fragments by default when hash is false', () => {
+    it('should strip text fragments by default when stripHash is false', () => {
       const value = 'https://example.com/feed#:~:text=hello'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, hash: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripHash: false })
       const expected = 'example.com/feed'
 
       expect(result).toBe(expected)
     })
 
-    it('should preserve text fragments when textFragment option is false', () => {
+    it('should preserve text fragments when stripTextFragment option is false', () => {
       const value = 'https://example.com/feed#:~:text=hello'
       const result = normalizeUrl(value, {
         ...defaultNormalizeOptions,
-        hash: false,
-        textFragment: false,
+        stripHash: false,
+        stripTextFragment: false,
       })
       const expected = 'example.com/feed#:~:text=hello'
 
@@ -1176,9 +1176,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve query order when queryOrder option is false', () => {
+    it('should preserve query order when sortQueryParams option is false', () => {
       const value = 'https://example.com/feed?z=3&a=1&m=2'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, queryOrder: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, sortQueryParams: false })
       const expected = 'example.com/feed?z=3&a=1&m=2'
 
       expect(result).toBe(expected)
@@ -1210,9 +1210,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve tracking params when strippedParams is empty array', () => {
+    it('should preserve tracking params when stripParams is empty array', () => {
       const value = 'https://example.com/feed?utm_source=twitter&id=123'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, strippedParams: [] })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripParams: [] })
       const expected = 'example.com/feed?id=123&utm_source=twitter'
 
       expect(result).toBe(expected)
@@ -1220,7 +1220,7 @@ describe('normalizeUrl', () => {
 
     it('should use custom stripped params when array is provided', () => {
       const value = 'https://example.com/feed?custom=1&keep=2&utm_source=twitter'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, strippedParams: ['custom'] })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripParams: ['custom'] })
       const expected = 'example.com/feed?keep=2&utm_source=twitter'
 
       expect(result).toBe(expected)
@@ -1246,7 +1246,7 @@ describe('normalizeUrl', () => {
 
     it('should remove empty query (URL API normalizes it)', () => {
       const value = 'https://example.com/feed?'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, emptyQuery: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripEmptyQuery: false })
       const expected = 'example.com/feed'
 
       expect(result).toBe(expected)
@@ -1299,9 +1299,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve encoding when encoding option is false', () => {
+    it('should preserve encoding when normalizeEncoding option is false', () => {
       const value = 'https://example.com/path%2Dto%2Dfeed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, encoding: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, normalizeEncoding: false })
       const expected = 'example.com/path%2Dto%2Dfeed'
 
       expect(result).toBe(expected)
@@ -1325,9 +1325,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should skip unicode normalization when unicode option is false', () => {
+    it('should skip unicode normalization when normalizeUnicode option is false', () => {
       const value = 'https://example.com/caf\u00e9'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, unicode: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, normalizeUnicode: false })
       const expected = 'example.com/caf%C3%A9'
 
       expect(result).toBe(expected)
@@ -1351,9 +1351,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should skip punycode conversion when punycode option is false', () => {
+    it('should skip punycode conversion when convertToPunycode option is false', () => {
       const value = 'https://münchen.example.com/feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, punycode: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, convertToPunycode: false })
       const expected = 'xn--mnchen-3ya.example.com/feed'
 
       expect(result).toBe(expected)
@@ -1371,7 +1371,7 @@ describe('normalizeUrl', () => {
 
     it('should lowercase hostname (URL API always lowercases)', () => {
       const value = 'https://EXAMPLE.COM/Feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, case: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, lowercaseHostname: false })
       const expected = 'example.com/Feed'
 
       expect(result).toBe(expected)
@@ -1399,20 +1399,20 @@ describe('normalizeUrl', () => {
     it('should apply minimal normalizations when all options are false', () => {
       const value = 'https://www.example.com:8080/feed/'
       const options: NormalizeOptions = {
-        protocol: false,
-        authentication: false,
-        www: false,
-        port: false,
-        trailingSlash: false,
-        singleSlash: false,
-        slashes: false,
-        hash: false,
-        textFragment: false,
-        queryOrder: false,
-        strippedParams: [],
-        emptyQuery: false,
-        unicode: false,
-        case: false,
+        stripProtocol: false,
+        stripAuthentication: false,
+        stripWww: false,
+        stripDefaultPorts: false,
+        stripTrailingSlash: false,
+        stripRootSlash: false,
+        collapseSlashes: false,
+        stripHash: false,
+        stripTextFragment: false,
+        sortQueryParams: false,
+        stripParams: [],
+        stripEmptyQuery: false,
+        normalizeUnicode: false,
+        lowercaseHostname: false,
       }
       const result = normalizeUrl(value, options)
       const expected = 'https://www.example.com:8080/feed/'
@@ -1528,7 +1528,7 @@ describe('normalizeUrl', () => {
 
     it('should handle hash with special characters', () => {
       const value = 'https://example.com/feed#section/sub?param=1'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, hash: false })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripHash: false })
       const expected = 'example.com/feed#section/sub?param=1'
 
       expect(result).toBe(expected)
@@ -1615,10 +1615,13 @@ describe('isSimilarUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should return false for protocol difference when protocol option is false', () => {
+    it('should return false for protocol difference when stripProtocol option is false', () => {
       const value1 = 'http://example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2, { ...defaultNormalizeOptions, protocol: false })
+      const result = isSimilarUrl(value1, value2, {
+        ...defaultNormalizeOptions,
+        stripProtocol: false,
+      })
       const expected = false
 
       expect(result).toBe(expected)
@@ -1635,10 +1638,10 @@ describe('isSimilarUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should return false for www difference when www option is false', () => {
+    it('should return false for www difference when stripWww option is false', () => {
       const value1 = 'https://www.example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2, { ...defaultNormalizeOptions, www: false })
+      const result = isSimilarUrl(value1, value2, { ...defaultNormalizeOptions, stripWww: false })
       const expected = false
 
       expect(result).toBe(expected)
@@ -1655,13 +1658,13 @@ describe('isSimilarUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should return false for trailing slash difference when trailingSlash option is false', () => {
+    it('should return false for trailing slash difference when stripTrailingSlash option is false', () => {
       const value1 = 'https://example.com/feed/'
       const value2 = 'https://example.com/feed'
       const result = isSimilarUrl(value1, value2, {
         ...defaultNormalizeOptions,
-        trailingSlash: false,
-        singleSlash: false,
+        stripTrailingSlash: false,
+        stripRootSlash: false,
       })
       const expected = false
 
