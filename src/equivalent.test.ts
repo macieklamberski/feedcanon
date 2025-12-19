@@ -21,7 +21,7 @@ describe('areEquivalent', () => {
         methods: { normalize: defaultNormalizeOptions, redirects: false, responseHash: false },
       }
       const result = await areEquivalent(url1, url2, options)
-      const expected = { equivalent: false, method: null }
+      const expected = { equivalent: false }
 
       expect(result).toEqual(expected)
     })
@@ -124,7 +124,7 @@ describe('areEquivalent', () => {
         },
       }
       const result = await areEquivalent(url1, url2, options)
-      const expected = { equivalent: false, method: null }
+      const expected = { equivalent: false }
 
       expect(result).toEqual(expected)
     })
@@ -146,7 +146,7 @@ describe('areEquivalent', () => {
         },
       }
       const result = await areEquivalent(url1, url2, options)
-      const expected = { equivalent: false, method: null }
+      const expected = { equivalent: false }
 
       expect(result).toEqual(expected)
     })
@@ -163,7 +163,7 @@ describe('areEquivalent', () => {
         },
       }
       const result = await areEquivalent(url1, url2, options)
-      const expected = { equivalent: false, method: null }
+      const expected = { equivalent: false }
 
       expect(result).toEqual(expected)
     })
@@ -180,7 +180,7 @@ describe('areEquivalent', () => {
         },
       }
       const result = await areEquivalent(url1, url2, options)
-      const expected = { equivalent: false, method: null }
+      const expected = { equivalent: false }
 
       expect(result).toEqual(expected)
     })
@@ -200,7 +200,7 @@ describe('areEquivalent', () => {
         },
       }
       const result = await areEquivalent(url1, url2, options)
-      const expected = { equivalent: false, method: null }
+      const expected = { equivalent: false }
 
       expect(result).toEqual(expected)
     })

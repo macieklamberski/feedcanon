@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { feedburnerHandler } from './platforms/feedburner.js'
 import type {
-  CanonicalizeMethods,
   EquivalentMethods,
   HashFn,
   NormalizeOptions,
@@ -183,13 +182,69 @@ export const defaultEquivalentMethods: EquivalentMethods = {
   feedDataHash: false,
 }
 
-export const defaultCanonicalizeMethods: CanonicalizeMethods = {
-  normalize: defaultNormalizeOptions,
-  redirects: true,
-  responseHash: true,
-  feedDataHash: false,
-  upgradeHttps: false,
-}
+// Normalization tiers ordered from cleanest to least clean.
+export const defaultTiers: Array<NormalizeOptions> = [
+  // Tier 1: Most aggressive - strip www, trailing slash, tracking params.
+  {
+    protocol: false,
+    authentication: false,
+    www: true,
+    port: true,
+    trailingSlash: true,
+    singleSlash: true,
+    slashes: true,
+    hash: true,
+    textFragment: true,
+    queryOrder: true,
+    strippedParams: defaultStrippedParams,
+    emptyQuery: true,
+    encoding: true,
+    case: true,
+    unicode: true,
+    punycode: true,
+    platforms: defaultPlatforms,
+  },
+  // Tier 2: Keep www, strip trailing slash.
+  {
+    protocol: false,
+    authentication: false,
+    www: false,
+    port: true,
+    trailingSlash: true,
+    singleSlash: true,
+    slashes: true,
+    hash: true,
+    textFragment: true,
+    queryOrder: true,
+    strippedParams: defaultStrippedParams,
+    emptyQuery: true,
+    encoding: true,
+    case: true,
+    unicode: true,
+    punycode: true,
+    platforms: defaultPlatforms,
+  },
+  // Tier 3: Keep www and trailing slash.
+  {
+    protocol: false,
+    authentication: false,
+    www: false,
+    port: true,
+    trailingSlash: false,
+    singleSlash: true,
+    slashes: true,
+    hash: true,
+    textFragment: true,
+    queryOrder: true,
+    strippedParams: defaultStrippedParams,
+    emptyQuery: true,
+    encoding: true,
+    case: true,
+    unicode: true,
+    punycode: true,
+    platforms: defaultPlatforms,
+  },
+]
 
 export const defaultVerifyFn: VerifyFn = () => {
   return true
