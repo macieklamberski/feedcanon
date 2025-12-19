@@ -23,7 +23,7 @@ export type NormalizeOptions = {
   stripHash?: boolean // strip #fragment
   stripTextFragment?: boolean // strip #:~:text=
   sortQueryParams?: boolean // sort query params alphabetically
-  stripParams?: Array<string> // params to strip
+  stripQueryParams?: Array<string> // query params to strip
   stripEmptyQuery?: boolean // /feed? → /feed
   normalizeEncoding?: boolean // normalize %XX encoding
   lowercaseHostname?: boolean // lowercase hostname
@@ -38,26 +38,12 @@ export type ExistsFn = (url: string) => Promise<boolean>
 export type CanonicalizeOptions<T = unknown> = {
   parser?: ParserAdapter<T> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn
-  verifyFn?: VerifyFn
+  verifyUrlFn?: VerifyUrlFn
   hashFn?: HashFn
   existsFn?: ExistsFn // Check if URLs exist in database.
   tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
 }
-
-// Result of canonicalize function.
-export type CanonicalizeResult = {
-  url: string
-  reason: CanonicalizeReason
-}
-
-// Reason codes for canonicalize result.
-export type CanonicalizeReason =
-  | 'exists_in_db' // URL exists in database (early exit via existsFn).
-  | 'content_verified' // Cleaner variant verified via content hash match.
-  | 'upgrade_https' // HTTPS version works and matches.
-  | 'fetch_failed' // Initial fetch failed.
-  | 'fallback' // No cleaner variant worked, using variantSource.
 
 // Methods configuration for areEquivalent.
 export type EquivalentMethods = {
@@ -72,7 +58,7 @@ export type EquivalentOptions<T = unknown> = {
   methods?: EquivalentMethods
   parser?: ParserAdapter<T>
   fetchFn?: FetchFn
-  verifyFn?: VerifyFn
+  verifyUrlFn?: VerifyUrlFn
   hashFn?: HashFn
 }
 
@@ -112,8 +98,8 @@ export type FeedData = {
   }>
 }
 
-// Verification function type.
-export type VerifyFn = (url: string) => boolean | Promise<boolean>
+// URL validation function type.
+export type VerifyUrlFn = (url: string) => boolean | Promise<boolean>
 
 // Hash function type.
 export type HashFn = (content: string) => string | Promise<string>

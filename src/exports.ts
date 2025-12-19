@@ -4,8 +4,6 @@ export { areEquivalent } from './equivalent.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
   CanonicalizeOptions,
-  CanonicalizeReason,
-  CanonicalizeResult,
   EquivalentMethods,
   EquivalentOptions,
   EquivalentResult,
@@ -18,12 +16,12 @@ export type {
   NormalizeOptions,
   ParserAdapter,
   PlatformHandler,
-  VerifyFn,
+  VerifyUrlFn,
 } from './types.js'
 export {
   addMissingProtocol,
   isSimilarUrl,
   normalizeUrl,
-  resolveNonStandardFeedUrl,
+  resolveFeedProtocol,
   resolveUrl,
 } from './utils.js'

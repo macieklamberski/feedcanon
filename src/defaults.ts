@@ -5,7 +5,7 @@ import type {
   HashFn,
   NormalizeOptions,
   PlatformHandler,
-  VerifyFn,
+  VerifyUrlFn,
 } from './types.js'
 
 // Known feed-related protocol schemes that should be converted to https://.
@@ -166,7 +166,7 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   stripHash: true,
   stripTextFragment: true,
   sortQueryParams: true,
-  stripParams: defaultStrippedParams,
+  stripQueryParams: defaultStrippedParams,
   stripEmptyQuery: true,
   normalizeEncoding: true,
   lowercaseHostname: true,
@@ -195,7 +195,7 @@ export const defaultTiers: Array<NormalizeOptions> = [
     stripHash: true,
     stripTextFragment: true,
     sortQueryParams: true,
-    stripParams: defaultStrippedParams,
+    stripQueryParams: defaultStrippedParams,
     stripEmptyQuery: true,
     normalizeEncoding: true,
     lowercaseHostname: true,
@@ -214,7 +214,7 @@ export const defaultTiers: Array<NormalizeOptions> = [
     stripHash: true,
     stripTextFragment: true,
     sortQueryParams: true,
-    stripParams: defaultStrippedParams,
+    stripQueryParams: defaultStrippedParams,
     stripEmptyQuery: true,
     normalizeEncoding: true,
     lowercaseHostname: true,
@@ -233,7 +233,7 @@ export const defaultTiers: Array<NormalizeOptions> = [
     stripHash: true,
     stripTextFragment: true,
     sortQueryParams: true,
-    stripParams: defaultStrippedParams,
+    stripQueryParams: defaultStrippedParams,
     stripEmptyQuery: true,
     normalizeEncoding: true,
     lowercaseHostname: true,
@@ -242,7 +242,7 @@ export const defaultTiers: Array<NormalizeOptions> = [
   },
 ]
 
-export const defaultVerifyFn: VerifyFn = () => {
+export const defaultVerifyUrlFn: VerifyUrlFn = () => {
   return true
 }
 

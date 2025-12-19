@@ -56,13 +56,13 @@ describe('canonicalize', () => {
         options,
       )
 
-      expect(result.url).toBe('https://feeds.feedburner.com/TechCrunch')
+      expect(result).toBe('https://feeds.feedburner.com/TechCrunch')
     })
 
     // Case 2: Polluted URL That Works Simplified
     //
     // Input: http://www.example.com/feed/?utm_source=twitter&utm_medium=social&ref=sidebar#comments
-    // Result: https://example.com/feed (reason: content_verified)
+    // Result: https://example.com/feed
     //
     // URLs with tracking params (utm_source, utm_medium), www prefix, and trailing
     // slashes can often be simplified. The algorithm generates cleaner variants,
@@ -81,13 +81,13 @@ describe('canonicalize', () => {
         options,
       )
 
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'upgrade_https' })
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 3: Polluted URL with Working Self URL
     //
     // Input: http://www.blog.example.com/rss.xml?source=homepage&_=1702934567
-    // Result: https://blog.example.com/rss.xml (reason: content_verified)
+    // Result: https://blog.example.com/rss.xml
     //
     // When the feed declares a self URL that is cleaner than the input URL (e.g.,
     // HTTPS instead of HTTP, no www, no query params), the algorithm validates the
@@ -106,14 +106,14 @@ describe('canonicalize', () => {
         options,
       )
 
-      expect(result).toEqual({ url: 'https://blog.example.com/rss.xml', reason: 'fallback' })
+      expect(result).toBe('https://blog.example.com/rss.xml')
     })
 
     // Case 4: Self URL Does Not Work
     //
     // Input: https://example.com/feed
     // Self URL: https://old.example.com/feed (outdated, server moved)
-    // Result: https://example.com/feed (reason: response_url)
+    // Result: https://example.com/feed
     //
     // When a feed declares a self URL pointing to an outdated or dead domain, the
     // algorithm detects the self URL fails (404, timeout) and falls back to using
@@ -129,14 +129,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 5: Self URL Produces Different Feed
     //
     // Input: https://example.com/feed
     // Self URL: https://example.com/feed/full (misconfigured, points to full-text variant)
-    // Result: https://example.com/feed (reason: response_url)
+    // Result: https://example.com/feed
     //
     // When a publisher misconfigures their self URL to point to a different feed
     // variant (e.g., full-text vs summary), the algorithm detects the content
@@ -151,14 +151,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 6: Input URL Redirects
     //
     // Input: http://old-blog.example.com/rss
     // Redirects: 301 → https://blog.example.com/feed
-    // Result: https://blog.example.com/feed (reason: response_url)
+    // Result: https://blog.example.com/feed
     //
     // When fetching the input URL results in redirects (301, 302), the algorithm
     // follows them and uses the final destination URL as the canonical. The
@@ -176,13 +176,13 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('http://old-blog.example.com/rss', options)
 
-      expect(result.url).toBe('https://blog.example.com/feed')
+      expect(result).toBe('https://blog.example.com/feed')
     })
 
     // Case 7: HTTPS Upgrade Success
     //
     // Input: http://example.com/feed
-    // Result: https://example.com/feed (reason: content_verified)
+    // Result: https://example.com/feed
     //
     // When the input URL uses HTTP but the server also supports HTTPS (returning
     // the same content), the algorithm upgrades to HTTPS. This provides security
@@ -197,13 +197,13 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('http://example.com/feed', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'upgrade_https' })
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 8: HTTPS Upgrade Failure
     //
     // Input: http://legacy.example.com/feed.rss
-    // Result: http://legacy.example.com/feed.rss (reason: fallback)
+    // Result: http://legacy.example.com/feed.rss
     //
     // When the server doesn't support HTTPS (connection refused, SSL error, timeout),
     // the algorithm gracefully falls back to HTTP. This handles legacy servers that
@@ -218,14 +218,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('http://legacy.example.com/feed.rss', options)
 
-      expect(result).toEqual({ url: 'http://legacy.example.com/feed.rss', reason: 'fallback' })
+      expect(result).toBe('http://legacy.example.com/feed.rss')
     })
 
     // Case 9: WWW vs Non-WWW Mismatch
     //
     // Input: https://www.example.com/feed
     // Self URL: https://example.com/feed (no www)
-    // Result: https://example.com/feed (reason: content_verified)
+    // Result: https://example.com/feed
     //
     // When input has www but self URL doesn't (or vice versa), the algorithm prefers
     // non-www as it's shorter/cleaner. It verifies the non-www variant returns the
@@ -241,14 +241,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://www.example.com/feed', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'fallback' })
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 10: Feed Protocol (feed://)
     //
     // Input: https://example.com/rss.xml
     // Self URL: feed://example.com/rss.xml
-    // Result: https://example.com/rss.xml (reason: response_url)
+    // Result: https://example.com/rss.xml
     //
     // URLs using feed:// (or rss://, pcast://, itpc://) protocols are converted to
     // https:// before fetching. These legacy protocols were used for feed reader
@@ -263,7 +263,7 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/rss.xml', options)
 
-      expect(result.url).toBe('https://example.com/rss.xml')
+      expect(result).toBe('https://example.com/rss.xml')
     })
 
     // Case 11: Multiple FeedBurner Aliases
@@ -303,16 +303,16 @@ describe('canonicalize', () => {
       const resultC = await canonicalize('https://feeds.feedburner.com/blog?format=xml', optionsC)
 
       // All three aliases normalize to the same canonical URL.
-      expect(resultA.url).toBe('https://feeds.feedburner.com/blog')
-      expect(resultB.url).toBe('https://feeds.feedburner.com/blog')
-      expect(resultC.url).toBe('https://feeds.feedburner.com/blog')
+      expect(resultA).toBe('https://feeds.feedburner.com/blog')
+      expect(resultB).toBe('https://feeds.feedburner.com/blog')
+      expect(resultC).toBe('https://feeds.feedburner.com/blog')
     })
 
     // Case 12: Relative Self URL
     //
     // Input: https://example.com/blog/feed.xml
     // Self URL: feed.xml (relative)
-    // Result: https://example.com/blog/feed.xml (reason: response_url)
+    // Result: https://example.com/blog/feed.xml
     //
     // Some feeds declare relative self URLs (e.g., "feed.xml" instead of full URL).
     // The algorithm resolves these relative URLs against the response URL base
@@ -327,14 +327,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/blog/feed.xml', options)
 
-      expect(result.url).toBe('https://example.com/blog/feed.xml')
+      expect(result).toBe('https://example.com/blog/feed.xml')
     })
 
     // Case 13: Self URL with Different Query Params
     //
     // Input: https://example.com/feed?format=rss
     // Self URL: https://example.com/feed?format=atom
-    // Result: https://example.com/feed?format=rss (reason: response_url)
+    // Result: https://example.com/feed?format=rss
     //
     // Some query params are functional (e.g., format=rss) and stripping them
     // changes the content. The algorithm detects this via hash comparison and
@@ -348,14 +348,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed?format=rss', options)
 
-      expect(result.url).toBe('https://example.com/feed?format=rss')
+      expect(result).toBe('https://example.com/feed?format=rss')
     })
 
     // Case 14: Empty/Missing Self URL
     //
     // Input: https://example.com/feed
     // Self URL: (none)
-    // Result: https://example.com/feed (reason: response_url)
+    // Result: https://example.com/feed
     //
     // When a feed doesn't declare a rel="self" link, the algorithm uses the
     // response URL as the sole source for generating variants. This is common
@@ -369,13 +369,13 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 15: All Variants Fail Except Original
     //
     // Input: https://special.example.com:8443/api/v2/feed.json?auth=token123
-    // Result: https://special.example.com:8443/api/v2/feed.json?auth=token123 (reason: fallback)
+    // Result: https://special.example.com:8443/api/v2/feed.json?auth=token123
     //
     // For complex URLs with non-standard ports and required auth tokens, simplified
     // variants will fail. The algorithm tries cleaner variants first but falls back
@@ -394,20 +394,18 @@ describe('canonicalize', () => {
         options,
       )
 
-      expect(result.url).toBe('https://special.example.com:8443/api/v2/feed.json?auth=token123')
-      expect(result.reason).toBe('fallback')
+      expect(result).toBe('https://special.example.com:8443/api/v2/feed.json?auth=token123')
     })
 
     // Case 16: Redirect Loop Prevention
     //
     // Input: https://example.com/feed
     // Redirect: 301 → https://example.com/rss → 301 → https://example.com/feed (loop)
-    // Result: https://example.com/feed (reason: fetch_failed)
+    // Result: undefined (fetch failed)
     //
     // When the server has a redirect loop, the fetch implementation detects it
-    // and fails. The algorithm returns the input URL as a fallback since the
-    // feed cannot be fetched successfully.
-    it('Case 16: should return input URL when fetch fails due to redirect loop', async () => {
+    // and fails. The algorithm returns undefined since the feed cannot be fetched.
+    it('Case 16: should return undefined when fetch fails due to redirect loop', async () => {
       const options = {
         fetchFn: async () => {
           throw new Error('Redirect loop detected')
@@ -415,13 +413,13 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'fetch_failed' })
+      expect(result).toBeUndefined()
     })
 
     // Case 17: Content Hash Mismatch (CDN Variation)
     //
     // Input: https://example.com/feed
-    // Result: https://example.com/feed (reason: response_url)
+    // Result: https://example.com/feed
     //
     // Some feeds include dynamic content (timestamps, request IDs) causing raw byte
     // hashes to differ between requests. When raw hash fails, a feed signature based
@@ -436,14 +434,14 @@ describe('canonicalize', () => {
       const result = await canonicalize('https://example.com/feed', options)
 
       // Content differs so variant doesn't match; falls back to response URL.
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 18: Multiple Self URLs in Feed
     //
     // Input: https://example.com/feed
     // Self URLs: https://example.com/feed, https://example.com/rss.xml, https://www.example.com/feed
-    // Result: https://example.com/feed (reason: response_url)
+    // Result: https://example.com/feed
     //
     // When a feed declares multiple <link rel="self"> elements, the algorithm
     // prefers the one matching the response URL for consistency. If none match,
@@ -459,14 +457,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 19: Self URL Returns HTML (Not Feed)
     //
     // Input: https://example.com/feed.xml
     // Self URL: https://example.com/blog (returns HTML, not feed)
-    // Result: https://example.com/feed.xml (reason: response_url)
+    // Result: https://example.com/feed.xml
     //
     // When a feed's self URL points to an HTML page (publisher misconfiguration),
     // the algorithm skips that variant because it's not a valid feed. It falls
@@ -483,14 +481,14 @@ describe('canonicalize', () => {
       const result = await canonicalize('https://example.com/feed.xml', options)
 
       // Hash doesn't match (HTML vs feed), so falls back to response URL.
-      expect(result.url).toBe('https://example.com/feed.xml')
+      expect(result).toBe('https://example.com/feed.xml')
     })
 
     // Case 20: Self URL Triggers Redirect Chain
     //
     // Input: https://example.com/feed
     // Self URL: https://old.example.com/rss (outdated, redirects to responseUrl)
-    // Result: https://example.com/feed (reason: fallback)
+    // Result: https://example.com/feed
     //
     // When a self URL is outdated and redirects to a new location, the algorithm
     // uses the redirect destination (not the original selfUrl) as the variant source.
@@ -508,19 +506,18 @@ describe('canonicalize', () => {
       const result = await canonicalize('https://example.com/feed', options)
 
       // selfUrl redirects to responseUrl, so responseUrl becomes variantSource.
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'fallback' })
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 21: Platform Handler Canonical Is Dead
     //
     // Input: http://feedproxy.google.com/MyBlog
-    // Result: https://feeds.feedburner.com/MyBlog (reason: fetch_failed)
+    // Result: undefined (fetch failed)
     //
     // When a platform handler transforms the input URL but the canonical domain
-    // is dead (service shutdown), the algorithm returns the canonical URL with
-    // fetch_failed reason. This is a handler problem, not an algorithm problem -
-    // the handler should be updated if the canonical domain is no longer valid.
-    it('Case 21: should return canonical URL when platform canonical is dead', async () => {
+    // is dead (service shutdown), the algorithm returns undefined since the feed
+    // cannot be fetched.
+    it('Case 21: should return undefined when platform canonical is dead', async () => {
       const options = {
         fetchFn: createMockFetch({
           'https://feeds.feedburner.com/MyBlog': { status: 404 },
@@ -528,17 +525,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://feedproxy.google.com/MyBlog', options)
 
-      expect(result).toEqual({
-        url: 'https://feeds.feedburner.com/MyBlog',
-        reason: 'fetch_failed',
-      })
+      expect(result).toBeUndefined()
     })
 
     // Case 22: Case Sensitivity Mismatch
     //
     // Input: https://example.com/Blog/Feed.XML
     // Self URL: https://example.com/blog/feed.xml (lowercase)
-    // Result: https://example.com/blog/feed.xml (reason: content_verified)
+    // Result: https://example.com/blog/feed.xml
     //
     // URL paths are case-sensitive per RFC, but many servers are case-insensitive.
     // When input has mixed case but self URL is lowercase, the algorithm prefers
@@ -554,14 +548,14 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/Blog/Feed.XML', options)
 
-      expect(result.url).toBe('https://example.com/blog/feed.xml')
+      expect(result).toBe('https://example.com/blog/feed.xml')
     })
 
     // Case 23: Scheme-Relative Input
     //
     // Input: https://example.com/feed
     // Self URL: //example.com/feed (scheme-relative)
-    // Result: https://example.com/feed (reason: response_url)
+    // Result: https://example.com/feed
     //
     // Scheme-relative URLs (//host/path) lack a protocol. The algorithm defaults
     // to HTTPS when resolving, falling back to HTTP if HTTPS fails. This is rare
@@ -576,13 +570,13 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 24: Standard Port in URL
     //
     // Input: https://example.com:443/feed
-    // Result: https://example.com/feed (reason: content_verified)
+    // Result: https://example.com/feed
     //
     // Default ports (443 for HTTPS, 80 for HTTP) are redundant and should be
     // stripped during normalization. URLs with and without default port are
@@ -597,7 +591,7 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com:443/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     // Case 25: Input URL Has Credentials
@@ -625,14 +619,289 @@ describe('canonicalize', () => {
       )
 
       // Credentials stripped, URL normalized.
-      expect(result.url).toBe('https://example.com/private/feed')
+      expect(result).toBe('https://example.com/private/feed')
+    })
+  })
+
+  describe('canonicalization cases (continued)', () => {
+    // Case 26: Response Redirects to FeedBurner
+    //
+    // Input: https://example.com/feed
+    // Redirects: → https://feedproxy.google.com/ExampleBlog
+    // Result: https://feeds.feedburner.com/ExampleBlog
+    //
+    // When the input URL redirects to a FeedBurner alias, the platform handler
+    // should normalize the response URL to the canonical FeedBurner domain.
+    it('Case 26: should apply platform handler when response redirects to FeedBurner', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': {
+            body: content,
+            url: 'https://feedproxy.google.com/ExampleBlog',
+          },
+          'https://feeds.feedburner.com/ExampleBlog': { body: content },
+        }),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      expect(result).toBe('https://feeds.feedburner.com/ExampleBlog')
+    })
+
+    // Case 27: Self URL Is FeedBurner Alias
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://feedproxy.google.com/ExampleBlog
+    // Result: https://feeds.feedburner.com/ExampleBlog
+    //
+    // When a feed declares a FeedBurner alias as its self URL, the platform handler
+    // should normalize it to the canonical domain before validation.
+    it('Case 27: should apply platform handler to FeedBurner self URL', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          'https://feeds.feedburner.com/ExampleBlog': { body: content },
+        }),
+        parser: createMockParser('https://feedproxy.google.com/ExampleBlog'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      expect(result).toBe('https://feeds.feedburner.com/ExampleBlog')
+    })
+
+    // Case 28: HTTPS Returns Different Content
+    //
+    // Input: http://example.com/feed
+    // Result: http://example.com/feed
+    //
+    // When HTTPS returns different content (not a network failure), the algorithm
+    // should fall back to HTTP. This differs from Case 8 where HTTPS fails entirely.
+    // Some servers serve different feeds over HTTP vs HTTPS.
+    it('Case 28: should keep HTTP when HTTPS returns different content', async () => {
+      const options = {
+        fetchFn: createMockFetch({
+          'http://example.com/feed': { body: '<feed>http version</feed>' },
+          'https://example.com/feed': { body: '<feed>https version</feed>' },
+        }),
+      }
+      const result = await canonicalize('http://example.com/feed', options)
+
+      expect(result).toBe('http://example.com/feed')
+    })
+
+    // Case 29: Self URL Fails Verification
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://blocked.example.com/feed (blocked by verifyUrlFn)
+    // Result: https://example.com/feed
+    //
+    // When self URL fails verification (verifyUrlFn returns false), it should be
+    // ignored and the algorithm should use responseUrl for variants. This allows
+    // blocklisting specific domains or URL patterns.
+    it('Case 29: should ignore self URL when verification fails', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          'https://blocked.example.com/feed': { body: content },
+        }),
+        parser: createMockParser('https://blocked.example.com/feed'),
+        verifyUrlFn: (url: string) => {
+          return !url.includes('blocked')
+        },
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 30: Variant Matches Response URL
+    //
+    // Input: https://www.example.com/feed
+    // Self URL: https://other.example.com/feed (different domain)
+    // Result: https://www.example.com/feed
+    //
+    // When a variant matches responseUrl but not variantSource, it should set
+    // winningUrl to responseUrl and break early without extra fetching. This
+    // optimizes the common case where responseUrl is already clean.
+    it('Case 30: should use responseUrl when variant matches it', async () => {
+      const content = '<feed></feed>'
+      const fetchCalls: Array<string> = []
+      const options = {
+        fetchFn: async (url: string) => {
+          fetchCalls.push(url)
+          if (url === 'https://www.example.com/feed') {
+            return { status: 200, url, body: content, headers: new Headers() }
+          }
+          throw new Error(`Unexpected fetch: ${url}`)
+        },
+        parser: createMockParser('https://other.example.com/feed'),
+      }
+      const result = await canonicalize('https://www.example.com/feed', options)
+
+      // Should return responseUrl without extra fetches for non-matching variants.
+      expect(result).toBe('https://www.example.com/feed')
+    })
+
+    // Case 31: Parser Returns Undefined
+    //
+    // Input: https://example.com/feed
+    // Parser: Returns undefined (unparseable content)
+    // Result: https://example.com/feed
+    //
+    // When parser.parse() returns undefined (unparseable or invalid content),
+    // the algorithm should gracefully continue without a self URL, using
+    // responseUrl for variant generation.
+    it('Case 31: should handle parser returning undefined', async () => {
+      const content = '<invalid>not a feed</invalid>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+        }),
+        parser: {
+          parse: () => {
+            return undefined
+          },
+          getSelfUrl: () => {
+            return undefined
+          },
+          getSignature: () => {
+            return {}
+          },
+        },
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 32: Self URL with Fragment
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://example.com/feed#section
+    // Result: https://example.com/feed
+    //
+    // Self URL with fragment (#section) should have fragment stripped during
+    // resolution. Fragments are not sent to servers and should not be part
+    // of the canonical URL.
+    it('Case 32: should strip fragment from self URL', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+        }),
+        parser: createMockParser('https://example.com/feed#section'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 33: Self URL Protocol Differs
+    //
+    // Input: https://example.com/feed
+    // Self URL: http://example.com/feed (HTTP instead of HTTPS)
+    // Result: https://example.com/feed
+    //
+    // When self URL uses HTTP but input uses HTTPS, both protocols are considered
+    // as variants. HTTPS is preferred when content matches, providing security
+    // even when the feed declares an HTTP self URL.
+    it('Case 33: should handle self URL with different protocol', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          'http://example.com/feed': { body: content },
+        }),
+        parser: createMockParser('http://example.com/feed'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      // HTTPS input should be preferred.
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 34: All Variants Fail
+    //
+    // Input: https://www.example.com/feed/
+    // Result: https://www.example.com/feed/
+    //
+    // When all normalized variants fail (404, network error) but the original
+    // variantSource works, it should be returned as the canonical URL. This
+    // ensures we always return a working URL.
+    it('Case 34: should fall back to variantSource when all variants fail', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed/': { body: content },
+          'https://example.com/feed': { status: 404 },
+          'https://www.example.com/feed': { status: 404 },
+        }),
+      }
+      const result = await canonicalize('https://www.example.com/feed/', options)
+
+      expect(result).toBe('https://www.example.com/feed/')
+    })
+
+    // Case 35: Variant Redirects
+    //
+    // Input: https://www.example.com/feed
+    // Variant: https://example.com/feed → redirects to https://canonical.example.com/feed
+    // Result: https://example.com/feed
+    //
+    // When a variant URL redirects to a different destination, the algorithm
+    // uses the original variant URL (not the redirect destination) if content
+    // matches. This provides a stable canonical URL.
+    it('Case 35: should use variant URL even when it redirects', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed': { body: content },
+          'https://example.com/feed': {
+            body: content,
+            url: 'https://canonical.example.com/feed',
+          },
+        }),
+      }
+      const result = await canonicalize('https://www.example.com/feed', options)
+
+      // Uses the variant URL that was tested, not where it redirected.
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 36: Self URL Redirects to FeedBurner
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://old.example.com/rss → redirects to https://feedproxy.google.com/ExampleBlog
+    // Result: https://feeds.feedburner.com/ExampleBlog
+    //
+    // When selfUrl response redirects to a FeedBurner alias, the platform handler
+    // should normalize the redirect destination for variant generation. This handles
+    // feeds that have migrated to FeedBurner.
+    it('Case 36: should apply platform handler to self URL redirect destination', async () => {
+      const content = '<feed></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          'https://old.example.com/rss': {
+            body: content,
+            url: 'https://feedproxy.google.com/ExampleBlog',
+          },
+          'https://feeds.feedburner.com/ExampleBlog': { body: content },
+        }),
+        parser: createMockParser('https://old.example.com/rss'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      expect(result).toBe('https://feeds.feedburner.com/ExampleBlog')
     })
   })
 
   describe('with existsFn option', () => {
     // The existsFn allows checking if a variant already exists in the database,
     // enabling early return without additional fetch requests.
-    it('should return exists_in_db when existsFn finds match', async () => {
+    it('should return matching URL when existsFn finds match', async () => {
       const content = '<feed></feed>'
       const options = {
         fetchFn: createMockFetch({
@@ -644,7 +913,7 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://www.example.com/feed/', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'exists_in_db' })
+      expect(result).toBe('https://example.com/feed')
     })
 
     it('should check variants in tier order', async () => {
@@ -677,12 +946,36 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://www.example.com/feed/', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed', reason: 'content_verified' })
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // When existsFn returns true for a non-first variant (not the cleanest),
+    // that variant should be returned immediately without testing cleaner variants.
+    it('should return non-first variant when existsFn matches it', async () => {
+      const content = '<feed></feed>'
+      const checkedUrls: Array<string> = []
+      const options = {
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed/': { body: content },
+        }),
+        existsFn: async (url: string) => {
+          checkedUrls.push(url)
+          // Return true only for the second variant (with www).
+          return url === 'https://www.example.com/feed'
+        },
+      }
+      const result = await canonicalize('https://www.example.com/feed/', options)
+
+      // Should return the variant that existsFn matched.
+      expect(result).toBe('https://www.example.com/feed')
+      // First variant checked was the cleanest (no www), second was with www.
+      expect(checkedUrls).toContain('https://example.com/feed')
+      expect(checkedUrls).toContain('https://www.example.com/feed')
     })
   })
 
-  describe('with verifyFn option', () => {
-    // The verifyFn allows custom validation of URLs before testing, enabling
+  describe('with verifyUrlFn option', () => {
+    // The verifyUrlFn allows custom validation of URLs before testing, enabling
     // blocklisting of domains or URL patterns.
     it('should skip variants that fail verification', async () => {
       const content = '<feed></feed>'
@@ -691,13 +984,13 @@ describe('canonicalize', () => {
           'https://www.example.com/feed': { body: content },
           'https://example.com/feed': { body: content },
         }),
-        verifyFn: (url: string) => {
+        verifyUrlFn: (url: string) => {
           return url.includes('www')
         },
       }
       const result = await canonicalize('https://www.example.com/feed', options)
 
-      expect(result.reason).toBe('fallback')
+      expect(result).toBe('https://www.example.com/feed')
     })
 
     it('should skip HTTPS upgrade when verification fails', async () => {
@@ -707,13 +1000,13 @@ describe('canonicalize', () => {
           'http://example.com/feed': { body: content },
           'https://example.com/feed': { body: content },
         }),
-        verifyFn: (url: string) => {
+        verifyUrlFn: (url: string) => {
           return !url.startsWith('https://')
         },
       }
       const result = await canonicalize('http://example.com/feed', options)
 
-      expect(result.url).toBe('http://example.com/feed')
+      expect(result).toBe('http://example.com/feed')
     })
   })
 
@@ -731,7 +1024,7 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://cdn.example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     it('should ignore selfUrl when content differs', async () => {
@@ -744,7 +1037,7 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
 
     it('should ignore selfUrl when fetch fails', async () => {
@@ -758,12 +1051,12 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result.url).toBe('https://example.com/feed')
+      expect(result).toBe('https://example.com/feed')
     })
   })
 
   describe('when fetch fails', () => {
-    it('should return input URL when fetch throws', async () => {
+    it('should return undefined when fetch throws', async () => {
       const options = {
         fetchFn: async () => {
           throw new Error('Network error')
@@ -771,10 +1064,10 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed.xml', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed.xml', reason: 'fetch_failed' })
+      expect(result).toBeUndefined()
     })
 
-    it('should return input URL when fetch returns non-2xx', async () => {
+    it('should return undefined when fetch returns non-2xx', async () => {
       const options = {
         fetchFn: createMockFetch({
           'https://example.com/feed.xml': { status: 404 },
@@ -782,7 +1075,7 @@ describe('canonicalize', () => {
       }
       const result = await canonicalize('https://example.com/feed.xml', options)
 
-      expect(result).toEqual({ url: 'https://example.com/feed.xml', reason: 'fetch_failed' })
+      expect(result).toBeUndefined()
     })
   })
 })
