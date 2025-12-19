@@ -158,7 +158,7 @@ describe('areEquivalent', () => {
       const url2 = 'https://example.com/feed2'
       const options = {
         methods: {},
-        verifyFn: () => {
+        verifyUrlFn: () => {
           return false
         },
       }

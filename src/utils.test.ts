@@ -6,14 +6,14 @@ import {
   defaultFetchFn,
   isSimilarUrl,
   normalizeUrl,
-  resolveNonStandardFeedUrl,
+  resolveFeedProtocol,
   resolveUrl,
 } from './utils.js'
 
-describe('resolveNonStandardFeedUrl', () => {
+describe('resolveFeedProtocol', () => {
   it('should convert feed:// to https://', () => {
     const value = 'feed://example.com/rss.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/rss.xml'
 
     expect(result).toBe(expected)
@@ -21,7 +21,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should convert rss:// to https://', () => {
     const value = 'rss://example.com/feed.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/feed.xml'
 
     expect(result).toBe(expected)
@@ -29,7 +29,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should convert pcast:// to https://', () => {
     const value = 'pcast://example.com/podcast.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/podcast.xml'
 
     expect(result).toBe(expected)
@@ -37,7 +37,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should convert itpc:// to https://', () => {
     const value = 'itpc://example.com/podcast.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/podcast.xml'
 
     expect(result).toBe(expected)
@@ -45,7 +45,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should unwrap feed:https:// to https://', () => {
     const value = 'feed:https://example.com/rss.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/rss.xml'
 
     expect(result).toBe(expected)
@@ -53,7 +53,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should unwrap feed:http:// to http://', () => {
     const value = 'feed:http://example.com/rss.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'http://example.com/rss.xml'
 
     expect(result).toBe(expected)
@@ -61,7 +61,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should unwrap rss:https:// to https://', () => {
     const value = 'rss:https://example.com/feed.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/feed.xml'
 
     expect(result).toBe(expected)
@@ -69,7 +69,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should return https URLs unchanged', () => {
     const value = 'https://example.com/feed.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/feed.xml'
 
     expect(result).toBe(expected)
@@ -77,7 +77,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should return http URLs unchanged', () => {
     const value = 'http://example.com/rss.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'http://example.com/rss.xml'
 
     expect(result).toBe(expected)
@@ -85,7 +85,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should return absolute path URLs unchanged', () => {
     const value = '/path/to/feed'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = '/path/to/feed'
 
     expect(result).toBe(expected)
@@ -93,7 +93,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should return relative path URLs unchanged', () => {
     const value = 'relative/feed.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'relative/feed.xml'
 
     expect(result).toBe(expected)
@@ -101,7 +101,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should handle feed URLs with paths and query params', () => {
     const value = 'feed://example.com/path/to/feed?format=rss'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/path/to/feed?format=rss'
 
     expect(result).toBe(expected)
@@ -109,51 +109,51 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should handle feed URLs with ports', () => {
     const value = 'feed://example.com:8080/feed.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com:8080/feed.xml'
 
     expect(result).toBe(expected)
   })
 
   it('should handle uppercase feed protocols', () => {
-    expect(resolveNonStandardFeedUrl('FEED://example.com/rss.xml')).toBe(
+    expect(resolveFeedProtocol('FEED://example.com/rss.xml')).toBe(
       'https://example.com/rss.xml',
     )
-    expect(resolveNonStandardFeedUrl('Feed://example.com/rss.xml')).toBe(
+    expect(resolveFeedProtocol('Feed://example.com/rss.xml')).toBe(
       'https://example.com/rss.xml',
     )
-    expect(resolveNonStandardFeedUrl('FEED:https://example.com/rss.xml')).toBe(
+    expect(resolveFeedProtocol('FEED:https://example.com/rss.xml')).toBe(
       'https://example.com/rss.xml',
     )
-    expect(resolveNonStandardFeedUrl('RSS://example.com/feed.xml')).toBe(
+    expect(resolveFeedProtocol('RSS://example.com/feed.xml')).toBe(
       'https://example.com/feed.xml',
     )
-    expect(resolveNonStandardFeedUrl('PCAST://example.com/podcast.xml')).toBe(
+    expect(resolveFeedProtocol('PCAST://example.com/podcast.xml')).toBe(
       'https://example.com/podcast.xml',
     )
   })
 
   it('should handle mixed case in wrapped URL protocol', () => {
-    expect(resolveNonStandardFeedUrl('feed:HTTPS://example.com/rss.xml')).toBe(
+    expect(resolveFeedProtocol('feed:HTTPS://example.com/rss.xml')).toBe(
       'HTTPS://example.com/rss.xml',
     )
-    expect(resolveNonStandardFeedUrl('feed:Http://example.com/rss.xml')).toBe(
+    expect(resolveFeedProtocol('feed:Http://example.com/rss.xml')).toBe(
       'Http://example.com/rss.xml',
     )
   })
 
   it('should return empty string unchanged', () => {
-    expect(resolveNonStandardFeedUrl('')).toBe('')
+    expect(resolveFeedProtocol('')).toBe('')
   })
 
   it('should return malformed feed URL unchanged (no slashes)', () => {
     // feed:example.com is malformed - neither feed://example.com nor feed:https://example.com
-    expect(resolveNonStandardFeedUrl('feed:example.com')).toBe('feed:example.com')
+    expect(resolveFeedProtocol('feed:example.com')).toBe('feed:example.com')
   })
 
   it('should handle feed URLs with authentication', () => {
     const value = 'feed://user:pass@example.com/rss.xml'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://user:pass@example.com/rss.xml'
 
     expect(result).toBe(expected)
@@ -161,7 +161,7 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should handle feed URLs with hash fragment', () => {
     const value = 'feed://example.com/rss.xml#latest'
-    const result = resolveNonStandardFeedUrl(value)
+    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/rss.xml#latest'
 
     expect(result).toBe(expected)
@@ -169,10 +169,10 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should respect custom protocols parameter', () => {
     const customProtocols = ['custom:']
-    expect(resolveNonStandardFeedUrl('custom://example.com/feed', customProtocols)).toBe(
+    expect(resolveFeedProtocol('custom://example.com/feed', customProtocols)).toBe(
       'https://example.com/feed',
     )
-    expect(resolveNonStandardFeedUrl('feed://example.com/feed', customProtocols)).toBe(
+    expect(resolveFeedProtocol('feed://example.com/feed', customProtocols)).toBe(
       'feed://example.com/feed',
     )
   })
@@ -1210,9 +1210,9 @@ describe('normalizeUrl', () => {
       expect(result).toBe(expected)
     })
 
-    it('should preserve tracking params when stripParams is empty array', () => {
+    it('should preserve tracking params when stripQueryParams is empty array', () => {
       const value = 'https://example.com/feed?utm_source=twitter&id=123'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripParams: [] })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripQueryParams: [] })
       const expected = 'example.com/feed?id=123&utm_source=twitter'
 
       expect(result).toBe(expected)
@@ -1220,7 +1220,7 @@ describe('normalizeUrl', () => {
 
     it('should use custom stripped params when array is provided', () => {
       const value = 'https://example.com/feed?custom=1&keep=2&utm_source=twitter'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripParams: ['custom'] })
+      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripQueryParams: ['custom'] })
       const expected = 'example.com/feed?keep=2&utm_source=twitter'
 
       expect(result).toBe(expected)
@@ -1409,7 +1409,7 @@ describe('normalizeUrl', () => {
         stripHash: false,
         stripTextFragment: false,
         sortQueryParams: false,
-        stripParams: [],
+        stripQueryParams: [],
         stripEmptyQuery: false,
         normalizeUnicode: false,
         lowercaseHostname: false,

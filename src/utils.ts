@@ -18,7 +18,7 @@ const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 // - rss://example.com/feed.xml → https://example.com/feed.xml
 // - pcast://example.com/podcast.xml → https://example.com/podcast.xml
 // - itpc://example.com/podcast.xml → https://example.com/podcast.xml
-export const resolveNonStandardFeedUrl = (
+export const resolveFeedProtocol = (
   url: string,
   protocols = defaultFeedProtocols,
 ): string => {
@@ -118,7 +118,7 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   let processed = url
 
   // Step 1: Convert feed-related protocols.
-  processed = resolveNonStandardFeedUrl(processed)
+  processed = resolveFeedProtocol(processed)
 
   // Step 2: Resolve relative URLs if base is provided.
   if (base) {
@@ -243,8 +243,8 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     parsed.pathname = pathname
 
     // Remove tracking/specified parameters.
-    if (options.stripParams) {
-      for (const param of options.stripParams) {
+    if (options.stripQueryParams) {
+      for (const param of options.stripQueryParams) {
         parsed.searchParams.delete(param)
       }
     }
