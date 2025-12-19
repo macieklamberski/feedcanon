@@ -1,8 +1,4 @@
-import {
-  defaultEquivalentMethods,
-  defaultHashFn,
-  defaultVerifyFn,
-} from './defaults.js'
+import { defaultEquivalentMethods, defaultHashFn, defaultVerifyFn } from './defaults.js'
 import type { EquivalentOptions, EquivalentResult, FetchFnResponse } from './types.js'
 import { defaultFetchFn, isSimilarUrl } from './utils.js'
 

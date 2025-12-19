@@ -1,8 +1,4 @@
-import {
-  defaultCanonicalizeMethods,
-  defaultHashFn,
-  defaultVerifyFn,
-} from './defaults.js'
+import { defaultCanonicalizeMethods, defaultHashFn, defaultVerifyFn } from './defaults.js'
 import type { CanonicalizeOptions, CanonicalizeResult } from './types.js'
 import { defaultFetchFn, isSimilarUrl, resolveUrl } from './utils.js'
 

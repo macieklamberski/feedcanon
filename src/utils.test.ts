@@ -10,154 +10,6 @@ import {
   resolveUrl,
 } from './utils.js'
 
-describe('defaultFetchFn', () => {
-  // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
-  const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
-    implementation: T,
-  ) => {
-    return implementation as unknown as typeof fetch
-  }
-
-  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
-
-  const createMockResponse = (partial: Partial<MockResponse>): Response => {
-    return {
-      headers: partial.headers ?? new Headers(),
-      text: partial.text ?? (async () => ''),
-      url: partial.url ?? '',
-      status: partial.status ?? 200,
-    } as Response
-  }
-
-  const fetchSpy = spyOn(globalThis, 'fetch')
-
-  afterEach(() => {
-    fetchSpy.mockReset()
-  })
-
-  it('should call native fetch with correct URL', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async (url: string) => {
-        return createMockResponse({
-          url,
-          text: async () => 'response body',
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.url).toBe('https://example.com/feed.xml')
-  })
-
-  it('should default to GET method when not specified', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(capturedOptions?.method).toBe('GET')
-  })
-
-  it('should use specified method from options', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetchFn('https://example.com/feed.xml', { method: 'HEAD' })
-
-    expect(capturedOptions?.method).toBe('HEAD')
-  })
-
-  it('should pass headers to fetch', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetchFn('https://example.com/feed.xml', {
-      headers: { 'X-Custom': 'value' },
-    })
-
-    expect(capturedOptions?.headers).toEqual({ 'X-Custom': 'value' })
-  })
-
-  it('should return response with correct structure', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          headers: new Headers({ 'content-type': 'application/rss+xml' }),
-          text: async () => 'feed content',
-          url: 'https://example.com/feed.xml',
-          status: 200,
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-    const expected: FetchFnResponse = {
-      headers: new Headers({ 'content-type': 'application/rss+xml' }),
-      body: 'feed content',
-      url: 'https://example.com/feed.xml',
-      status: 200,
-    }
-
-    expect(result.headers.get('content-type')).toBe(expected.headers.get('content-type'))
-    expect(result.body).toBe(expected.body)
-    expect(result.url).toBe(expected.url)
-    expect(result.status).toBe(expected.status)
-  })
-
-  it('should preserve response URL for redirect handling', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          url: 'https://redirect.example.com/feed.xml',
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.url).toBe('https://redirect.example.com/feed.xml')
-  })
-
-  it('should convert response body to text', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          text: async () => '<rss>feed content</rss>',
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.body).toBe('<rss>feed content</rss>')
-  })
-
-  it('should pass through status', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          status: 404,
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.status).toBe(404)
-  })
-})
-
 describe('resolveNonStandardFeedUrl', () => {
   it('should convert feed:// to https://', () => {
     const value = 'feed://example.com/rss.xml'
@@ -264,16 +116,30 @@ describe('resolveNonStandardFeedUrl', () => {
   })
 
   it('should handle uppercase feed protocols', () => {
-    expect(resolveNonStandardFeedUrl('FEED://example.com/rss.xml')).toBe('https://example.com/rss.xml')
-    expect(resolveNonStandardFeedUrl('Feed://example.com/rss.xml')).toBe('https://example.com/rss.xml')
-    expect(resolveNonStandardFeedUrl('FEED:https://example.com/rss.xml')).toBe('https://example.com/rss.xml')
-    expect(resolveNonStandardFeedUrl('RSS://example.com/feed.xml')).toBe('https://example.com/feed.xml')
-    expect(resolveNonStandardFeedUrl('PCAST://example.com/podcast.xml')).toBe('https://example.com/podcast.xml')
+    expect(resolveNonStandardFeedUrl('FEED://example.com/rss.xml')).toBe(
+      'https://example.com/rss.xml',
+    )
+    expect(resolveNonStandardFeedUrl('Feed://example.com/rss.xml')).toBe(
+      'https://example.com/rss.xml',
+    )
+    expect(resolveNonStandardFeedUrl('FEED:https://example.com/rss.xml')).toBe(
+      'https://example.com/rss.xml',
+    )
+    expect(resolveNonStandardFeedUrl('RSS://example.com/feed.xml')).toBe(
+      'https://example.com/feed.xml',
+    )
+    expect(resolveNonStandardFeedUrl('PCAST://example.com/podcast.xml')).toBe(
+      'https://example.com/podcast.xml',
+    )
   })
 
   it('should handle mixed case in wrapped URL protocol', () => {
-    expect(resolveNonStandardFeedUrl('feed:HTTPS://example.com/rss.xml')).toBe('HTTPS://example.com/rss.xml')
-    expect(resolveNonStandardFeedUrl('feed:Http://example.com/rss.xml')).toBe('Http://example.com/rss.xml')
+    expect(resolveNonStandardFeedUrl('feed:HTTPS://example.com/rss.xml')).toBe(
+      'HTTPS://example.com/rss.xml',
+    )
+    expect(resolveNonStandardFeedUrl('feed:Http://example.com/rss.xml')).toBe(
+      'Http://example.com/rss.xml',
+    )
   })
 
   it('should return empty string unchanged', () => {
@@ -303,8 +169,12 @@ describe('resolveNonStandardFeedUrl', () => {
 
   it('should respect custom protocols parameter', () => {
     const customProtocols = ['custom:']
-    expect(resolveNonStandardFeedUrl('custom://example.com/feed', customProtocols)).toBe('https://example.com/feed')
-    expect(resolveNonStandardFeedUrl('feed://example.com/feed', customProtocols)).toBe('feed://example.com/feed')
+    expect(resolveNonStandardFeedUrl('custom://example.com/feed', customProtocols)).toBe(
+      'https://example.com/feed',
+    )
+    expect(resolveNonStandardFeedUrl('feed://example.com/feed', customProtocols)).toBe(
+      'feed://example.com/feed',
+    )
   })
 })
 
@@ -489,7 +359,9 @@ describe('addMissingProtocol', () => {
     })
 
     it('should not modify data: URLs', () => {
-      expect(addMissingProtocol('data:text/html,<h1>Test</h1>')).toBe('data:text/html,<h1>Test</h1>')
+      expect(addMissingProtocol('data:text/html,<h1>Test</h1>')).toBe(
+        'data:text/html,<h1>Test</h1>',
+      )
     })
   })
 })
@@ -1192,7 +1064,11 @@ describe('normalizeUrl', () => {
 
     it('should preserve trailing slash when trailingSlash option is false', () => {
       const value = 'https://example.com/feed/'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, trailingSlash: false, singleSlash: false })
+      const result = normalizeUrl(value, {
+        ...defaultNormalizeOptions,
+        trailingSlash: false,
+        singleSlash: false,
+      })
       const expected = 'example.com/feed/'
 
       expect(result).toBe(expected)
@@ -1280,7 +1156,11 @@ describe('normalizeUrl', () => {
 
     it('should preserve text fragments when textFragment option is false', () => {
       const value = 'https://example.com/feed#:~:text=hello'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, hash: false, textFragment: false })
+      const result = normalizeUrl(value, {
+        ...defaultNormalizeOptions,
+        hash: false,
+        textFragment: false,
+      })
       const expected = 'example.com/feed#:~:text=hello'
 
       expect(result).toBe(expected)
@@ -1778,7 +1658,11 @@ describe('isSimilarUrl', () => {
     it('should return false for trailing slash difference when trailingSlash option is false', () => {
       const value1 = 'https://example.com/feed/'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2, { ...defaultNormalizeOptions, trailingSlash: false, singleSlash: false })
+      const result = isSimilarUrl(value1, value2, {
+        ...defaultNormalizeOptions,
+        trailingSlash: false,
+        singleSlash: false,
+      })
       const expected = false
 
       expect(result).toBe(expected)
@@ -2074,5 +1958,153 @@ describe('isSimilarUrl', () => {
 
       expect(result).toBe(expected)
     })
+  })
+})
+
+describe('defaultFetchFn', () => {
+  // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
+  const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
+    implementation: T,
+  ) => {
+    return implementation as unknown as typeof fetch
+  }
+
+  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
+
+  const createMockResponse = (partial: Partial<MockResponse>): Response => {
+    return {
+      headers: partial.headers ?? new Headers(),
+      text: partial.text ?? (async () => ''),
+      url: partial.url ?? '',
+      status: partial.status ?? 200,
+    } as Response
+  }
+
+  const fetchSpy = spyOn(globalThis, 'fetch')
+
+  afterEach(() => {
+    fetchSpy.mockReset()
+  })
+
+  it('should call native fetch with correct URL', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async (url: string) => {
+        return createMockResponse({
+          url,
+          text: async () => 'response body',
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.url).toBe('https://example.com/feed.xml')
+  })
+
+  it('should default to GET method when not specified', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock(async (_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(capturedOptions?.method).toBe('GET')
+  })
+
+  it('should use specified method from options', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock(async (_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetchFn('https://example.com/feed.xml', { method: 'HEAD' })
+
+    expect(capturedOptions?.method).toBe('HEAD')
+  })
+
+  it('should pass headers to fetch', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock(async (_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetchFn('https://example.com/feed.xml', {
+      headers: { 'X-Custom': 'value' },
+    })
+
+    expect(capturedOptions?.headers).toEqual({ 'X-Custom': 'value' })
+  })
+
+  it('should return response with correct structure', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          headers: new Headers({ 'content-type': 'application/rss+xml' }),
+          text: async () => 'feed content',
+          url: 'https://example.com/feed.xml',
+          status: 200,
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+    const expected: FetchFnResponse = {
+      headers: new Headers({ 'content-type': 'application/rss+xml' }),
+      body: 'feed content',
+      url: 'https://example.com/feed.xml',
+      status: 200,
+    }
+
+    expect(result.headers.get('content-type')).toBe(expected.headers.get('content-type'))
+    expect(result.body).toBe(expected.body)
+    expect(result.url).toBe(expected.url)
+    expect(result.status).toBe(expected.status)
+  })
+
+  it('should preserve response URL for redirect handling', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          url: 'https://redirect.example.com/feed.xml',
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.url).toBe('https://redirect.example.com/feed.xml')
+  })
+
+  it('should convert response body to text', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          text: async () => '<rss>feed content</rss>',
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.body).toBe('<rss>feed content</rss>')
+  })
+
+  it('should pass through status', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        return createMockResponse({
+          status: 404,
+        })
+      }),
+    )
+    const result = await defaultFetchFn('https://example.com/feed.xml')
+
+    expect(result.status).toBe(404)
   })
 })

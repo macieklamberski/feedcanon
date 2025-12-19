@@ -2,20 +2,6 @@ import { domainToASCII } from 'node:url'
 import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
 import type { FetchFn, NormalizeOptions } from './types.js'
 
-export const defaultFetchFn: FetchFn = async (url, options) => {
-  const response = await fetch(url, {
-    method: options?.method ?? 'GET',
-    headers: options?.headers,
-  })
-
-  return {
-    headers: response.headers,
-    body: await response.text(),
-    url: response.url,
-    status: response.status,
-  }
-}
-
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
 // IPv6 addresses have 2-7 colons with hex segments. This is intentionally
@@ -293,4 +279,18 @@ export const isSimilarUrl = (
   options: NormalizeOptions = defaultNormalizeOptions,
 ): boolean => {
   return normalizeUrl(url1, options) === normalizeUrl(url2, options)
+}
+
+export const defaultFetchFn: FetchFn = async (url, options) => {
+  const response = await fetch(url, {
+    method: options?.method ?? 'GET',
+    headers: options?.headers,
+  })
+
+  return {
+    headers: response.headers,
+    body: await response.text(),
+    url: response.url,
+    status: response.status,
+  }
 }
