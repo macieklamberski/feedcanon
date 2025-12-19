@@ -45,29 +45,6 @@ export type CanonicalizeOptions<T = unknown> = {
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
 }
 
-// Methods configuration for areEquivalent.
-export type EquivalentMethods = {
-  normalize?: NormalizeOptions // Options for URL normalization.
-  redirects?: boolean // Check if one redirects to other.
-  responseHash?: boolean // Compare raw response content hash.
-  feedDataHash?: boolean // Compare parsed feed data hash.
-}
-
-// Options for areEquivalent function.
-export type EquivalentOptions<T = unknown> = {
-  methods?: EquivalentMethods
-  parser?: ParserAdapter<T>
-  fetchFn?: FetchFn
-  verifyUrlFn?: VerifyUrlFn
-  hashFn?: HashFn
-}
-
-// Result of areEquivalent function.
-export type EquivalentResult = {
-  equivalent: boolean
-  method?: 'normalize' | 'redirects' | 'response_hash' | 'feed_data_hash'
-}
-
 // Options for fetch function.
 export type FetchFnOptions = {
   method?: 'GET' | 'HEAD'
