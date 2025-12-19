@@ -1,9 +1,7 @@
 {
-  "commit-msg": {
-    "commands": {
-      "commitlint": {
-        "run": "bunx commitlint --edit {1}"
-      }
-    }
-  }
+  "extends": [
+    "node_modules/kvalita/configs/lefthook-biome.json",
+    "node_modules/kvalita/configs/lefthook-typescript.json",
+    "node_modules/kvalita/configs/lefthook-commitlint.json"
+  ]
 }

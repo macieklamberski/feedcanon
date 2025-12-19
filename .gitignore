@@ -1,5 +1,17 @@
-node_modules
-dist
-bun.lock
+# System
+Thumbs.db
 .DS_Store
-*.log
+
+# Dependency
+node_modules
+
+# Build
+dist
+coverage
+
+# Docs
+docs/.vitepress/cache
+docs/.vitepress/dist
+
+# Development
+plans
