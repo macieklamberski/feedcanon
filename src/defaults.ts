@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto'
-import { createNativeFetchAdapter } from './adapters.js'
 import type {
   CanonicalizeMethods,
   EquivalentMethods,
-  FetchFn,
   HashFn,
   NormalizeOptions,
   VerifyFn,
@@ -155,7 +153,7 @@ export const defaultStrippedParams = [
 
 export const defaultNormalizeOptions: NormalizeOptions = {
   protocol: true,
-  authentication: true,
+  authentication: false,
   www: true,
   port: true,
   trailingSlash: true,
@@ -186,8 +184,6 @@ export const defaultCanonicalizeMethods: CanonicalizeMethods = {
   feedDataHash: false,
   upgradeHttps: false,
 }
-
-export const defaultFetchFn: FetchFn = createNativeFetchAdapter()
 
 export const defaultVerifyFn: VerifyFn = () => {
   return true

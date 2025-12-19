@@ -42,16 +42,6 @@
         "types": "./dist/defaults.d.cts",
         "default": "./dist/defaults.cjs"
       }
-    },
-    "./adapters": {
-      "import": {
-        "types": "./dist/adapters.d.ts",
-        "default": "./dist/adapters.js"
-      },
-      "require": {
-        "types": "./dist/adapters.d.cts",
-        "default": "./dist/adapters.cjs"
-      }
     }
   },
   "files": [
@@ -59,7 +49,7 @@
   ],
   "scripts": {
     "prepare": "lefthook install",
-    "build": "tsdown src/index.ts src/defaults.ts src/adapters.ts --format cjs,esm --dts --clean --unbundle --no-fixed-extension"
+    "build": "tsdown src/index.ts src/defaults.ts --format cjs,esm --dts --clean --unbundle --no-fixed-extension"
   },
   "dependencies": {},
   "devDependencies": {
