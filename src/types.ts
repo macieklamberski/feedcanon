@@ -13,23 +13,23 @@ export type PlatformHandler = {
 
 // URL normalization options.
 export type NormalizeOptions = {
-  protocol?: boolean // strip protocol (http ↔ https treated same)
-  authentication?: boolean // strip user:pass@ (default: false - keep auth)
-  www?: boolean // www ↔ non-www
-  port?: boolean // strip default ports (:80, :443)
-  trailingSlash?: boolean // /feed/ ↔ /feed
-  singleSlash?: boolean // example.com/ ↔ example.com
-  slashes?: boolean // collapse /// → /
-  hash?: boolean // strip #fragment
-  textFragment?: boolean // strip #:~:text=
-  queryOrder?: boolean // sort query params
-  strippedParams?: Array<string> // params to strip, defaults to trackingParameters
-  emptyQuery?: boolean // /feed? ↔ /feed
-  encoding?: boolean // normalize %XX
-  case?: boolean // lowercase hostname
-  unicode?: boolean // NFC normalization
-  punycode?: boolean // IDNA/Punycode normalization
-  platforms?: Array<PlatformHandler> | false // platform-specific normalization (false to disable)
+  stripProtocol?: boolean // strip protocol (http ↔ https treated same)
+  stripAuthentication?: boolean // strip user:pass@
+  stripWww?: boolean // strip www. prefix
+  stripDefaultPorts?: boolean // strip :80 and :443
+  stripTrailingSlash?: boolean // /feed/ → /feed
+  stripRootSlash?: boolean // example.com/ → example.com
+  collapseSlashes?: boolean // /// → /
+  stripHash?: boolean // strip #fragment
+  stripTextFragment?: boolean // strip #:~:text=
+  sortQueryParams?: boolean // sort query params alphabetically
+  stripParams?: Array<string> // params to strip
+  stripEmptyQuery?: boolean // /feed? → /feed
+  normalizeEncoding?: boolean // normalize %XX encoding
+  lowercaseHostname?: boolean // lowercase hostname
+  normalizeUnicode?: boolean // NFC normalization
+  convertToPunycode?: boolean // IDNA/Punycode conversion
+  platforms?: Array<PlatformHandler> // platform-specific normalization
 }
 
 // Callback to check if URLs exist in database (early termination).
