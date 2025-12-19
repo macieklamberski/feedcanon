@@ -29,7 +29,6 @@ export type NormalizeOptions = {
   lowercaseHostname?: boolean // lowercase hostname
   normalizeUnicode?: boolean // NFC normalization
   convertToPunycode?: boolean // IDNA/Punycode conversion
-  platforms?: Array<PlatformHandler> // platform-specific normalization
 }
 
 // Callback to check if URLs exist in database (early termination).
@@ -41,8 +40,9 @@ export type CanonicalizeOptions<T = unknown> = {
   fetchFn?: FetchFn
   verifyFn?: VerifyFn
   hashFn?: HashFn
-  tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
   existsFn?: ExistsFn // Check if URLs exist in database.
+  tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
+  platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
 }
 
 // Result of canonicalize function.
