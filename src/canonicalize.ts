@@ -1,6 +1,12 @@
-import { defaultHashFn, defaultPlatforms, defaultTiers, defaultVerifyUrlFn } from './defaults.js'
+import { defaultPlatforms, defaultTiers } from './defaults.js'
 import type { CanonicalizeOptions } from './types.js'
-import { applyPlatformHandlers, defaultFetchFn, normalizeUrl, resolveUrl } from './utils.js'
+import {
+  applyPlatformHandlers,
+  createMd5Hash,
+  defaultFetchFn,
+  normalizeUrl,
+  resolveUrl,
+} from './utils.js'
 
 export const canonicalize = async <T>(
   inputUrl: string,
@@ -8,8 +14,8 @@ export const canonicalize = async <T>(
 ): Promise<string | undefined> => {
   const {
     fetchFn = defaultFetchFn,
-    verifyUrlFn = defaultVerifyUrlFn,
-    hashFn = defaultHashFn,
+    verifyUrlFn,
+    hashFn = createMd5Hash,
     existsFn,
     parser,
     tiers = defaultTiers,
@@ -51,7 +57,7 @@ export const canonicalize = async <T>(
         if (resolved) {
           // Apply platform handlers to convert selfUrl aliases to canonical domains.
           const platformizedSelfUrl = applyPlatformHandlers(resolved, platforms)
-          const isVerified = await verifyUrlFn(platformizedSelfUrl)
+          const isVerified = verifyUrlFn ? await verifyUrlFn(platformizedSelfUrl) : true
 
           if (isVerified) {
             selfUrl = platformizedSelfUrl
@@ -119,11 +125,13 @@ export const canonicalize = async <T>(
       break
     }
 
-    // Verify URL is safe.
-    const isVerified = await verifyUrlFn(variant)
+    // Verify URL is safe (skip check if verifyUrlFn not provided).
+    if (verifyUrlFn) {
+      const isVerified = await verifyUrlFn(variant)
 
-    if (!isVerified) {
-      continue
+      if (!isVerified) {
+        continue
+      }
     }
 
     try {
@@ -147,7 +155,7 @@ export const canonicalize = async <T>(
   // Phase 6: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
     const httpsUrl = winningUrl.replace('http://', 'https://')
-    const isHttpsVerified = await verifyUrlFn(httpsUrl)
+    const isHttpsVerified = verifyUrlFn ? await verifyUrlFn(httpsUrl) : true
 
     if (isHttpsVerified) {
       try {

@@ -162,30 +162,24 @@ describe('resolveFeedProtocol', () => {
     expect(result).toBe(expected)
   })
 
-  it('should respect custom feedProtocols parameter', () => {
-    const customProtocols = ['custom:']
-    expect(resolveFeedProtocol('custom://example.com/feed', customProtocols)).toBe(
-      'https://example.com/feed',
-    )
-    expect(resolveFeedProtocol('feed://example.com/feed', customProtocols)).toBe(
-      'feed://example.com/feed',
-    )
+  it('should convert podcast:// to https://', () => {
+    const value = 'podcast://example.com/feed.xml'
+    const result = resolveFeedProtocol(value)
+    const expected = 'https://example.com/feed.xml'
+
+    expect(result).toBe(expected)
   })
 
   it('should use fallbackProtocol for feed:// URLs', () => {
-    expect(resolveFeedProtocol('feed://example.com/feed', undefined, 'http')).toBe(
-      'http://example.com/feed',
-    )
-    expect(resolveFeedProtocol('rss://example.com/feed', undefined, 'http')).toBe(
-      'http://example.com/feed',
-    )
+    expect(resolveFeedProtocol('feed://example.com/feed', 'http')).toBe('http://example.com/feed')
+    expect(resolveFeedProtocol('rss://example.com/feed', 'http')).toBe('http://example.com/feed')
   })
 
   it('should ignore fallbackProtocol for wrapped URLs with explicit protocol', () => {
-    expect(resolveFeedProtocol('feed:https://example.com/feed', undefined, 'http')).toBe(
+    expect(resolveFeedProtocol('feed:https://example.com/feed', 'http')).toBe(
       'https://example.com/feed',
     )
-    expect(resolveFeedProtocol('feed:http://example.com/feed', undefined, 'https')).toBe(
+    expect(resolveFeedProtocol('feed:http://example.com/feed', 'https')).toBe(
       'http://example.com/feed',
     )
   })
@@ -909,7 +903,6 @@ describe('normalizeUrl', () => {
 
       expect(result).toBe(expected)
     })
-
   })
 
   describe('multiple slashes collapsing', () => {
@@ -1023,7 +1016,6 @@ describe('normalizeUrl', () => {
 
       expect(result).toBe(expected)
     })
-
   })
 
   describe('percent encoding normalization', () => {
@@ -1097,7 +1089,6 @@ describe('normalizeUrl', () => {
 
       expect(result).toBe(expected)
     })
-
   })
 
   describe('case normalization', () => {
