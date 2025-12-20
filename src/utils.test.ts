@@ -4,6 +4,7 @@ import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types
 import {
   addMissingProtocol,
   applyPlatformHandlers,
+  createMd5Hash,
   defaultFetchFn,
   isSimilarUrl,
   normalizeUrl,
@@ -14,106 +15,96 @@ import {
 describe('resolveFeedProtocol', () => {
   it('should convert feed:// to https://', () => {
     const value = 'feed://example.com/rss.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/rss.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should convert rss:// to https://', () => {
     const value = 'rss://example.com/feed.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/feed.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should convert pcast:// to https://', () => {
     const value = 'pcast://example.com/podcast.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/podcast.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should convert itpc:// to https://', () => {
     const value = 'itpc://example.com/podcast.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/podcast.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should convert podcast:// to https://', () => {
+    const value = 'podcast://example.com/feed.xml'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should unwrap feed:https:// to https://', () => {
     const value = 'feed:https://example.com/rss.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/rss.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should unwrap feed:http:// to http://', () => {
     const value = 'feed:http://example.com/rss.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'http://example.com/rss.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should unwrap rss:https:// to https://', () => {
     const value = 'rss:https://example.com/feed.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/feed.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should return https URLs unchanged', () => {
     const value = 'https://example.com/feed.xml'
-    const result = resolveFeedProtocol(value)
-    const expected = 'https://example.com/feed.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(value)
   })
 
   it('should return http URLs unchanged', () => {
     const value = 'http://example.com/rss.xml'
-    const result = resolveFeedProtocol(value)
-    const expected = 'http://example.com/rss.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(value)
   })
 
   it('should return absolute path URLs unchanged', () => {
     const value = '/path/to/feed'
-    const result = resolveFeedProtocol(value)
-    const expected = '/path/to/feed'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(value)
   })
 
   it('should return relative path URLs unchanged', () => {
     const value = 'relative/feed.xml'
-    const result = resolveFeedProtocol(value)
-    const expected = 'relative/feed.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(value)
   })
 
   it('should handle feed URLs with paths and query params', () => {
     const value = 'feed://example.com/path/to/feed?format=rss'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/path/to/feed?format=rss'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should handle feed URLs with ports', () => {
     const value = 'feed://example.com:8080/feed.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com:8080/feed.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should handle uppercase feed protocols', () => {
@@ -141,33 +132,24 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol('')).toBe('')
   })
 
-  it('should return malformed feed URL unchanged (no slashes)', () => {
-    // feed:example.com is malformed - neither feed://example.com nor feed:https://example.com
-    expect(resolveFeedProtocol('feed:example.com')).toBe('feed:example.com')
+  it('should return malformed feed URL unchanged', () => {
+    const value = 'feed:example.com'
+
+    expect(resolveFeedProtocol(value)).toBe(value)
   })
 
   it('should handle feed URLs with authentication', () => {
     const value = 'feed://user:pass@example.com/rss.xml'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://user:pass@example.com/rss.xml'
 
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should handle feed URLs with hash fragment', () => {
     const value = 'feed://example.com/rss.xml#latest'
-    const result = resolveFeedProtocol(value)
     const expected = 'https://example.com/rss.xml#latest'
 
-    expect(result).toBe(expected)
-  })
-
-  it('should convert podcast:// to https://', () => {
-    const value = 'podcast://example.com/feed.xml'
-    const result = resolveFeedProtocol(value)
-    const expected = 'https://example.com/feed.xml'
-
-    expect(result).toBe(expected)
+    expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
   it('should use fallbackProtocol for feed:// URLs', () => {
@@ -187,7 +169,7 @@ describe('resolveFeedProtocol', () => {
 
 describe('addMissingProtocol', () => {
   describe('protocol-relative URLs', () => {
-    const validCases = [
+    const values = [
       { value: '//example.com/feed', expected: 'https://example.com/feed' },
       { value: '//cdn.example.com/style.css', expected: 'https://cdn.example.com/style.css' },
       { value: '//localhost/api', expected: 'https://localhost/api' },
@@ -197,91 +179,79 @@ describe('addMissingProtocol', () => {
       { value: '//[2001:db8::1]/feed', expected: 'https://[2001:db8::1]/feed' },
     ]
 
-    for (const { value, expected } of validCases) {
+    for (const { value, expected } of values) {
       it(`should convert ${value} to ${expected}`, () => {
-        const result = addMissingProtocol(value)
-
-        expect(result).toBe(expected)
+        expect(addMissingProtocol(value)).toBe(expected)
       })
     }
 
     it('should use http when specified', () => {
       const value = '//example.com/feed'
-      const result = addMissingProtocol(value, 'http')
       const expected = 'http://example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value, 'http')).toBe(expected)
     })
   })
 
   describe('bare domains', () => {
     it('should add https:// to domain without protocol', () => {
       const value = 'example.com/feed'
-      const result = addMissingProtocol(value)
       const expected = 'https://example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
     it('should add https:// to domain with subdomain', () => {
       const value = 'www.example.com/feed.xml'
-      const result = addMissingProtocol(value)
       const expected = 'https://www.example.com/feed.xml'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
     it('should use http when specified', () => {
       const value = 'example.com/feed'
-      const result = addMissingProtocol(value, 'http')
       const expected = 'http://example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value, 'http')).toBe(expected)
     })
 
     it('should handle domain with query string', () => {
       const value = 'example.com/feed?format=rss'
-      const result = addMissingProtocol(value)
       const expected = 'https://example.com/feed?format=rss'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
   })
 
-  describe('uRLs that should not be modified', () => {
+  describe('URLs that should not be modified', () => {
     it('should not modify http:// URLs', () => {
       const value = 'http://example.com/feed'
-      const result = addMissingProtocol(value)
 
-      expect(result).toBe(value)
+      expect(addMissingProtocol(value)).toBe(value)
     })
 
     it('should not modify https:// URLs', () => {
       const value = 'https://example.com/feed'
-      const result = addMissingProtocol(value)
 
-      expect(result).toBe(value)
+      expect(addMissingProtocol(value)).toBe(value)
     })
 
     it('should not modify absolute path URLs', () => {
       const value = '/path/to/feed'
-      const result = addMissingProtocol(value)
 
-      expect(result).toBe(value)
+      expect(addMissingProtocol(value)).toBe(value)
     })
 
     it('should not modify relative path URLs starting with dot', () => {
       const value = './feed.xml'
-      const result = addMissingProtocol(value)
 
-      expect(result).toBe(value)
+      expect(addMissingProtocol(value)).toBe(value)
     })
 
     it('should not modify relative path URLs starting with double dot', () => {
       const value = '../feed.xml'
-      const result = addMissingProtocol(value)
 
-      expect(result).toBe(value)
+      expect(addMissingProtocol(value)).toBe(value)
     })
 
     it('should handle localhost', () => {
@@ -292,73 +262,60 @@ describe('addMissingProtocol', () => {
   })
 
   describe('invalid protocol-relative URLs', () => {
-    const invalidCases = [
-      '//Users/file.xml',
-      '//home/user/file.txt',
-      '///triple-slash',
-      '//singlelabel',
-    ]
+    const values = ['//Users/file.xml', '//home/user/file.txt', '///triple-slash', '//singlelabel']
 
-    for (const value of invalidCases) {
+    for (const value of values) {
       it(`should return ${value} unchanged`, () => {
-        const result = addMissingProtocol(value)
-
-        expect(result).toBe(value)
+        expect(addMissingProtocol(value)).toBe(value)
       })
     }
 
     it('should handle malformed URLs gracefully', () => {
       const value = '//not valid url $#@'
-      const result = addMissingProtocol(value)
 
-      expect(result).toBe(value)
+      expect(addMissingProtocol(value)).toBe(value)
     })
   })
 
   describe('additional edge cases', () => {
     it('should handle bare domain with hash', () => {
       const value = 'example.com/feed#section'
-      const result = addMissingProtocol(value)
       const expected = 'https://example.com/feed#section'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
-    it('should not modify feed:// URLs (has valid protocol)', () => {
+    it('should not modify feed:// URLs', () => {
       expect(addMissingProtocol('feed://example.com/rss')).toBe('feed://example.com/rss')
       expect(addMissingProtocol('rss://example.com/feed')).toBe('rss://example.com/feed')
     })
 
     it('should handle domain with many subdomains', () => {
       const value = 'a.b.c.d.example.com/feed'
-      const result = addMissingProtocol(value)
       const expected = 'https://a.b.c.d.example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
     it('should handle IDN bare domain', () => {
       const value = 'münchen.de/feed'
-      const result = addMissingProtocol(value)
       const expected = 'https://münchen.de/feed'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
     it('should handle protocol-relative with query', () => {
       const value = '//example.com/feed?format=rss&page=1'
-      const result = addMissingProtocol(value)
       const expected = 'https://example.com/feed?format=rss&page=1'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
     it('should handle bare domain without path', () => {
       const value = 'example.com'
-      const result = addMissingProtocol(value)
       const expected = 'https://example.com'
 
-      expect(result).toBe(expected)
+      expect(addMissingProtocol(value)).toBe(expected)
     })
 
     it('should not modify mailto: URLs', () => {
@@ -377,80 +334,85 @@ describe('resolveUrl', () => {
   describe('standard HTTP/HTTPS URLs', () => {
     it('should return https URL unchanged', () => {
       const value = 'https://example.com/feed.xml'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should return http URL unchanged', () => {
       const value = 'http://example.com/feed.xml'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('http://example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should preserve query parameters', () => {
       const value = 'https://example.com/feed?format=rss&page=1'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com/feed?format=rss&page=1')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should preserve hash fragments', () => {
       const value = 'https://example.com/feed#latest'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com/feed#latest')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should preserve authentication credentials', () => {
       const value = 'https://user:pass@example.com/feed.xml'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://user:pass@example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should preserve non-standard ports', () => {
       const value = 'https://example.com:8443/feed.xml'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com:8443/feed.xml')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should strip default HTTPS port', () => {
       const value = 'https://example.com:443/feed.xml'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/feed.xml'
 
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should strip default HTTP port', () => {
       const value = 'http://example.com:80/feed.xml'
-      const result = resolveUrl(value)
+      const expected = 'http://example.com/feed.xml'
 
-      expect(result).toBe('http://example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(expected)
     })
   })
 
-  describe('feed protocol resolution (integration with resolveFeedProtocol)', () => {
+  describe('feed protocol resolution', () => {
     it('should convert feed:// to https://', () => {
-      expect(resolveUrl('feed://example.com/rss.xml')).toBe('https://example.com/rss.xml')
+      const value = 'feed://example.com/rss.xml'
+      const expected = 'https://example.com/rss.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should unwrap feed:https:// to https://', () => {
-      expect(resolveUrl('feed:https://example.com/rss.xml')).toBe('https://example.com/rss.xml')
+      const value = 'feed:https://example.com/rss.xml'
+      const expected = 'https://example.com/rss.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
   })
 
-  describe('protocol-relative URLs (integration with addMissingProtocol)', () => {
+  describe('protocol-relative URLs', () => {
     it('should convert // to https:// by default', () => {
-      expect(resolveUrl('//example.com/feed.xml')).toBe('https://example.com/feed.xml')
+      const value = '//example.com/feed.xml'
+      const expected = 'https://example.com/feed.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should inherit protocol from base URL', () => {
-      expect(resolveUrl('//example.com/feed.xml', 'http://other.com')).toBe(
-        'http://example.com/feed.xml',
-      )
+      const value = '//example.com/feed.xml'
+      const base = 'http://other.com'
+      const expected = 'http://example.com/feed.xml'
+
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should return undefined for invalid protocol-relative URLs', () => {
@@ -459,177 +421,177 @@ describe('resolveUrl', () => {
     })
   })
 
-  describe('bare domains (integration with addMissingProtocol)', () => {
+  describe('bare domains', () => {
     it('should add https:// to bare domain', () => {
-      expect(resolveUrl('example.com/feed.xml')).toBe('https://example.com/feed.xml')
+      const value = 'example.com/feed.xml'
+      const expected = 'https://example.com/feed.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should handle localhost', () => {
-      expect(resolveUrl('localhost:3000/feed.xml')).toBe('https://localhost:3000/feed.xml')
+      const value = 'localhost:3000/feed.xml'
+      const expected = 'https://localhost:3000/feed.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
   })
 
   describe('relative URL resolution with base', () => {
-    const baseUrl = 'https://example.com/blog/posts/'
+    const base = 'https://example.com/blog/posts/'
 
     it('should resolve simple filename', () => {
       const value = 'feed.xml'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://example.com/blog/posts/feed.xml'
 
-      expect(result).toBe('https://example.com/blog/posts/feed.xml')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should resolve current directory reference', () => {
       const value = './feed.xml'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://example.com/blog/posts/feed.xml'
 
-      expect(result).toBe('https://example.com/blog/posts/feed.xml')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should resolve single parent directory', () => {
       const value = '../feed.xml'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://example.com/blog/feed.xml'
 
-      expect(result).toBe('https://example.com/blog/feed.xml')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should resolve multiple parent directories', () => {
       const value = '../../feed.xml'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://example.com/feed.xml'
 
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should resolve root-relative path', () => {
       const value = '/feed.xml'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://example.com/feed.xml'
 
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should resolve query-only reference', () => {
       const value = '?format=atom'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://example.com/blog/posts/?format=atom'
 
-      expect(result).toBe('https://example.com/blog/posts/?format=atom')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should not modify absolute URL when base is provided', () => {
       const value = 'https://other.com/feed.xml'
-      const result = resolveUrl(value, baseUrl)
 
-      expect(result).toBe('https://other.com/feed.xml')
+      expect(resolveUrl(value, base)).toBe(value)
     })
 
-    it('should not modify feed:// URL when base is provided', () => {
+    it('should convert feed:// URL when base is provided', () => {
       const value = 'feed://other.com/feed.xml'
-      const result = resolveUrl(value, baseUrl)
+      const expected = 'https://other.com/feed.xml'
 
-      expect(result).toBe('https://other.com/feed.xml')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should inherit http from base when resolving relative URL', () => {
       const value = 'feed.xml'
-      const result = resolveUrl(value, 'http://example.com/blog/')
+      const expected = 'http://example.com/blog/feed.xml'
 
-      expect(result).toBe('http://example.com/blog/feed.xml')
+      expect(resolveUrl(value, 'http://example.com/blog/')).toBe(expected)
     })
   })
 
-  describe('uRL normalization', () => {
+  describe('URL normalization', () => {
     it('should normalize path segments (/../)', () => {
       const value = 'https://example.com/a/b/../feed.xml'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/a/feed.xml'
 
-      expect(result).toBe('https://example.com/a/feed.xml')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should normalize path segments (/./)', () => {
       const value = 'https://example.com/./feed.xml'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/feed.xml'
 
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should lowercase hostname', () => {
       const value = 'https://EXAMPLE.COM/Feed.xml'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/Feed.xml'
 
-      expect(result).toBe('https://example.com/Feed.xml')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should preserve path case', () => {
       const value = 'https://example.com/Blog/Feed.XML'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com/Blog/Feed.XML')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should add trailing slash to root path', () => {
       const value = 'https://example.com'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/'
 
-      expect(result).toBe('https://example.com/')
+      expect(resolveUrl(value)).toBe(expected)
     })
   })
 
   describe('additional edge cases', () => {
     it('should handle hash-only reference with base', () => {
       const value = '#section'
-      const result = resolveUrl(value, 'https://example.com/page')
+      const base = 'https://example.com/page'
+      const expected = 'https://example.com/page#section'
 
-      expect(result).toBe('https://example.com/page#section')
+      expect(resolveUrl(value, base)).toBe(expected)
     })
 
     it('should return undefined for invalid base URL', () => {
       const value = 'feed.xml'
-      const result = resolveUrl(value, 'not a valid base')
+      const base = 'not a valid base'
 
-      expect(result).toBeUndefined()
+      expect(resolveUrl(value, base)).toBeUndefined()
     })
 
     it('should handle double-encoded characters', () => {
-      // %2520 is double-encoded space (%25 is %, so %2520 decodes to %20)
       const value = 'https://example.com/path%2520with%2520spaces'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com/path%2520with%2520spaces')
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should handle URLs with unicode in path', () => {
       const value = 'https://example.com/café/feed'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/caf%C3%A9/feed'
 
-      expect(result).toBe('https://example.com/caf%C3%A9/feed')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should handle URLs with special query characters', () => {
       const value = 'https://example.com/feed?q=hello%20world&tag=%23test'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com/feed?q=hello%20world&tag=%23test')
+      expect(resolveUrl(value)).toBe(value)
     })
 
-    it('should handle URLs with embedded newline (URL API strips it)', () => {
-      // URL constructor strips newlines, tabs, and leading/trailing whitespace
+    it('should handle URLs with embedded newline', () => {
       const value = 'https://example.com/feed\n.xml'
-      const result = resolveUrl(value)
+      const expected = 'https://example.com/feed.xml'
 
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should handle bare domain with very long TLD', () => {
       const value = 'example.photography/feed'
-      const result = resolveUrl(value)
+      const expected = 'https://example.photography/feed'
 
-      expect(result).toBe('https://example.photography/feed')
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should handle URL with empty path segments', () => {
       const value = 'https://example.com//feed//rss.xml'
-      const result = resolveUrl(value)
 
-      expect(result).toBe('https://example.com//feed//rss.xml')
+      expect(resolveUrl(value)).toBe(value)
     })
   })
 
@@ -692,13 +654,16 @@ describe('resolveUrl', () => {
     })
 
     it('should convert backslashes to forward slashes in path', () => {
-      expect(resolveUrl('https://example.com\\feed\\rss.xml')).toBe(
-        'https://example.com/feed/rss.xml',
-      )
+      const value = 'https://example.com\\feed\\rss.xml'
+      const expected = 'https://example.com/feed/rss.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
 
-    it('should preserve trailing dot in hostname (FQDN)', () => {
-      expect(resolveUrl('https://example.com./feed')).toBe('https://example.com./feed')
+    it('should preserve trailing dot in hostname', () => {
+      const value = 'https://example.com./feed'
+
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should handle dot segments and excessive parent traversal', () => {
@@ -707,9 +672,9 @@ describe('resolveUrl', () => {
     })
 
     it('should preserve empty path segments', () => {
-      expect(resolveUrl('https://example.com///feed///rss')).toBe(
-        'https://example.com///feed///rss',
-      )
+      const value = 'https://example.com///feed///rss'
+
+      expect(resolveUrl(value)).toBe(value)
     })
 
     it('should handle special characters in path and query', () => {
@@ -726,7 +691,10 @@ describe('resolveUrl', () => {
     })
 
     it('should encode null byte in URL path', () => {
-      expect(resolveUrl('https://example.com/feed\x00.xml')).toBe('https://example.com/feed%00.xml')
+      const value = 'https://example.com/feed\x00.xml'
+      const expected = 'https://example.com/feed%00.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
 
     it('should handle unicode control characters', () => {
@@ -740,372 +708,334 @@ describe('normalizeUrl', () => {
   describe('protocol stripping', () => {
     it('should strip https:// protocol by default', () => {
       const value = 'https://example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should strip http:// protocol by default', () => {
       const value = 'http://example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve protocol when stripProtocol option is false', () => {
+    it('should preserve protocol when stripProtocol is false', () => {
       const value = 'https://example.com/feed'
-      const result = normalizeUrl(value, { stripProtocol: false })
-      const expected = 'https://example.com/feed'
+      const options = { stripProtocol: false }
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(value)
     })
   })
 
   describe('authentication handling', () => {
     it('should preserve username and password by default', () => {
       const value = 'https://user:pass@example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'user:pass@example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should preserve username only by default', () => {
       const value = 'https://user@example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'user@example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should strip authentication when stripAuthentication option is true', () => {
+    it('should strip authentication when stripAuthentication is true', () => {
       const value = 'https://user:pass@example.com/feed'
-      const result = normalizeUrl(value, { stripAuthentication: true, stripProtocol: false })
+      const options = { stripAuthentication: true, stripProtocol: false }
       const expected = 'https://example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
-  describe('wWW stripping', () => {
+  describe('www stripping', () => {
     it('should strip www prefix by default', () => {
       const value = 'https://www.example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve www when stripWww option is false', () => {
+    it('should preserve www when stripWww is false', () => {
       const value = 'https://www.example.com/feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripWww: false })
+      const options = { ...defaultNormalizeOptions, stripWww: false }
       const expected = 'www.example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
 
     it('should not affect non-www subdomains', () => {
       const value = 'https://cdn.example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'cdn.example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle www in subdomain correctly', () => {
       const value = 'https://www.blog.example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'blog.example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('port stripping', () => {
     it('should strip default HTTPS port 443', () => {
       const value = 'https://example.com:443/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should strip default HTTP port 80', () => {
       const value = 'http://example.com:80/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should preserve non-default ports', () => {
       const value = 'https://example.com:8080/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com:8080/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should not strip port 80 for HTTPS', () => {
       const value = 'https://example.com:80/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com:80/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should not strip port 443 for HTTP', () => {
       const value = 'http://example.com:443/feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com:443/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('trailing slash removal', () => {
     it('should remove trailing slash from path by default', () => {
       const value = 'https://example.com/feed/'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve trailing slash when stripTrailingSlash option is false', () => {
+    it('should preserve trailing slash when stripTrailingSlash is false', () => {
       const value = 'https://example.com/feed/'
-      const result = normalizeUrl(value, {
+      const options = {
         ...defaultNormalizeOptions,
         stripTrailingSlash: false,
         stripRootSlash: false,
-      })
+      }
       const expected = 'example.com/feed/'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
 
     it('should handle multiple trailing slashes after collapse', () => {
       const value = 'https://example.com/feed///'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('single slash (root path) handling', () => {
-    it('should keep root slash (URL API limitation)', () => {
+    it('should keep root slash', () => {
       const value = 'https://example.com/'
-      const result = normalizeUrl(value)
       const expected = 'example.com/'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('multiple slashes collapsing', () => {
     it('should collapse multiple slashes in path by default', () => {
       const value = 'https://example.com/path//to///feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/path/to/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve multiple slashes when collapseSlashes option is false', () => {
+    it('should preserve multiple slashes when collapseSlashes is false', () => {
       const value = 'https://example.com/path//to///feed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, collapseSlashes: false })
+      const options = { ...defaultNormalizeOptions, collapseSlashes: false }
       const expected = 'example.com/path//to///feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('hash/fragment stripping', () => {
     it('should strip hash fragment by default', () => {
       const value = 'https://example.com/feed#section'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve hash when stripHash option is false', () => {
+    it('should preserve hash when stripHash is false', () => {
       const value = 'https://example.com/feed#section'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripHash: false })
+      const options = { ...defaultNormalizeOptions, stripHash: false }
       const expected = 'example.com/feed#section'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
 
     it('should handle empty hash', () => {
       const value = 'https://example.com/feed#'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('text fragment stripping', () => {
     it('should strip text fragments by default when stripHash is false', () => {
       const value = 'https://example.com/feed#:~:text=hello'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripHash: false })
+      const options = { ...defaultNormalizeOptions, stripHash: false }
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
 
-    it('should preserve text fragments when stripTextFragment option is false', () => {
+    it('should preserve text fragments when stripTextFragment is false', () => {
       const value = 'https://example.com/feed#:~:text=hello'
-      const result = normalizeUrl(value, {
-        ...defaultNormalizeOptions,
-        stripHash: false,
-        stripTextFragment: false,
-      })
+      const options = { ...defaultNormalizeOptions, stripHash: false, stripTextFragment: false }
       const expected = 'example.com/feed#:~:text=hello'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('query parameter sorting', () => {
     it('should sort query parameters alphabetically by default', () => {
       const value = 'https://example.com/feed?z=3&a=1&m=2'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed?a=1&m=2&z=3'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve query order when sortQueryParams option is false', () => {
+    it('should preserve query order when sortQueryParams is false', () => {
       const value = 'https://example.com/feed?z=3&a=1&m=2'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, sortQueryParams: false })
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false }
       const expected = 'example.com/feed?z=3&a=1&m=2'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('tracking parameter stripping', () => {
     it('should strip default tracking parameters', () => {
       const value = 'https://example.com/feed?utm_source=twitter&fbclid=abc&id=123'
-      const result = normalizeUrl(value)
+      const expected = 'example.com/feed?id=123'
 
-      expect(result).toBe('example.com/feed?id=123')
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should use custom stripped params when array is provided', () => {
       const value = 'https://example.com/feed?custom=1&keep=2'
-      const result = normalizeUrl(value, {
-        ...defaultNormalizeOptions,
-        stripQueryParams: ['custom'],
-      })
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['custom'] }
+      const expected = 'example.com/feed?keep=2'
 
-      expect(result).toBe('example.com/feed?keep=2')
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('empty query removal', () => {
     it('should remove empty query string by default', () => {
       const value = 'https://example.com/feed?'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('percent encoding normalization', () => {
     it('should decode unnecessarily encoded safe chars by default', () => {
-      // %2D is '-', which is safe in paths
       const value = 'https://example.com/path%2Dto%2Dfeed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/path-to-feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should normalize lowercase hex to uppercase', () => {
-      // %2f should become %2F (forward slash must stay encoded)
       const value = 'https://example.com/path%2fencoded'
-      const result = normalizeUrl(value)
       const expected = 'example.com/path%2Fencoded'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should keep unsafe characters encoded', () => {
-      // %20 (space) should stay encoded
       const value = 'https://example.com/hello%20world'
-      const result = normalizeUrl(value)
       const expected = 'example.com/hello%20world'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should preserve encoding when normalizeEncoding option is false', () => {
+    it('should preserve encoding when normalizeEncoding is false', () => {
       const value = 'https://example.com/path%2Dto%2Dfeed'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, normalizeEncoding: false })
+      const options = { ...defaultNormalizeOptions, normalizeEncoding: false }
       const expected = 'example.com/path%2Dto%2Dfeed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('unicode normalization', () => {
     it('should normalize unicode in hostname by default', () => {
       const value = 'https://caf\u00e9.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'xn--caf-dma.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should normalize unicode in pathname by default', () => {
       const value = 'https://example.com/caf\u00e9'
-      const result = normalizeUrl(value)
       const expected = 'example.com/caf%C3%A9'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should skip unicode normalization when normalizeUnicode option is false', () => {
+    it('should skip unicode normalization when normalizeUnicode is false', () => {
       const value = 'https://example.com/caf\u00e9'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, normalizeUnicode: false })
+      const options = { ...defaultNormalizeOptions, normalizeUnicode: false }
       const expected = 'example.com/caf%C3%A9'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('punycode normalization', () => {
     it('should convert IDN to punycode by default', () => {
       const value = 'https://münchen.example.com/feed'
-      const result = normalizeUrl(value)
       const expected = 'xn--mnchen-3ya.example.com/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
   describe('case normalization', () => {
     it('should lowercase hostname by default', () => {
       const value = 'https://EXAMPLE.COM/Feed'
-      const result = normalizeUrl(value)
       const expected = 'example.com/Feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should not lowercase pathname', () => {
       const value = 'https://example.com/UPPERCASE/Path'
-      const result = normalizeUrl(value)
       const expected = 'example.com/UPPERCASE/Path'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 
@@ -1113,10 +1043,9 @@ describe('normalizeUrl', () => {
     it('should apply all default normalizations', () => {
       const value =
         'https://user:pass@www.EXAMPLE.COM:443/path//to/feed/?utm_source=test&z=2&a=1#section'
-      const result = normalizeUrl(value)
       const expected = 'user:pass@example.com/path/to/feed?a=1&z=2'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should apply minimal normalizations when all options are false', () => {
@@ -1137,107 +1066,96 @@ describe('normalizeUrl', () => {
         normalizeUnicode: false,
         lowercaseHostname: false,
       }
-      const result = normalizeUrl(value, options)
       const expected = 'https://www.example.com:8080/feed/'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
   describe('edge cases', () => {
-    it('should handle URL without path (keeps root slash)', () => {
+    it('should handle URL without path', () => {
       const value = 'https://example.com'
-      const result = normalizeUrl(value)
       const expected = 'example.com/'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
-    it('should handle URL with only query (keeps root slash)', () => {
+    it('should handle URL with only query', () => {
       const value = 'https://example.com?query=value'
-      const result = normalizeUrl(value)
       const expected = 'example.com/?query=value'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle IPv4 address hosts', () => {
       const value = 'https://192.168.1.1/feed'
-      const result = normalizeUrl(value)
       const expected = '192.168.1.1/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle IPv6 address hosts', () => {
       const value = 'https://[::1]/feed'
-      const result = normalizeUrl(value)
       const expected = '[::1]/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle special characters in query values', () => {
       const value = 'https://example.com/feed?q=hello+world&tag=%23test'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed?q=hello+world&tag=%23test'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle multiple query params with same key', () => {
       const value = 'https://example.com/feed?a=1&a=2&a=3'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed?a=1&a=2&a=3'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle query param with no value', () => {
       const value = 'https://example.com/feed?key'
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed?key='
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle query param with empty value', () => {
       const value = 'https://example.com/feed?key='
-      const result = normalizeUrl(value)
       const expected = 'example.com/feed?key='
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle IDN with www prefix', () => {
       const value = 'https://www.münchen.de/feed'
-      const result = normalizeUrl(value)
       const expected = 'xn--mnchen-3ya.de/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle hash with special characters', () => {
       const value = 'https://example.com/feed#section/sub?param=1'
-      const result = normalizeUrl(value, { ...defaultNormalizeOptions, stripHash: false })
+      const options = { ...defaultNormalizeOptions, stripHash: false }
       const expected = 'example.com/feed#section/sub?param=1'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
 
     it('should handle URL with only hash', () => {
       const value = 'https://example.com/#section'
-      const result = normalizeUrl(value)
       const expected = 'example.com/'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should handle combining www strip with IDN', () => {
       const value = 'https://www.例え.jp/feed'
-      const result = normalizeUrl(value)
-      // www is stripped, IDN is converted to punycode
-      expect(result).toBe('xn--r8jz45g.jp/feed')
+      const expected = 'xn--r8jz45g.jp/feed'
+
+      expect(normalizeUrl(value)).toBe(expected)
     })
 
     it('should preserve matrix parameters in path', () => {
@@ -1264,34 +1182,26 @@ describe('normalizeUrl', () => {
   describe('invalid inputs', () => {
     it('should return original string for invalid URL', () => {
       const value = 'not a valid url'
-      const result = normalizeUrl(value)
-      const expected = 'not a valid url'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(value)
     })
 
     it('should return original string for empty string', () => {
       const value = ''
-      const result = normalizeUrl(value)
-      const expected = ''
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(value)
     })
 
     it('should return original string for relative path', () => {
       const value = '/path/to/feed'
-      const result = normalizeUrl(value)
-      const expected = '/path/to/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(value)
     })
 
     it('should handle malformed URLs gracefully', () => {
       const value = 'https://example.com:not-a-port/feed'
-      const result = normalizeUrl(value)
-      const expected = 'https://example.com:not-a-port/feed'
 
-      expect(result).toBe(expected)
+      expect(normalizeUrl(value)).toBe(value)
     })
   })
 })
@@ -1301,10 +1211,8 @@ describe('isSimilarUrl', () => {
     it('should return true for identical URLs', () => {
       const value1 = 'https://example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
   })
 
@@ -1312,42 +1220,33 @@ describe('isSimilarUrl', () => {
     it('should return true for http vs https', () => {
       const value1 = 'http://example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
-    it('should return false for protocol difference when stripProtocol option is false', () => {
+    it('should return false for protocol difference when stripProtocol is false', () => {
       const value1 = 'http://example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2, {
-        ...defaultNormalizeOptions,
-        stripProtocol: false,
-      })
-      const expected = false
+      const options = { ...defaultNormalizeOptions, stripProtocol: false }
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2, options)).toBe(false)
     })
   })
 
-  describe('wWW differences', () => {
+  describe('www differences', () => {
     it('should return true for www vs non-www', () => {
       const value1 = 'https://www.example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
-    it('should return false for www difference when stripWww option is false', () => {
+    it('should return false for www difference when stripWww is false', () => {
       const value1 = 'https://www.example.com/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2, { ...defaultNormalizeOptions, stripWww: false })
-      const expected = false
+      const options = { ...defaultNormalizeOptions, stripWww: false }
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2, options)).toBe(false)
     })
   })
 
@@ -1355,23 +1254,20 @@ describe('isSimilarUrl', () => {
     it('should return true for trailing slash vs no trailing slash', () => {
       const value1 = 'https://example.com/feed/'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
-    it('should return false for trailing slash difference when stripTrailingSlash option is false', () => {
+    it('should return false for trailing slash difference when stripTrailingSlash is false', () => {
       const value1 = 'https://example.com/feed/'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2, {
+      const options = {
         ...defaultNormalizeOptions,
         stripTrailingSlash: false,
         stripRootSlash: false,
-      })
-      const expected = false
+      }
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2, options)).toBe(false)
     })
   })
 
@@ -1379,28 +1275,22 @@ describe('isSimilarUrl', () => {
     it('should return true for different query order', () => {
       const value1 = 'https://example.com/feed?a=1&b=2'
       const value2 = 'https://example.com/feed?b=2&a=1'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return true when one has tracking params', () => {
       const value1 = 'https://example.com/feed?utm_source=twitter'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return false for different non-tracking params', () => {
       const value1 = 'https://example.com/feed?page=1'
       const value2 = 'https://example.com/feed?page=2'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
   })
 
@@ -1408,19 +1298,15 @@ describe('isSimilarUrl', () => {
     it('should return true for different hash fragments', () => {
       const value1 = 'https://example.com/feed#section1'
       const value2 = 'https://example.com/feed#section2'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return true for hash vs no hash', () => {
       const value1 = 'https://example.com/feed#section'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
   })
 
@@ -1428,19 +1314,15 @@ describe('isSimilarUrl', () => {
     it('should return true for hostname case differences', () => {
       const value1 = 'https://EXAMPLE.COM/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return false for path case differences', () => {
       const value1 = 'https://example.com/FEED'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
   })
 
@@ -1448,19 +1330,15 @@ describe('isSimilarUrl', () => {
     it('should return true for default port vs no port', () => {
       const value1 = 'https://example.com:443/feed'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return false for different non-default ports', () => {
       const value1 = 'https://example.com:8080/feed'
       const value2 = 'https://example.com:9090/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
   })
 
@@ -1468,19 +1346,15 @@ describe('isSimilarUrl', () => {
     it('should return false for different paths', () => {
       const value1 = 'https://example.com/feed'
       const value2 = 'https://example.com/rss'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should return true for multiple slashes vs single slash', () => {
       const value1 = 'https://example.com/path//to///feed'
       const value2 = 'https://example.com/path/to/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
   })
 
@@ -1488,19 +1362,15 @@ describe('isSimilarUrl', () => {
     it('should return false for different hosts', () => {
       const value1 = 'https://example.com/feed'
       const value2 = 'https://other.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should return false for different subdomains', () => {
       const value1 = 'https://blog.example.com/feed'
       const value2 = 'https://news.example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
   })
 
@@ -1508,19 +1378,15 @@ describe('isSimilarUrl', () => {
     it('should return true for URLs with multiple normalizable differences', () => {
       const value1 = 'http://www.EXAMPLE.COM:80/path//to/feed/?utm_source=test#section'
       const value2 = 'https://example.com/path/to/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should handle real-world feed URL variations', () => {
       const value1 = 'https://www.blog.example.com/feed.xml?utm_source=feedly'
       const value2 = 'http://blog.example.com/feed.xml'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
   })
 
@@ -1528,46 +1394,36 @@ describe('isSimilarUrl', () => {
     it('should return false for invalid first URL', () => {
       const value1 = 'not a url'
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should return false for invalid second URL', () => {
       const value1 = 'https://example.com/feed'
       const value2 = 'not a url'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should return false for both invalid URLs', () => {
       const value1 = 'not a url'
       const value2 = 'also not a url'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should return true for identical invalid strings', () => {
       const value1 = 'not a url'
       const value2 = 'not a url'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return false for empty strings vs valid URL', () => {
       const value1 = ''
       const value2 = 'https://example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
   })
 
@@ -1575,47 +1431,36 @@ describe('isSimilarUrl', () => {
     it('should return true for IDN vs punycode', () => {
       const value1 = 'https://münchen.de/feed'
       const value2 = 'https://xn--mnchen-3ya.de/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return true for different percent encoding of same char', () => {
-      // Both decode to the same path with hyphen
       const value1 = 'https://example.com/path-to-feed'
       const value2 = 'https://example.com/path%2Dto%2Dfeed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return true for mixed case hex encoding', () => {
       const value1 = 'https://example.com/path%2fto'
       const value2 = 'https://example.com/path%2Fto'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return true for www IDN comparison', () => {
       const value1 = 'https://www.münchen.de/feed'
       const value2 = 'https://xn--mnchen-3ya.de/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should return true for emoji domain vs punycode', () => {
       const value1 = 'https://🍕.example.com/feed'
       const value2 = 'https://xn--vi8h.example.com/feed'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
   })
 
@@ -1623,46 +1468,36 @@ describe('isSimilarUrl', () => {
     it('should match YouTube feed with different tracking params', () => {
       const value1 = 'https://www.youtube.com/feeds/videos.xml?channel_id=UC123'
       const value2 = 'https://youtube.com/feeds/videos.xml?channel_id=UC123&utm_source=feedly'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should match Reddit feed variations', () => {
       const value1 = 'https://www.reddit.com/r/javascript/.rss'
       const value2 = 'http://reddit.com/r/javascript/.rss/'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
 
     it('should not match different YouTube channels', () => {
       const value1 = 'https://www.youtube.com/feeds/videos.xml?channel_id=UC123'
       const value2 = 'https://www.youtube.com/feeds/videos.xml?channel_id=UC456'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should not match feed with different auth', () => {
       const value1 = 'https://user:pass@example.com/feed.xml'
       const value2 = 'https://example.com/feed.xml'
-      const result = isSimilarUrl(value1, value2)
-      const expected = false
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(false)
     })
 
     it('should match feed with same auth', () => {
       const value1 = 'https://user:pass@example.com/feed.xml'
       const value2 = 'https://user:pass@example.com/feed.xml'
-      const result = isSimilarUrl(value1, value2)
-      const expected = true
 
-      expect(result).toBe(expected)
+      expect(isSimilarUrl(value1, value2)).toBe(true)
     })
   })
 })
@@ -1875,5 +1710,27 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+})
+
+describe('createMd5Hash', () => {
+  it('should return MD5 hash of content', async () => {
+    const value = 'hello world'
+    const expected = '5eb63bbbe01eeed093cb22bb8f5acdc3'
+
+    expect(await createMd5Hash(value)).toBe(expected)
+  })
+
+  it('should return different hashes for different content', async () => {
+    const value1 = 'content1'
+    const value2 = 'content2'
+
+    expect(await createMd5Hash(value1)).not.toBe(await createMd5Hash(value2))
+  })
+
+  it('should return same hash for identical content', async () => {
+    const value = 'same content'
+
+    expect(await createMd5Hash(value)).toBe(await createMd5Hash(value))
   })
 })

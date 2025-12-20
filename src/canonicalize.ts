@@ -46,7 +46,14 @@ export const canonicalize = async <T>(
   let selfUrl: string | undefined
 
   if (parser) {
-    const parsed = parser.parse(responseBody)
+    let parsed: ReturnType<typeof parser.parse>
+
+    try {
+      parsed = parser.parse(responseBody)
+    } catch {
+      // Invalid feed content (empty, malformed, etc.).
+      return
+    }
 
     if (parsed) {
       const rawSelfUrl = parser.getSelfUrl(parsed)
