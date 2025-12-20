@@ -20,11 +20,12 @@ const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 // - itpc://example.com/podcast.xml → https://example.com/podcast.xml
 export const resolveFeedProtocol = (
   url: string,
-  protocols = defaultFeedProtocols,
+  feedProtocols = defaultFeedProtocols,
+  fallbackProtocol: 'http' | 'https' = 'https',
 ): string => {
   const urlLower = url.toLowerCase()
 
-  for (const scheme of protocols) {
+  for (const scheme of feedProtocols) {
     if (!urlLower.startsWith(scheme)) {
       continue
     }
@@ -36,7 +37,7 @@ export const resolveFeedProtocol = (
 
     // Case 2: Replacing protocol (e.g., feed://example.com).
     if (urlLower.startsWith(`${scheme}//`)) {
-      return `https:${url.slice(scheme.length)}`
+      return `${fallbackProtocol}:${url.slice(scheme.length)}`
     }
   }
 
@@ -50,7 +51,10 @@ export const resolveFeedProtocol = (
 // - //Users/file.xml → //Users/file.xml (unchanged, not a valid URL)
 // - example.com/feed → https://example.com/feed
 // - /path/to/feed → /path/to/feed (unchanged, relative path)
-export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
+export const addMissingProtocol = (
+  url: string,
+  fallbackProtocol: 'http' | 'https' = 'https',
+): string => {
   // Skip if URL already has a real protocol (http://, mailto:, tel:, etc.).
   // URL constructor may incorrectly parse "example.com:8080" as protocol "example.com:"
   // or "localhost:3000" as "localhost:". Real URI schemes don't contain dots (RFC 3986),
@@ -67,7 +71,7 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
   // Case 1: Protocol-relative URL (//example.com).
   if (url.startsWith('//') && !url.startsWith('///')) {
     try {
-      const parsed = new URL(`${protocol}:${url}`)
+      const parsed = new URL(`${fallbackProtocol}:${url}`)
       const hostname = parsed.hostname
 
       // Valid web hostnames must have at least one of:
@@ -109,7 +113,7 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
     return url
   }
 
-  return `${protocol}://${url}`
+  return `${fallbackProtocol}://${url}`
 }
 
 // Resolves a URL by converting feed protocols, resolving relative URLs,
