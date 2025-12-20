@@ -1695,4 +1695,135 @@ describe('canonicalize', () => {
       expect(result).toBe('https://www.blocked.example.com/feed/')
     })
   })
+
+  describe('self URL protocol retry', () => {
+    // Case 65: Self URL HTTPS Fails, HTTP Works
+    //
+    // Input: https://example.com/feed
+    // Self URL: feed://example.com/rss.xml (resolved to https://example.com/rss.xml)
+    // HTTPS version fails, HTTP version works
+    //
+    // When a feed declares a protocol-ambiguous self URL (e.g., feed://) and the
+    // HTTPS resolution fails, the algorithm should try HTTP before falling back
+    // to responseUrl.
+    it('case 65: should try HTTP when self URL HTTPS fails', async () => {
+      const content = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          // HTTPS selfUrl fails (not in mock = throws error)
+          'http://example.com/rss.xml': { body: content },
+          'https://example.com/rss.xml': { body: content }, // For Phase 6 HTTPS upgrade
+        }),
+        parser: createMockParser('feed://example.com/rss.xml'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      // HTTP fallback worked, becomes variant source, gets HTTPS upgrade in Phase 6
+      expect(result).toBe('https://example.com/rss.xml')
+    })
+
+    // Case 66: Self URL HTTP Fails, HTTPS Works
+    //
+    // Input: http://example.com/feed
+    // Self URL: http://example.com/rss.xml
+    // HTTP version fails, HTTPS version works
+    //
+    // When a feed declares an HTTP self URL but that URL doesn't work,
+    // the algorithm should try HTTPS before falling back to responseUrl.
+    it('case 66: should try HTTPS when self URL HTTP fails', async () => {
+      const content = '<feed><link rel="self" href="http://example.com/rss.xml"/></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'http://example.com/feed': { body: content },
+          // HTTP selfUrl fails (not in mock = throws error)
+          'https://example.com/rss.xml': { body: content },
+        }),
+        parser: createMockParser('http://example.com/rss.xml'),
+      }
+      const result = await canonicalize('http://example.com/feed', options)
+
+      // HTTPS fallback worked, becomes variant source
+      expect(result).toBe('https://example.com/rss.xml')
+    })
+
+    // Case 67: Alternate Protocol Blocked by verifyUrlFn
+    //
+    // Input: https://example.com/feed
+    // Self URL: feed://example.com/rss.xml (resolved to https://example.com/rss.xml)
+    // HTTPS fails, HTTP blocked by verifyUrlFn
+    //
+    // When the HTTPS self URL fails and the HTTP fallback is blocked by verifyUrlFn,
+    // the algorithm should fall back to responseUrl without trying the blocked URL.
+    it('case 67: should not try alternate protocol when blocked by verifyUrlFn', async () => {
+      const content = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          // HTTPS selfUrl fails (not in mock)
+          'http://example.com/rss.xml': { body: content },
+        }),
+        parser: createMockParser('feed://example.com/rss.xml'),
+        verifyUrlFn: (url: string) => {
+          // Block HTTP URLs
+          return !url.startsWith('http://')
+        },
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      // HTTPS selfUrl failed, HTTP blocked by verifyUrlFn, falls back to responseUrl
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 68: Both Protocols Fail, Falls Back to responseUrl
+    //
+    // Input: https://example.com/feed
+    // Self URL: feed://other.example.com/rss.xml
+    // Both HTTPS and HTTP fail
+    //
+    // When both protocol versions of selfUrl fail, the algorithm should gracefully
+    // fall back to using responseUrl as the variant source.
+    it('case 68: should fall back to responseUrl when both protocols fail', async () => {
+      const content = '<feed><link rel="self" href="feed://other.example.com/rss.xml"/></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          // Both https://other.example.com/rss.xml and http://other.example.com/rss.xml fail
+        }),
+        parser: createMockParser('feed://other.example.com/rss.xml'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      // Both protocols failed, falls back to responseUrl
+      expect(result).toBe('https://example.com/feed')
+    })
+
+    // Case 69: Protocol Retry with Redirect
+    //
+    // Input: https://example.com/feed
+    // Self URL: feed://cdn.example.com/rss.xml
+    // HTTPS fails, HTTP works and redirects to canonical location
+    //
+    // When HTTP fallback works and redirects, the redirect destination should
+    // become the variant source.
+    it('case 69: should use redirect destination from HTTP fallback', async () => {
+      const content = '<feed><link rel="self" href="feed://cdn.example.com/rss.xml"/></feed>'
+      const options = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: content },
+          // HTTPS selfUrl fails
+          'http://cdn.example.com/rss.xml': {
+            body: content,
+            url: 'https://example.com/rss.xml', // Redirects to HTTPS
+          },
+          'https://example.com/rss.xml': { body: content },
+        }),
+        parser: createMockParser('feed://cdn.example.com/rss.xml'),
+      }
+      const result = await canonicalize('https://example.com/feed', options)
+
+      // HTTP fallback redirected to HTTPS, that becomes canonical
+      expect(result).toBe('https://example.com/rss.xml')
+    })
+  })
 })

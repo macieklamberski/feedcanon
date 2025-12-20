@@ -68,24 +68,45 @@ export const canonicalize = async <T>(
   }
 
   // Phase 3: Validate self URL.
-  // TODO: Collect all working aliases (e.g., original selfUrl before redirect) for potential
-  // return alongside the canonical URL. This would help callers build alias → canonical mappings.
+  // Try selfUrl first, then alternate protocol if it fails (e.g., feed:// resolved to https://
+  // but only http:// works). This ensures we don't lose a valid selfUrl due to protocol mismatch.
   let variantSource = responseUrl
 
   if (selfUrl && selfUrl !== responseUrl && responseHash) {
-    try {
-      const selfResponse = await fetchFn(selfUrl)
+    // Build list of URLs to try (selfUrl first, then alternate protocol).
+    const urlsToTry = [selfUrl]
 
-      if (selfResponse.status >= 200 && selfResponse.status < 300) {
-        const selfHash = selfResponse.body ? await hashFn(selfResponse.body) : undefined
+    if (selfUrl.startsWith('https://')) {
+      urlsToTry.push(selfUrl.replace('https://', 'http://'))
+    } else if (selfUrl.startsWith('http://')) {
+      urlsToTry.push(selfUrl.replace('http://', 'https://'))
+    }
 
-        if (selfHash === responseHash) {
-          // selfUrl is valid - use destination URL (after redirects) as source for variants.
-          variantSource = applyPlatformHandlers(selfResponse.url, platforms)
+    for (const urlToTry of urlsToTry) {
+      // Verify URL is safe (selfUrl already verified in Phase 2, alternate needs verification).
+      if (urlToTry !== selfUrl && verifyUrlFn) {
+        const isVerified = await verifyUrlFn(urlToTry)
+
+        if (!isVerified) {
+          continue
         }
       }
-    } catch {
-      // selfUrl fetch failed, use responseUrl.
+
+      try {
+        const selfResponse = await fetchFn(urlToTry)
+
+        if (selfResponse.status >= 200 && selfResponse.status < 300) {
+          const selfHash = selfResponse.body ? await hashFn(selfResponse.body) : undefined
+
+          if (selfHash === responseHash) {
+            // URL is valid - use destination URL (after redirects) as source for variants.
+            variantSource = applyPlatformHandlers(selfResponse.url, platforms)
+            break
+          }
+        }
+      } catch {
+        // This URL failed, try next.
+      }
     }
   } else if (selfUrl === responseUrl) {
     // selfUrl matches responseUrl, use it.
