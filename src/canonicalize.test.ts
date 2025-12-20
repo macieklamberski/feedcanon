@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 import { canonicalize } from './canonicalize.js'
-import type { FetchFnResponse, ParserAdapter, PlatformHandler } from './types.js'
+import type {
+  CanonicalizeOptions,
+  FetchFnResponse,
+  ParserAdapter,
+  PlatformHandler,
+} from './types.js'
 
 describe('canonicalize', () => {
-  const createMockParser = (selfUrl: string | undefined): ParserAdapter<string> => {
+  const createMockParser = (selfUrl: string | undefined): ParserAdapter<unknown> => {
     return {
-      parse: (body) => {
-        return body
-      },
-      getSelfUrl: () => {
-        return selfUrl
-      },
-      getSignature: (parsed) => {
-        return { content: parsed }
-      },
+      parse: (body) => body,
+      getSelfUrl: () => selfUrl,
+      getSignature: (parsed) => ({ content: parsed }),
     }
   }
 
@@ -44,19 +43,17 @@ describe('canonicalize', () => {
     // The platform handler normalizes all FeedBurner aliases to the canonical
     // feeds.feedburner.com domain and strips FeedBurner-specific query params.
     it('case 1: should normalize FeedBurner aliases to canonical domain', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://feedproxy.google.com/TechCrunch?format=xml'
+      const expected = 'https://feeds.feedburner.com/TechCrunch'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://feedproxy.google.com/TechCrunch?format=xml': { body: content },
-          'https://feeds.feedburner.com/TechCrunch': { body: content },
+          'https://feedproxy.google.com/TechCrunch?format=xml': { body },
+          'https://feeds.feedburner.com/TechCrunch': { body },
         }),
       }
-      const result = await canonicalize(
-        'https://feedproxy.google.com/TechCrunch?format=xml',
-        options,
-      )
 
-      expect(result).toBe('https://feeds.feedburner.com/TechCrunch')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 2: Polluted URL That Works Simplified
@@ -68,20 +65,18 @@ describe('canonicalize', () => {
     // slashes can often be simplified. The algorithm generates cleaner variants,
     // verifies they return the same content, then attempts HTTPS upgrade.
     it('case 2: should clean polluted URL and upgrade to HTTPS', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'http://www.example.com/feed/?utm_source=twitter&utm_medium=social'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://www.example.com/feed/?utm_source=twitter&utm_medium=social': { body: content },
-          'http://example.com/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'http://www.example.com/feed/?utm_source=twitter&utm_medium=social': { body },
+          'http://example.com/feed': { body },
+          'https://example.com/feed': { body },
         }),
       }
-      const result = await canonicalize(
-        'http://www.example.com/feed/?utm_source=twitter&utm_medium=social',
-        options,
-      )
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 3: Polluted URL with Working Self URL
@@ -93,20 +88,18 @@ describe('canonicalize', () => {
     // HTTPS instead of HTTP, no www, no query params), the algorithm validates the
     // self URL returns the same content and adopts it as canonical.
     it('case 3: should adopt cleaner self URL when valid', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'http://www.blog.example.com/rss.xml?source=homepage&_=1702934567'
+      const expected = 'https://blog.example.com/rss.xml'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://www.blog.example.com/rss.xml?source=homepage&_=1702934567': { body: content },
-          'https://blog.example.com/rss.xml': { body: content },
+          'http://www.blog.example.com/rss.xml?source=homepage&_=1702934567': { body },
+          'https://blog.example.com/rss.xml': { body },
         }),
         parser: createMockParser('https://blog.example.com/rss.xml'),
       }
-      const result = await canonicalize(
-        'http://www.blog.example.com/rss.xml?source=homepage&_=1702934567',
-        options,
-      )
 
-      expect(result).toBe('https://blog.example.com/rss.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 4: Self URL Does Not Work
@@ -119,17 +112,18 @@ describe('canonicalize', () => {
     // algorithm detects the self URL fails (404, timeout) and falls back to using
     // the response URL that is known to work.
     it('case 4: should use responseUrl when self URL does not work', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
           'https://old.example.com/feed': { status: 404 },
         }),
         parser: createMockParser('https://old.example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 5: Self URL Produces Different Feed
@@ -142,16 +136,17 @@ describe('canonicalize', () => {
     // variant (e.g., full-text vs summary), the algorithm detects the content
     // difference via hash comparison and uses the response URL instead.
     it('case 5: should use responseUrl when self URL produces different content', async () => {
-      const options = {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: '<feed>summary</feed>' },
           'https://example.com/feed/full': { body: '<feed>full content</feed>' },
         }),
         parser: createMockParser('https://example.com/feed/full'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 6: Input URL Redirects
@@ -164,19 +159,17 @@ describe('canonicalize', () => {
     // follows them and uses the final destination URL as the canonical. The
     // original URL becomes an alias pointing to the canonical.
     it('case 6: should follow redirects and use final destination', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'http://old-blog.example.com/rss'
+      const expected = 'https://blog.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://old-blog.example.com/rss': {
-            body: content,
-            url: 'https://blog.example.com/feed',
-          },
-          'https://blog.example.com/feed': { body: content },
+          'http://old-blog.example.com/rss': { body, url: 'https://blog.example.com/feed' },
+          'https://blog.example.com/feed': { body },
         }),
       }
-      const result = await canonicalize('http://old-blog.example.com/rss', options)
 
-      expect(result).toBe('https://blog.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 7: HTTPS Upgrade Success
@@ -188,16 +181,17 @@ describe('canonicalize', () => {
     // the same content), the algorithm upgrades to HTTPS. This provides security
     // even when the server doesn't redirect HTTP to HTTPS automatically.
     it('case 7: should upgrade HTTP to HTTPS when content matches', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'http://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://example.com/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'http://example.com/feed': { body },
+          'https://example.com/feed': { body },
         }),
       }
-      const result = await canonicalize('http://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 8: HTTPS Upgrade Failure
@@ -209,16 +203,17 @@ describe('canonicalize', () => {
     // the algorithm gracefully falls back to HTTP. This handles legacy servers that
     // only serve content over HTTP.
     it('case 8: should keep HTTP when HTTPS fails', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'http://legacy.example.com/feed.rss'
+      const expected = 'http://legacy.example.com/feed.rss'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://legacy.example.com/feed.rss': { body: content },
+          'http://legacy.example.com/feed.rss': { body },
           'https://legacy.example.com/feed.rss': { status: 500 },
         }),
       }
-      const result = await canonicalize('http://legacy.example.com/feed.rss', options)
 
-      expect(result).toBe('http://legacy.example.com/feed.rss')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 9: WWW vs Non-WWW Mismatch
@@ -231,17 +226,18 @@ describe('canonicalize', () => {
     // non-www as it's shorter/cleaner. It verifies the non-www variant returns the
     // same content before adopting it.
     it('case 9: should prefer non-www when both work', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('https://example.com/feed'),
       }
-      const result = await canonicalize('https://www.example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 10: Feed Protocol (feed://)
@@ -254,16 +250,17 @@ describe('canonicalize', () => {
     // https:// before fetching. These legacy protocols were used for feed reader
     // registration but are not valid for HTTP fetching.
     it('case 10: should handle feed:// protocol in self URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://example.com/rss.xml'
+      const expected = 'https://example.com/rss.xml'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/rss.xml': { body: content },
+          'https://example.com/rss.xml': { body },
         }),
         parser: createMockParser('feed://example.com/rss.xml'),
       }
-      const result = await canonicalize('https://example.com/rss.xml', options)
 
-      expect(result).toBe('https://example.com/rss.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 11: Multiple FeedBurner Aliases
@@ -277,35 +274,35 @@ describe('canonicalize', () => {
     // feedproxy.google.com, feeds.feedburner.com) should all resolve to the same
     // canonical domain.
     it('case 11: should normalize different FeedBurner aliases to same canonical domain', async () => {
-      const content = '<feed></feed>'
+      const expected = 'https://feeds.feedburner.com/blog'
+      const body = '<feed></feed>'
+
       const optionsA = {
         fetchFn: createMockFetch({
-          'https://feeds2.feedburner.com/blog': { body: content },
-          'https://feeds.feedburner.com/blog': { body: content },
+          'https://feeds2.feedburner.com/blog': { body },
+          'https://feeds.feedburner.com/blog': { body },
         }),
       }
-      const resultA = await canonicalize('https://feeds2.feedburner.com/blog', optionsA)
-
       const optionsB = {
         fetchFn: createMockFetch({
-          'https://feedproxy.google.com/blog?format=rss': { body: content },
-          'https://feeds.feedburner.com/blog': { body: content },
+          'https://feedproxy.google.com/blog?format=rss': { body },
+          'https://feeds.feedburner.com/blog': { body },
         }),
       }
-      const resultB = await canonicalize('https://feedproxy.google.com/blog?format=rss', optionsB)
-
       const optionsC = {
         fetchFn: createMockFetch({
-          'https://feeds.feedburner.com/blog?format=xml': { body: content },
-          'https://feeds.feedburner.com/blog': { body: content },
+          'https://feeds.feedburner.com/blog?format=xml': { body },
+          'https://feeds.feedburner.com/blog': { body },
         }),
       }
-      const resultC = await canonicalize('https://feeds.feedburner.com/blog?format=xml', optionsC)
 
-      // All three aliases normalize to the same canonical URL.
-      expect(resultA).toBe('https://feeds.feedburner.com/blog')
-      expect(resultB).toBe('https://feeds.feedburner.com/blog')
-      expect(resultC).toBe('https://feeds.feedburner.com/blog')
+      expect(await canonicalize('https://feeds2.feedburner.com/blog', optionsA)).toBe(expected)
+      expect(await canonicalize('https://feedproxy.google.com/blog?format=rss', optionsB)).toBe(
+        expected,
+      )
+      expect(await canonicalize('https://feeds.feedburner.com/blog?format=xml', optionsC)).toBe(
+        expected,
+      )
     })
 
     // Case 12: Relative Self URL
@@ -318,37 +315,39 @@ describe('canonicalize', () => {
     // The algorithm resolves these relative URLs against the response URL base
     // to get an absolute URL for variant generation.
     it('case 12: should resolve relative self URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://example.com/blog/feed.xml'
+      const expected = 'https://example.com/blog/feed.xml'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/blog/feed.xml': { body: content },
+          'https://example.com/blog/feed.xml': { body },
         }),
         parser: createMockParser('feed.xml'),
       }
-      const result = await canonicalize('https://example.com/blog/feed.xml', options)
 
-      expect(result).toBe('https://example.com/blog/feed.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 13: Self URL with Different Query Params
+    // Case 13: Functional query params
     //
     // Input: https://example.com/feed?format=rss
-    // Self URL: https://example.com/feed?format=atom
+    // Variant: https://example.com/feed (stripped query params)
     // Result: https://example.com/feed?format=rss
     //
     // Some query params are functional (e.g., format=rss) and stripping them
-    // changes the content. The algorithm detects this via hash comparison and
-    // keeps the required params while still stripping tracking params.
-    it('case 13: should keep functional query params when stripping changes content', async () => {
-      const options = {
+    // changes the content. When the stripped variant returns different content,
+    // the algorithm keeps the original URL with functional params.
+    it('case 13: should keep functional query params when variant returns different content', async () => {
+      const value = 'https://example.com/feed?format=rss'
+      const expected = 'https://example.com/feed?format=rss'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://example.com/feed?format=rss': { body: '<feed>rss format</feed>' },
           'https://example.com/feed': { body: '<feed>default format</feed>' },
         }),
       }
-      const result = await canonicalize('https://example.com/feed?format=rss', options)
 
-      expect(result).toBe('https://example.com/feed?format=rss')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 14: Empty/Missing Self URL
@@ -361,15 +360,16 @@ describe('canonicalize', () => {
     // response URL as the sole source for generating variants. This is common
     // for older or simpler feeds.
     it('case 14: should use responseUrl when no self URL present', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 15: All Variants Fail Except Original
@@ -381,20 +381,18 @@ describe('canonicalize', () => {
     // variants will fail. The algorithm tries cleaner variants first but falls back
     // to the original URL when all simplifications fail.
     it('case 15: should fall back to original when all variants fail', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
+      const expected = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://special.example.com:8443/api/v2/feed.json?auth=token123': { body: content },
+          'https://special.example.com:8443/api/v2/feed.json?auth=token123': { body },
           'https://special.example.com/api/v2/feed.json': { status: 404 },
           'https://special.example.com:8443/api/v2/feed.json': { status: 401 },
         }),
       }
-      const result = await canonicalize(
-        'https://special.example.com:8443/api/v2/feed.json?auth=token123',
-        options,
-      )
 
-      expect(result).toBe('https://special.example.com:8443/api/v2/feed.json?auth=token123')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     // Case 16: Redirect Loop Prevention
@@ -406,61 +404,39 @@ describe('canonicalize', () => {
     // When the server has a redirect loop, the fetch implementation detects it
     // and fails. The algorithm returns undefined since the feed cannot be fetched.
     it('case 16: should return undefined when fetch fails due to redirect loop', async () => {
-      const options = {
+      const value = 'https://example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: async () => {
           throw new Error('Redirect loop detected')
         },
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBeUndefined()
+      expect(await canonicalize(value, options)).toBeUndefined()
     })
 
-    // Case 17: Content Hash Mismatch (CDN Variation)
+    // Case 17: Variant returns different content
     //
-    // Input: https://example.com/feed
-    // Result: https://example.com/feed
+    // Input: https://www.example.com/feed
+    // Variant: https://example.com/feed (returns completely different feed)
+    // Result: https://www.example.com/feed
     //
-    // Some feeds include dynamic content (timestamps, request IDs) causing raw byte
-    // hashes to differ between requests. When raw hash fails, a feed signature based
-    // on parsed data (title, GUIDs, links) can be used as fallback comparison.
-    it('case 17: should handle dynamic content with different hashes', async () => {
-      const options = {
+    // When a cleaner variant (e.g., without www) returns different content than
+    // the original, the variant is rejected and the original URL is kept. This
+    // can happen when www and non-www serve different feeds.
+    it('case 17: should reject variant when content differs', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://www.example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: '<feed>Generated: 2024-01-15 10:30:00</feed>' },
-          'https://example.com/feed/': { body: '<feed>Generated: 2024-01-15 10:30:05</feed>' },
+          'https://www.example.com/feed': { body: '<feed><title>Blog Feed</title></feed>' },
+          'https://example.com/feed': { body: '<feed><title>Company News</title></feed>' },
         }),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Content differs so variant doesn't match; falls back to response URL.
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 18: Multiple Self URLs in Feed
-    //
-    // Input: https://example.com/feed
-    // Self URLs: https://example.com/feed, https://example.com/rss.xml, https://www.example.com/feed
-    // Result: https://example.com/feed
-    //
-    // When a feed declares multiple <link rel="self"> elements, the algorithm
-    // prefers the one matching the response URL for consistency. If none match,
-    // it uses the first declared self URL.
-    it('case 18: should handle multiple self URLs by preferring matching responseUrl', async () => {
-      const content = '<feed></feed>'
-      const options = {
-        fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-        }),
-        // Parser returns the matching self URL.
-        parser: createMockParser('https://example.com/feed'),
-      }
-      const result = await canonicalize('https://example.com/feed', options)
-
-      expect(result).toBe('https://example.com/feed')
-    })
-
-    // Case 19: Self URL Returns HTML (Not Feed)
+    // Case 18: Self URL Returns HTML (Not Feed)
     //
     // Input: https://example.com/feed.xml
     // Self URL: https://example.com/blog (returns HTML, not feed)
@@ -469,22 +445,21 @@ describe('canonicalize', () => {
     // When a feed's self URL points to an HTML page (publisher misconfiguration),
     // the algorithm skips that variant because it's not a valid feed. It falls
     // back to using the response URL which is known to be a valid feed.
-    it('case 19: should ignore self URL that points to non-feed content', async () => {
-      const options = {
+    it('case 18: should ignore self URL that points to non-feed content', async () => {
+      const value = 'https://example.com/feed.xml'
+      const expected = 'https://example.com/feed.xml'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://example.com/feed.xml': { body: '<feed></feed>' },
-          // Self URL returns HTML, different content type.
           'https://example.com/blog': { body: '<!DOCTYPE html><html></html>' },
         }),
         parser: createMockParser('https://example.com/blog'),
       }
-      const result = await canonicalize('https://example.com/feed.xml', options)
 
-      // Hash doesn't match (HTML vs feed), so falls back to response URL.
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 20: Self URL Triggers Redirect Chain
+    // Case 19: Self URL triggers redirect chain
     //
     // Input: https://example.com/feed
     // Self URL: https://old.example.com/rss (outdated, redirects to responseUrl)
@@ -493,23 +468,22 @@ describe('canonicalize', () => {
     // When a self URL is outdated and redirects to a new location, the algorithm
     // uses the redirect destination (not the original selfUrl) as the variant source.
     // This ensures we use the current canonical location, not stale URLs.
-    it('case 20: should use redirect destination when self URL redirects', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 19: should use redirect destination when self URL redirects', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          // Self URL redirects to responseUrl.
-          'https://old.example.com/rss': { body: content, url: 'https://example.com/feed' },
+          'https://example.com/feed': { body },
+          'https://old.example.com/rss': { body, url: 'https://example.com/feed' },
         }),
         parser: createMockParser('https://old.example.com/rss'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // selfUrl redirects to responseUrl, so responseUrl becomes variantSource.
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 21: Platform Handler Canonical Is Dead
+    // Case 20: Platform handler canonical is dead
     //
     // Input: http://feedproxy.google.com/MyBlog
     // Result: undefined (fetch failed)
@@ -517,18 +491,18 @@ describe('canonicalize', () => {
     // When a platform handler transforms the input URL but the canonical domain
     // is dead (service shutdown), the algorithm returns undefined since the feed
     // cannot be fetched.
-    it('case 21: should return undefined when platform canonical is dead', async () => {
-      const options = {
+    it('case 20: should return undefined when platform canonical is dead', async () => {
+      const value = 'https://feedproxy.google.com/MyBlog'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://feeds.feedburner.com/MyBlog': { status: 404 },
         }),
       }
-      const result = await canonicalize('https://feedproxy.google.com/MyBlog', options)
 
-      expect(result).toBeUndefined()
+      expect(await canonicalize(value, options)).toBeUndefined()
     })
 
-    // Case 22: Case Sensitivity Mismatch
+    // Case 21: Case sensitivity mismatch
     //
     // Input: https://example.com/Blog/Feed.XML
     // Self URL: https://example.com/blog/feed.xml (lowercase)
@@ -537,21 +511,22 @@ describe('canonicalize', () => {
     // URL paths are case-sensitive per RFC, but many servers are case-insensitive.
     // When input has mixed case but self URL is lowercase, the algorithm prefers
     // lowercase as conventionally cleaner, after verifying it returns same content.
-    it('case 22: should prefer lowercase URL path when content matches', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 21: should prefer lowercase URL path when content matches', async () => {
+      const value = 'https://example.com/Blog/Feed.XML'
+      const expected = 'https://example.com/blog/feed.xml'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/Blog/Feed.XML': { body: content },
-          'https://example.com/blog/feed.xml': { body: content },
+          'https://example.com/Blog/Feed.XML': { body },
+          'https://example.com/blog/feed.xml': { body },
         }),
         parser: createMockParser('https://example.com/blog/feed.xml'),
       }
-      const result = await canonicalize('https://example.com/Blog/Feed.XML', options)
 
-      expect(result).toBe('https://example.com/blog/feed.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 23: Scheme-Relative Input
+    // Case 22: Scheme-relative input
     //
     // Input: https://example.com/feed
     // Self URL: //example.com/feed (scheme-relative)
@@ -560,20 +535,21 @@ describe('canonicalize', () => {
     // Scheme-relative URLs (//host/path) lack a protocol. The algorithm defaults
     // to HTTPS when resolving, falling back to HTTP if HTTPS fails. This is rare
     // for direct feed URLs but handled for completeness.
-    it('case 23: should handle scheme-relative URL by defaulting to HTTPS', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 22: should handle scheme-relative URL by defaulting to HTTPS', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('//example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 24: Standard Port in URL
+    // Case 23: Standard port in URL
     //
     // Input: https://example.com:443/feed
     // Result: https://example.com/feed
@@ -581,50 +557,23 @@ describe('canonicalize', () => {
     // Default ports (443 for HTTPS, 80 for HTTP) are redundant and should be
     // stripped during normalization. URLs with and without default port are
     // semantically identical.
-    it('case 24: should strip default port from URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 23: should strip default port from URL', async () => {
+      const value = 'https://example.com:443/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com:443/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'https://example.com:443/feed': { body },
+          'https://example.com/feed': { body },
         }),
       }
-      const result = await canonicalize('https://example.com:443/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
-    })
-
-    // Case 25: Input URL Has Credentials
-    //
-    // Input: https://user:password123@example.com/private/feed
-    // Result: https://example.com/private/feed (credentials stripped)
-    //
-    // Embedded credentials (user:pass@host) should never be stored in canonical URLs
-    // for security. The algorithm strips credentials from the URL but returns a flag
-    // indicating auth is required. Credentials should be stored separately.
-    it('case 25: should handle URL with credentials by stripping them', async () => {
-      const content = '<feed></feed>'
-      const options = {
-        fetchFn: createMockFetch({
-          'https://user:password123@example.com/private/feed': {
-            body: content,
-            url: 'https://example.com/private/feed',
-          },
-          'https://example.com/private/feed': { body: content },
-        }),
-      }
-      const result = await canonicalize(
-        'https://user:password123@example.com/private/feed',
-        options,
-      )
-
-      // Credentials stripped, URL normalized.
-      expect(result).toBe('https://example.com/private/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('canonicalization cases (continued)', () => {
-    // Case 26: Response Redirects to FeedBurner
+    // Case 24: Response redirects to FeedBurner
     //
     // Input: https://example.com/feed
     // Redirects: → https://feedproxy.google.com/ExampleBlog
@@ -632,23 +581,21 @@ describe('canonicalize', () => {
     //
     // When the input URL redirects to a FeedBurner alias, the platform handler
     // should normalize the response URL to the canonical FeedBurner domain.
-    it('case 26: should apply platform handler when response redirects to FeedBurner', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 24: should apply platform handler when response redirects to FeedBurner', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://feeds.feedburner.com/ExampleBlog'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': {
-            body: content,
-            url: 'https://feedproxy.google.com/ExampleBlog',
-          },
-          'https://feeds.feedburner.com/ExampleBlog': { body: content },
+          'https://example.com/feed': { body, url: 'https://feedproxy.google.com/ExampleBlog' },
+          'https://feeds.feedburner.com/ExampleBlog': { body },
         }),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://feeds.feedburner.com/ExampleBlog')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 27: Self URL Is FeedBurner Alias
+    // Case 25: Self URL is FeedBurner alias
     //
     // Input: https://example.com/feed
     // Self URL: https://feedproxy.google.com/ExampleBlog
@@ -656,21 +603,22 @@ describe('canonicalize', () => {
     //
     // When a feed declares a FeedBurner alias as its self URL, the platform handler
     // should normalize it to the canonical domain before validation.
-    it('case 27: should apply platform handler to FeedBurner self URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 25: should apply platform handler to FeedBurner self URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://feeds.feedburner.com/ExampleBlog'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'https://feeds.feedburner.com/ExampleBlog': { body: content },
+          'https://example.com/feed': { body },
+          'https://feeds.feedburner.com/ExampleBlog': { body },
         }),
         parser: createMockParser('https://feedproxy.google.com/ExampleBlog'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://feeds.feedburner.com/ExampleBlog')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 28: HTTPS Returns Different Content
+    // Case 26: HTTPS returns different content
     //
     // Input: http://example.com/feed
     // Result: http://example.com/feed
@@ -678,19 +626,20 @@ describe('canonicalize', () => {
     // When HTTPS returns different content (not a network failure), the algorithm
     // should fall back to HTTP. This differs from Case 8 where HTTPS fails entirely.
     // Some servers serve different feeds over HTTP vs HTTPS.
-    it('case 28: should keep HTTP when HTTPS returns different content', async () => {
-      const options = {
+    it('case 26: should keep HTTP when HTTPS returns different content', async () => {
+      const value = 'http://example.com/feed'
+      const expected = 'http://example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'http://example.com/feed': { body: '<feed>http version</feed>' },
           'https://example.com/feed': { body: '<feed>https version</feed>' },
         }),
       }
-      const result = await canonicalize('http://example.com/feed', options)
 
-      expect(result).toBe('http://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 29: Self URL Fails Verification
+    // Case 27: Self URL fails verification
     //
     // Input: https://example.com/feed
     // Self URL: https://blocked.example.com/feed (blocked by verifyUrlFn)
@@ -699,24 +648,23 @@ describe('canonicalize', () => {
     // When self URL fails verification (verifyUrlFn returns false), it should be
     // ignored and the algorithm should use responseUrl for variants. This allows
     // blocklisting specific domains or URL patterns.
-    it('case 29: should ignore self URL when verification fails', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 27: should ignore self URL when verification fails', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'https://blocked.example.com/feed': { body: content },
+          'https://example.com/feed': { body },
+          'https://blocked.example.com/feed': { body },
         }),
         parser: createMockParser('https://blocked.example.com/feed'),
-        verifyUrlFn: (url: string) => {
-          return !url.includes('blocked')
-        },
+        verifyUrlFn: (url) => !url.includes('blocked'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 30: Variant Matches Response URL
+    // Case 28: Variant matches response URL
     //
     // Input: https://www.example.com/feed
     // Self URL: https://other.example.com/feed (different domain)
@@ -725,26 +673,24 @@ describe('canonicalize', () => {
     // When a variant matches responseUrl but not variantSource, it should set
     // winningUrl to responseUrl and break early without extra fetching. This
     // optimizes the common case where responseUrl is already clean.
-    it('case 30: should use responseUrl when variant matches it', async () => {
-      const content = '<feed></feed>'
-      const fetchCalls: Array<string> = []
-      const options = {
-        fetchFn: async (url: string) => {
-          fetchCalls.push(url)
+    it('case 28: should use responseUrl when variant matches it', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: async (url) => {
           if (url === 'https://www.example.com/feed') {
-            return { status: 200, url, body: content, headers: new Headers() }
+            return { status: 200, url, body, headers: new Headers() }
           }
           throw new Error(`Unexpected fetch: ${url}`)
         },
         parser: createMockParser('https://other.example.com/feed'),
       }
-      const result = await canonicalize('https://www.example.com/feed', options)
 
-      // Should return responseUrl without extra fetches for non-matching variants.
-      expect(result).toBe('https://www.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 31: Parser Returns Undefined
+    // Case 29: Parser returns undefined
     //
     // Input: https://example.com/feed
     // Parser: Returns undefined (unparseable content)
@@ -753,30 +699,25 @@ describe('canonicalize', () => {
     // When parser.parse() returns undefined (unparseable or invalid content),
     // the algorithm should gracefully continue without a self URL, using
     // responseUrl for variant generation.
-    it('case 31: should handle parser returning undefined', async () => {
-      const content = '<invalid>not a feed</invalid>'
-      const options = {
+    it('case 29: should handle parser returning undefined', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<invalid>not a feed</invalid>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: {
-          parse: () => {
-            return undefined
-          },
-          getSelfUrl: () => {
-            return undefined
-          },
-          getSignature: () => {
-            return {}
-          },
+          parse: () => undefined,
+          getSelfUrl: () => undefined,
+          getSignature: () => ({}),
         },
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 32: Self URL with Fragment
+    // Case 30: Self URL with fragment
     //
     // Input: https://example.com/feed
     // Self URL: https://example.com/feed#section
@@ -785,20 +726,21 @@ describe('canonicalize', () => {
     // Self URL with fragment (#section) should have fragment stripped during
     // resolution. Fragments are not sent to servers and should not be part
     // of the canonical URL.
-    it('case 32: should strip fragment from self URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 30: should strip fragment from self URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('https://example.com/feed#section'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 33: Self URL Protocol Differs
+    // Case 31: Self URL protocol differs
     //
     // Input: https://example.com/feed
     // Self URL: http://example.com/feed (HTTP instead of HTTPS)
@@ -807,22 +749,22 @@ describe('canonicalize', () => {
     // When self URL uses HTTP but input uses HTTPS, both protocols are considered
     // as variants. HTTPS is preferred when content matches, providing security
     // even when the feed declares an HTTP self URL.
-    it('case 33: should handle self URL with different protocol', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 31: should handle self URL with different protocol', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'http://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
+          'http://example.com/feed': { body },
         }),
         parser: createMockParser('http://example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // HTTPS input should be preferred.
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 34: All Variants Fail
+    // Case 32: All variants fail
     //
     // Input: https://www.example.com/feed/
     // Result: https://www.example.com/feed/
@@ -830,21 +772,22 @@ describe('canonicalize', () => {
     // When all normalized variants fail (404, network error) but the original
     // variantSource works, it should be returned as the canonical URL. This
     // ensures we always return a working URL.
-    it('case 34: should fall back to variantSource when all variants fail', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 32: should fall back to variantSource when all variants fail', async () => {
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://www.example.com/feed/'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed/': { body: content },
+          'https://www.example.com/feed/': { body },
           'https://example.com/feed': { status: 404 },
           'https://www.example.com/feed': { status: 404 },
         }),
       }
-      const result = await canonicalize('https://www.example.com/feed/', options)
 
-      expect(result).toBe('https://www.example.com/feed/')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 35: Variant Redirects
+    // Case 33: Variant redirects
     //
     // Input: https://www.example.com/feed
     // Variant: https://example.com/feed → redirects to https://canonical.example.com/feed
@@ -853,24 +796,21 @@ describe('canonicalize', () => {
     // When a variant URL redirects to a different destination, the algorithm
     // uses the original variant URL (not the redirect destination) if content
     // matches. This provides a stable canonical URL.
-    it('case 35: should use variant URL even when it redirects', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 33: should use variant URL even when it redirects', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed': { body: content },
-          'https://example.com/feed': {
-            body: content,
-            url: 'https://canonical.example.com/feed',
-          },
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { body, url: 'https://canonical.example.com/feed' },
         }),
       }
-      const result = await canonicalize('https://www.example.com/feed', options)
 
-      // Uses the variant URL that was tested, not where it redirected.
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 36: Self URL Redirects to FeedBurner
+    // Case 34: Self URL redirects to FeedBurner
     //
     // Input: https://example.com/feed
     // Self URL: https://old.example.com/rss → redirects to https://feedproxy.google.com/ExampleBlog
@@ -879,236 +819,228 @@ describe('canonicalize', () => {
     // When selfUrl response redirects to a FeedBurner alias, the platform handler
     // should normalize the redirect destination for variant generation. This handles
     // feeds that have migrated to FeedBurner.
-    it('case 36: should apply platform handler to self URL redirect destination', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 34: should apply platform handler to self URL redirect destination', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://feeds.feedburner.com/ExampleBlog'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'https://old.example.com/rss': {
-            body: content,
-            url: 'https://feedproxy.google.com/ExampleBlog',
-          },
-          'https://feeds.feedburner.com/ExampleBlog': { body: content },
+          'https://example.com/feed': { body },
+          'https://old.example.com/rss': { body, url: 'https://feedproxy.google.com/ExampleBlog' },
+          'https://feeds.feedburner.com/ExampleBlog': { body },
         }),
         parser: createMockParser('https://old.example.com/rss'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://feeds.feedburner.com/ExampleBlog')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('with existsFn option', () => {
-    // The existsFn allows checking if a variant already exists in the database,
-    // enabling early return without additional fetch requests.
     it('should return matching URL when existsFn finds match', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed/': { body: content },
+          'https://www.example.com/feed/': { body },
         }),
-        existsFn: async (url: string) => {
-          return url === 'https://example.com/feed'
-        },
+        existsFn: async (url) => url === 'https://example.com/feed',
       }
-      const result = await canonicalize('https://www.example.com/feed/', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     it('should check variants in tier order', async () => {
-      const content = '<feed></feed>'
+      const value = 'https://www.example.com/feed/'
+      const body = '<feed></feed>'
       const checkedUrls: Array<string> = []
-      const options = {
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed/': { body: content },
+          'https://www.example.com/feed/': { body },
         }),
-        existsFn: async (url: string) => {
+        existsFn: async (url) => {
           checkedUrls.push(url)
           return false
         },
       }
-      await canonicalize('https://www.example.com/feed/', options)
+
+      await canonicalize(value, options)
 
       expect(checkedUrls[0]).toBe('https://example.com/feed')
     })
 
     it('should continue testing when existsFn returns false', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed/': { body: content },
-          'https://example.com/feed': { body: content },
+          'https://www.example.com/feed/': { body },
+          'https://example.com/feed': { body },
         }),
-        existsFn: async () => {
-          return false
-        },
+        existsFn: async () => false,
       }
-      const result = await canonicalize('https://www.example.com/feed/', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // When existsFn returns true for a non-first variant (not the cleanest),
-    // that variant should be returned immediately without testing cleaner variants.
     it('should return non-first variant when existsFn matches it', async () => {
-      const content = '<feed></feed>'
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
       const checkedUrls: Array<string> = []
-      const options = {
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed/': { body: content },
+          'https://www.example.com/feed/': { body },
         }),
-        existsFn: async (url: string) => {
+        existsFn: async (url) => {
           checkedUrls.push(url)
-          // Return true only for the second variant (with www).
           return url === 'https://www.example.com/feed'
         },
       }
-      const result = await canonicalize('https://www.example.com/feed/', options)
 
-      // Should return the variant that existsFn matched.
-      expect(result).toBe('https://www.example.com/feed')
-      // First variant checked was the cleanest (no www), second was with www.
+      expect(await canonicalize(value, options)).toBe(expected)
       expect(checkedUrls).toContain('https://example.com/feed')
       expect(checkedUrls).toContain('https://www.example.com/feed')
     })
   })
 
   describe('with verifyUrlFn option', () => {
-    // The verifyUrlFn allows custom validation of URLs before testing, enabling
-    // blocklisting of domains or URL patterns.
     it('should skip variants that fail verification', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { body },
         }),
-        verifyUrlFn: (url: string) => {
-          return url.includes('www')
-        },
+        verifyUrlFn: (url) => url.includes('www'),
       }
-      const result = await canonicalize('https://www.example.com/feed', options)
 
-      expect(result).toBe('https://www.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     it('should skip HTTPS upgrade when verification fails', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'http://example.com/feed'
+      const expected = 'http://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://example.com/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'http://example.com/feed': { body },
+          'https://example.com/feed': { body },
         }),
-        verifyUrlFn: (url: string) => {
-          return !url.startsWith('https://')
-        },
+        verifyUrlFn: (url) => !url.startsWith('https://'),
       }
-      const result = await canonicalize('http://example.com/feed', options)
 
-      expect(result).toBe('http://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('with parser option', () => {
-    // The parser option enables extracting self URLs from feed content,
-    // providing an additional source for variant generation.
     it('should use selfUrl as variant source when valid', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://cdn.example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://cdn.example.com/feed': { body: content },
-          'https://example.com/feed': { body: content },
+          'https://cdn.example.com/feed': { body },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('https://example.com/feed'),
       }
-      const result = await canonicalize('https://cdn.example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     it('should ignore selfUrl when content differs', async () => {
-      const options = {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: '<feed>original</feed>' },
           'https://other.example.com/feed': { body: '<feed>different</feed>' },
         }),
         parser: createMockParser('https://other.example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
     it('should ignore selfUrl when fetch fails', async () => {
-      const content = '<feed></feed>'
-      const options = {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
           'https://broken.example.com/feed': { status: 500 },
         }),
         parser: createMockParser('https://broken.example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('when fetch fails', () => {
     it('should return undefined when fetch throws', async () => {
-      const options = {
+      const value = 'https://example.com/feed.xml'
+      const options: CanonicalizeOptions = {
         fetchFn: async () => {
           throw new Error('Network error')
         },
       }
-      const result = await canonicalize('https://example.com/feed.xml', options)
 
-      expect(result).toBeUndefined()
+      expect(await canonicalize(value, options)).toBeUndefined()
     })
 
     it('should return undefined when fetch returns non-2xx', async () => {
-      const options = {
+      const value = 'https://example.com/feed.xml'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://example.com/feed.xml': { status: 404 },
         }),
       }
-      const result = await canonicalize('https://example.com/feed.xml', options)
 
-      expect(result).toBeUndefined()
+      expect(await canonicalize(value, options)).toBeUndefined()
     })
   })
 
   describe('platform handler edge cases', () => {
-    // Case 37: Platform Handler Throws Exception
+    // Case 35: Platform handler throws exception
     //
     // When a platform handler throws an exception during match() or normalize(),
     // the algorithm should continue gracefully using the original URL.
-    it('case 37: should continue gracefully when platform handler throws', async () => {
-      const content = '<feed></feed>'
+    it('case 35: should continue gracefully when platform handler throws', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
       const throwingHandler: PlatformHandler = {
         match: () => {
           throw new Error('Handler error')
         },
         normalize: (url) => url,
       }
-      const options = {
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         platforms: [throwingHandler],
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 38: Multiple Platform Handlers Match
+    // Case 36: Multiple platform handlers match
     //
     // When multiple platform handlers could match a URL, only the first matching
     // handler should be applied (handlers are checked in order, first match wins).
-    it('case 38: should apply only first matching platform handler', async () => {
-      const content = '<feed></feed>'
+    it('case 36: should apply only first matching platform handler', async () => {
+      const value = 'https://multi.example.com/feed'
+      const expected = 'https://first.example.com/feed'
+      const body = '<feed></feed>'
       const firstHandler: PlatformHandler = {
         match: (url) => url.hostname === 'multi.example.com',
         normalize: (url) => {
@@ -1123,581 +1055,497 @@ describe('canonicalize', () => {
           return url
         },
       }
-      const options = {
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://first.example.com/feed': { body: content },
+          'https://first.example.com/feed': { body },
         }),
         platforms: [firstHandler, secondHandler],
       }
-      const result = await canonicalize('https://multi.example.com/feed', options)
 
-      expect(result).toBe('https://first.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('URL parsing edge cases', () => {
-    // Case 39: IDN/Punycode Mismatch
+    // Case 37: IDN/Punycode mismatch
     //
     // When input URL uses Unicode hostname and self URL uses Punycode (or vice versa),
     // they should be recognized as equivalent after normalization.
-    it('case 39: should handle IDN/Punycode mismatch between input and self URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 37: should handle IDN/Punycode mismatch between input and self URL', async () => {
+      const value = 'https://xn--mnchen-3ya.example.com/feed'
+      const expected = 'https://xn--mnchen-3ya.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          // Punycode version of münchen.example.com
-          'https://xn--mnchen-3ya.example.com/feed': { body: content },
+          'https://xn--mnchen-3ya.example.com/feed': { body },
         }),
         parser: createMockParser('https://xn--mnchen-3ya.example.com/feed'),
       }
-      // Input uses Unicode, self URL uses Punycode
-      const result = await canonicalize('https://xn--mnchen-3ya.example.com/feed', options)
 
-      expect(result).toBe('https://xn--mnchen-3ya.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 40: Port Number Mismatch
+    // Case 38: Port number mismatch
     //
     // When self URL specifies a different port than the input URL, the algorithm
     // validates the self URL and uses it as variant source if content matches.
     // Note: Non-standard ports are preserved (only :80/:443 stripped by default tiers).
-    it('case 40: should handle self URL on different port', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 38: should handle self URL on different port', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com:8443/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'https://example.com:8443/feed': { body: content },
+          'https://example.com/feed': { body },
+          'https://example.com:8443/feed': { body },
         }),
         parser: createMockParser('https://example.com:8443/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Self URL on different port validated and becomes variant source
-      // Non-standard port preserved (tiers only strip :80/:443)
-      expect(result).toBe('https://example.com:8443/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 41: IPv6 Address URL
+    // Case 39: IPv6 address URL
     //
     // URLs with IPv6 addresses should be handled correctly, including bracket notation.
-    it('case 41: should handle IPv6 address URLs', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 39: should handle IPv6 address URLs', async () => {
+      const value = 'https://[2001:db8::1]/feed'
+      const expected = 'https://[2001:db8::1]/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://[2001:db8::1]/feed': { body: content },
+          'https://[2001:db8::1]/feed': { body },
         }),
       }
-      const result = await canonicalize('https://[2001:db8::1]/feed', options)
 
-      expect(result).toBe('https://[2001:db8::1]/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 42: URL with Unusual but Valid Characters
+    // Case 40: URL with unusual but valid characters
     //
     // URLs containing percent-encoded characters, unicode in path, or other unusual
     // but valid URL characters should be handled correctly.
-    it('case 42: should handle URLs with unusual but valid characters', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 40: should handle URLs with unusual but valid characters', async () => {
+      const value = 'https://example.com/feed%20file.xml'
+      const expected = 'https://example.com/feed%20file.xml'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed%20file.xml': { body: content },
+          'https://example.com/feed%20file.xml': { body },
         }),
         parser: createMockParser('https://example.com/feed%20file.xml'),
       }
-      const result = await canonicalize('https://example.com/feed%20file.xml', options)
 
-      expect(result).toBe('https://example.com/feed%20file.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 43: Self URL with Dangerous Scheme
+    // Case 41: Self URL with dangerous scheme
     //
     // Self URLs with dangerous schemes (javascript:, data:, file:) should be
     // rejected and the algorithm should fall back to responseUrl.
-    it('case 43: should reject self URL with javascript: scheme', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 41: should reject self URL with javascript: scheme', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('javascript:alert(1)'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    it('case 43b: should reject self URL with data: scheme', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 42b: should reject self URL with data: scheme', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('data:text/xml,<feed/>'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 44: Malformed/Unparseable Self URL
+    // Case 42: Malformed/unparseable self URL
     //
     // When self URL is completely malformed and cannot be parsed, the algorithm
     // should continue gracefully using responseUrl.
-    it('case 44: should handle malformed self URL gracefully', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 42: should handle malformed self URL gracefully', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('not a valid url at all :::'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 45: Self URL with Credentials
+    // Case 43: Self URL with credentials
     //
     // When self URL contains embedded credentials and validates (same content),
     // it becomes the variant source. Since default tiers have stripAuthentication: false,
     // credentials are preserved in the canonical URL.
-    it('case 45: should use self URL with credentials when it validates', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    //
+    // TODO: Consider preferring simpler/more secure URL when both work (e.g., prefer
+    // URL without credentials when both authenticated and non-authenticated work).
+    it('case 43: should use self URL with credentials when it validates', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://user:pass@example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'https://user:pass@example.com/feed': { body: content },
+          'https://example.com/feed': { body },
+          'https://user:pass@example.com/feed': { body },
         }),
         parser: createMockParser('https://user:pass@example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Self URL validates → becomes variant source → credentials preserved
-      expect(result).toBe('https://user:pass@example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 46: Relative Self URL Edge Case
+    // Case 44: Relative self URL edge case
     //
     // Relative self URLs with path traversal (../) should resolve correctly
     // against the response URL base and be used if content matches.
-    it('case 46: should resolve relative self URL with path traversal', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 44: should resolve relative self URL with path traversal', async () => {
+      const value = 'https://example.com/blog/posts/feed.xml'
+      const expected = 'https://example.com/feed.xml'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/blog/posts/feed.xml': { body: content },
-          'https://example.com/feed.xml': { body: content },
+          'https://example.com/blog/posts/feed.xml': { body },
+          'https://example.com/feed.xml': { body },
         }),
         parser: createMockParser('../../feed.xml'),
       }
-      const result = await canonicalize('https://example.com/blog/posts/feed.xml', options)
 
-      // ../../feed.xml from /blog/posts/feed.xml resolves to /feed.xml
-      // Algorithm validates it and uses the cleaner path as canonical
-      expect(result).toBe('https://example.com/feed.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('algorithm path coverage', () => {
-    // Case 47: existsFn Returns True for Non-First Variant
+    // Case 45: existsFn returns true for non-first variant
     //
     // When existsFn returns true for a variant that isn't the first one tested,
     // that variant should be returned immediately (early termination).
-    it('case 47: should return early when existsFn matches non-first variant', async () => {
-      const content = '<feed></feed>'
-      const differentContent = '<feed><item>different</item></feed>'
-      const fetchCalls: Array<string> = []
-      const options = {
-        fetchFn: async (url: string) => {
-          fetchCalls.push(url)
-          // First variant (no www) returns different content, won't match hash
+    it('case 45: should return early when existsFn matches non-first variant', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
+      const differentBody = '<feed><item>different</item></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: async (url) => {
           if (url === 'https://example.com/feed') {
-            return { status: 200, url, body: differentContent, headers: new Headers() }
+            return { status: 200, url, body: differentBody, headers: new Headers() }
           }
-          return { status: 200, url, body: content, headers: new Headers() }
+          return { status: 200, url, body, headers: new Headers() }
         },
-        existsFn: async (url: string) => {
-          // Only the www version exists in database
-          return url === 'https://www.example.com/feed'
-        },
+        existsFn: async (url) => url === 'https://www.example.com/feed',
         tiers: [
           { stripWww: true, stripTrailingSlash: true },
           { stripWww: false, stripTrailingSlash: true },
         ],
       }
-      const result = await canonicalize('https://www.example.com/feed', options)
 
-      // existsFn returns true for www variant, should return it immediately
-      expect(result).toBe('https://www.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 48: Self URL Resolves to Localhost/Private IP
+    // Case 46: Self URL resolves to localhost/private IP
     //
     // When self URL resolves to localhost or private IP, verifyUrlFn should
     // block it to prevent SSRF attacks. Algorithm falls back to responseUrl.
-    it('case 48: should reject self URL pointing to localhost via verifyUrlFn', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 46: should reject self URL pointing to localhost via verifyUrlFn', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('https://localhost/feed'),
-        verifyUrlFn: (url: string) => {
-          // Block localhost and private IPs
+        verifyUrlFn: (url) => {
           const parsed = new URL(url)
           return !['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)
         },
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Self URL blocked by verifyUrlFn, falls back to responseUrl
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 49: Mixed Case Hostname
+    // Case 47: Mixed case hostname
     //
     // Hostnames are case-insensitive per RFC. URLs with different case should
     // be normalized to lowercase and treated as equivalent.
-    it('case 49: should normalize mixed case hostname', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 47: should normalize mixed case hostname', async () => {
+      const value = 'https://Example.COM/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('https://EXAMPLE.COM/feed'),
       }
-      const result = await canonicalize('https://Example.COM/feed', options)
 
-      // Hostname normalized to lowercase
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 50: All Tiers Produce Identical URL
+    // Case 48: All tiers produce identical URL
     //
     // When all normalization tiers produce the same URL (degenerate case),
     // the algorithm should handle it gracefully without unnecessary fetches.
-    it('case 50: should handle when all tiers produce identical URL', async () => {
-      const content = '<feed></feed>'
+    it('case 48: should handle when all tiers produce identical URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
       const fetchCalls: Array<string> = []
-      const options = {
-        fetchFn: async (url: string) => {
+      const options: CanonicalizeOptions = {
+        fetchFn: async (url) => {
           fetchCalls.push(url)
-          return { status: 200, url, body: content, headers: new Headers() }
+          return { status: 200, url, body, headers: new Headers() }
         },
-        tiers: [
-          { stripWww: true }, // Already no www
-          { stripWww: false }, // Still no www
-        ],
+        tiers: [{ stripWww: true }, { stripWww: false }],
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
-      // Only initial fetch, no variant testing needed (all variants identical)
+      expect(await canonicalize(value, options)).toBe(expected)
       expect(fetchCalls).toEqual(['https://example.com/feed'])
     })
 
-    // Case 51: Self URL Redirects to Different Domain
+    // Case 49: Self URL redirects to different domain
     //
     // When self URL validates but redirects to a different final URL,
     // the redirect destination becomes the variant source.
-    it('case 51: should use self URL redirect destination as variant source', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 49: should use self URL redirect destination as variant source', async () => {
+      const value = 'https://old.example.com/feed'
+      const expected = 'https://new.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://old.example.com/feed': { body: content },
-          'https://alias.example.com/feed': { body: content, url: 'https://new.example.com/feed' },
-          'https://new.example.com/feed': { body: content },
+          'https://old.example.com/feed': { body },
+          'https://alias.example.com/feed': { body, url: 'https://new.example.com/feed' },
+          'https://new.example.com/feed': { body },
         }),
         parser: createMockParser('https://alias.example.com/feed'),
       }
-      const result = await canonicalize('https://old.example.com/feed', options)
 
-      // Self URL redirects to new.example.com, that becomes canonical
-      expect(result).toBe('https://new.example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 52: Variant Testing Exhausts All Options
+    // Case 50: Variant testing exhausts all options
     //
     // When no variant matches (all return different content or fail),
     // the algorithm falls back to variantSource.
-    it('case 52: should fall back to variantSource when all variants fail', async () => {
-      const content = '<feed></feed>'
-      const differentContent = '<feed><different/></feed>'
-      const options = {
-        fetchFn: async (url: string) => {
-          // Only the original URL works, variants return different content
+    it('case 50: should fall back to variantSource when all variants fail', async () => {
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://www.example.com/feed/'
+      const body = '<feed></feed>'
+      const differentBody = '<feed><different/></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: async (url) => {
           if (url === 'https://www.example.com/feed/') {
-            return { status: 200, url, body: content, headers: new Headers() }
+            return { status: 200, url, body, headers: new Headers() }
           }
-          return { status: 200, url, body: differentContent, headers: new Headers() }
+          return { status: 200, url, body: differentBody, headers: new Headers() }
         },
         tiers: [
           { stripWww: true, stripTrailingSlash: true },
           { stripWww: false, stripTrailingSlash: true },
         ],
       }
-      const result = await canonicalize('https://www.example.com/feed/', options)
 
-      // All variants fail to match, falls back to variantSource (responseUrl)
-      expect(result).toBe('https://www.example.com/feed/')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 53: Self URL Redirect Chain
-    //
-    // When self URL goes through a redirect chain, the final destination
-    // (after all redirects) is used as variant source.
-    it('case 53: should use final URL after self URL redirect chain', async () => {
-      const content = '<feed></feed>'
-      const options = {
-        fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          'https://redirect1.example.com/feed': {
-            body: content,
-            url: 'https://redirect2.example.com/feed',
-          },
-          'https://redirect2.example.com/feed': { body: content },
-        }),
-        parser: createMockParser('https://redirect1.example.com/feed'),
-      }
-      const result = await canonicalize('https://example.com/feed', options)
-
-      // Self URL chain: redirect1 → redirect2, final URL is redirect2
-      expect(result).toBe('https://redirect2.example.com/feed')
-    })
-
-    // Case 54: First Matching Variant Wins
+    // Case 50: First matching variant wins
     //
     // When multiple variants would match (same hash), the first one
     // tested (cleanest tier) wins.
-    it('case 54: should return first matching variant when multiple match', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 50: should return first matching variant when multiple match', async () => {
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.example.com/feed/': { body: content },
-          'https://example.com/feed': { body: content }, // Tier 0: no www, no slash
-          'https://www.example.com/feed': { body: content }, // Tier 1: www, no slash
+          'https://www.example.com/feed/': { body },
+          'https://example.com/feed': { body },
+          'https://www.example.com/feed': { body },
         }),
         tiers: [
           { stripWww: true, stripTrailingSlash: true },
           { stripWww: false, stripTrailingSlash: true },
         ],
       }
-      const result = await canonicalize('https://www.example.com/feed/', options)
 
-      // First tier (cleanest) matches, wins even though tier 2 would also match
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('redirect edge cases', () => {
-    // Case 55: Redirect to Malformed URL
-    //
-    // When the server redirects to a malformed URL that cannot be parsed,
-    // the algorithm should handle it gracefully. The fetch implementation
-    // may fail or return the malformed URL as response.url.
-    it('case 55: should handle redirect to malformed URL', async () => {
-      const content = '<feed></feed>'
-      const options = {
-        fetchFn: createMockFetch({
-          'https://example.com/feed': {
-            body: content,
-            url: 'https://example.com/feed', // Fetch succeeded despite redirect issues
-          },
-        }),
-      }
-      const result = await canonicalize('https://example.com/feed', options)
-
-      expect(result).toBe('https://example.com/feed')
-    })
-
-    // Case 56: Redirect Adds Tracking Parameters
+    // Case 51: Redirect adds tracking parameters
     //
     // When the server redirects to a URL with tracking params added,
     // the algorithm should still strip them during normalization.
-    it('case 56: should strip tracking params added by redirect', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 51: should strip tracking params added by redirect', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
           'https://example.com/feed': {
-            body: content,
+            body,
             url: 'https://example.com/feed?utm_source=redirect&fbclid=abc123',
           },
-          'https://example.com/feed?utm_source=redirect&fbclid=abc123': { body: content },
+          'https://example.com/feed?utm_source=redirect&fbclid=abc123': { body },
         }),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Tracking params stripped during variant generation
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 57: Redirect Changes Protocol (HTTP to HTTPS)
+    // Case 52: Redirect changes protocol (HTTP to HTTPS)
     //
     // When HTTP redirects to HTTPS (common pattern), the algorithm
     // should use the HTTPS URL as canonical.
-    it('case 57: should use HTTPS when HTTP redirects to it', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 52: should use HTTPS when HTTP redirects to it', async () => {
+      const value = 'http://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://example.com/feed': {
-            body: content,
-            url: 'https://example.com/feed',
-          },
-          'https://example.com/feed': { body: content },
+          'http://example.com/feed': { body, url: 'https://example.com/feed' },
+          'https://example.com/feed': { body },
         }),
       }
-      const result = await canonicalize('http://example.com/feed', options)
 
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 58: Redirect to Different Domain with Same Content
+    // Case 53: Redirect to different domain with same content
     //
     // When redirected to a completely different domain that serves
     // the same content, the redirect destination becomes canonical.
-    it('case 58: should use redirect destination domain', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 53: should use redirect destination domain', async () => {
+      const value = 'https://old.example.com/feed'
+      const expected = 'https://new.example.org/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://old.example.com/feed': {
-            body: content,
-            url: 'https://new.example.org/feed',
-          },
-          'https://new.example.org/feed': { body: content },
+          'https://old.example.com/feed': { body, url: 'https://new.example.org/feed' },
+          'https://new.example.org/feed': { body },
         }),
       }
-      const result = await canonicalize('https://old.example.com/feed', options)
 
-      expect(result).toBe('https://new.example.org/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 59: Redirect to Empty Response
+    // Case 54: Parser throws on invalid content
     //
-    // When redirect destination returns empty body (0 bytes),
-    // the algorithm should handle it gracefully.
-    it('case 59: should handle redirect to empty response', async () => {
-      const options = {
+    // When parser.parse() throws (invalid feed content), the algorithm
+    // should return undefined.
+    it('case 54: should return undefined when parser throws', async () => {
+      const value = 'https://example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': {
-            body: '',
-            url: 'https://empty.example.com/feed',
-          },
+          'https://example.com/feed': { body: 'not a valid feed' },
         }),
+        parser: {
+          parse: () => {
+            throw new Error('Invalid feed')
+          },
+          getSelfUrl: () => undefined,
+        },
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Empty body is still "valid" - URL works, just empty feed
-      expect(result).toBe('https://empty.example.com/feed')
+      expect(await canonicalize(value, options)).toBeUndefined()
     })
 
-    // Case 60: Self URL Points to Redirect That Returns Different Content
+    // Case 55: Self URL points to redirect that returns different content
     //
     // When self URL redirects but the destination returns different content,
     // the algorithm should fall back to responseUrl.
-    it('case 60: should reject self URL redirect when content differs', async () => {
-      const originalContent = '<feed>original</feed>'
-      const differentContent = '<feed>different</feed>'
-      const options = {
+    it('case 55: should reject self URL redirect when content differs', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: originalContent },
+          'https://example.com/feed': { body: '<feed>original</feed>' },
           'https://self.example.com/feed': {
-            body: differentContent,
+            body: '<feed>different</feed>',
             url: 'https://redirect.example.com/feed',
           },
         }),
         parser: createMockParser('https://self.example.com/feed'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Self URL redirect returns different content, falls back to responseUrl
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 61: Redirect to URL with Authentication
+    // Case 56: Redirect to URL with authentication
     //
     // When redirect adds authentication credentials to the URL,
     // they should be preserved (credentials are functional).
-    it('case 61: should preserve credentials added by redirect', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 56: should preserve credentials added by redirect', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://user:token@example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': {
-            body: content,
-            url: 'https://user:token@example.com/feed',
-          },
-          'https://user:token@example.com/feed': { body: content },
+          'https://example.com/feed': { body, url: 'https://user:token@example.com/feed' },
+          'https://user:token@example.com/feed': { body },
         }),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Credentials preserved (default tiers don't strip auth)
-      expect(result).toBe('https://user:token@example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 62: Redirect to URL with Non-Standard Port
+    // Case 57: Redirect to URL with non-standard port
     //
     // When redirect adds a non-standard port, it should be preserved.
-    it('case 62: should preserve non-standard port from redirect', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 57: should preserve non-standard port from redirect', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com:8443/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': {
-            body: content,
-            url: 'https://example.com:8443/feed',
-          },
-          'https://example.com:8443/feed': { body: content },
+          'https://example.com/feed': { body, url: 'https://example.com:8443/feed' },
+          'https://example.com:8443/feed': { body },
         }),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Non-standard port preserved
-      expect(result).toBe('https://example.com:8443/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 63: Multiple Redirects with Content Change
-    //
-    // When a redirect chain changes content along the way,
-    // the final content should be used for hash comparison.
-    it('case 63: should use final redirect content for hash comparison', async () => {
-      const finalContent = '<feed>final</feed>'
-      const options = {
-        fetchFn: createMockFetch({
-          'https://start.example.com/feed': {
-            body: finalContent,
-            url: 'https://final.example.com/feed',
-          },
-          'https://final.example.com/feed': { body: finalContent },
-        }),
-      }
-      const result = await canonicalize('https://start.example.com/feed', options)
-
-      expect(result).toBe('https://final.example.com/feed')
-    })
-
-    // Case 64: Redirect Destination Variants Blocked by verifyUrlFn
+    // Case 58: Redirect destination variants blocked by verifyUrlFn
     //
     // When the redirect destination's variants fail verification, the algorithm
     // should skip those variants and use the response URL as-is if it's the only
     // working option. verifyUrlFn applies to variant generation, not response URL.
-    it('case 64: should use responseUrl when all variants blocked by verifyUrlFn', async () => {
-      const content = '<feed></feed>'
-      const options = {
+    it('case 58: should use responseUrl when all variants blocked by verifyUrlFn', async () => {
+      const value = 'https://www.blocked.example.com/feed/'
+      const expected = 'https://www.blocked.example.com/feed/'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://www.blocked.example.com/feed/': { body: content },
+          'https://www.blocked.example.com/feed/': { body },
         }),
-        verifyUrlFn: (url: string) => {
-          // Block all normalized variants (no www, no trailing slash)
-          // Only allow the exact responseUrl form
-          return url === 'https://www.blocked.example.com/feed/'
-        },
+        verifyUrlFn: (url) => url === 'https://www.blocked.example.com/feed/',
       }
-      const result = await canonicalize('https://www.blocked.example.com/feed/', options)
 
-      // All cleaner variants blocked, falls back to responseUrl
-      expect(result).toBe('https://www.blocked.example.com/feed/')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
   describe('self URL protocol retry', () => {
-    // Case 65: Self URL HTTPS Fails, HTTP Works
+    // Case 59: Self URL HTTPS fails, HTTP works
     //
     // Input: https://example.com/feed
     // Self URL: feed://example.com/rss.xml (resolved to https://example.com/rss.xml)
@@ -1706,24 +1554,22 @@ describe('canonicalize', () => {
     // When a feed declares a protocol-ambiguous self URL (e.g., feed://) and the
     // HTTPS resolution fails, the algorithm should try HTTP before falling back
     // to responseUrl.
-    it('case 65: should try HTTP when self URL HTTPS fails', async () => {
-      const content = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
-      const options = {
+    it('case 59: should try HTTP when self URL HTTPS fails', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'http://example.com/rss.xml'
+      const body = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          // HTTPS selfUrl fails (not in mock = throws error)
-          'http://example.com/rss.xml': { body: content },
-          'https://example.com/rss.xml': { body: content }, // For Phase 6 HTTPS upgrade
+          'https://example.com/feed': { body },
+          'http://example.com/rss.xml': { body },
         }),
         parser: createMockParser('feed://example.com/rss.xml'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // HTTP fallback worked, becomes variant source, gets HTTPS upgrade in Phase 6
-      expect(result).toBe('https://example.com/rss.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 66: Self URL HTTP Fails, HTTPS Works
+    // Case 60: Self URL HTTP fails, HTTPS works
     //
     // Input: http://example.com/feed
     // Self URL: http://example.com/rss.xml
@@ -1731,23 +1577,22 @@ describe('canonicalize', () => {
     //
     // When a feed declares an HTTP self URL but that URL doesn't work,
     // the algorithm should try HTTPS before falling back to responseUrl.
-    it('case 66: should try HTTPS when self URL HTTP fails', async () => {
-      const content = '<feed><link rel="self" href="http://example.com/rss.xml"/></feed>'
-      const options = {
+    it('case 60: should try HTTPS when self URL HTTP fails', async () => {
+      const value = 'http://example.com/feed'
+      const expected = 'https://example.com/rss.xml'
+      const body = '<feed><link rel="self" href="http://example.com/rss.xml"/></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'http://example.com/feed': { body: content },
-          // HTTP selfUrl fails (not in mock = throws error)
-          'https://example.com/rss.xml': { body: content },
+          'http://example.com/feed': { body },
+          'https://example.com/rss.xml': { body },
         }),
         parser: createMockParser('http://example.com/rss.xml'),
       }
-      const result = await canonicalize('http://example.com/feed', options)
 
-      // HTTPS fallback worked, becomes variant source
-      expect(result).toBe('https://example.com/rss.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 67: Alternate Protocol Blocked by verifyUrlFn
+    // Case 61: Alternate protocol blocked by verifyUrlFn
     //
     // Input: https://example.com/feed
     // Self URL: feed://example.com/rss.xml (resolved to https://example.com/rss.xml)
@@ -1755,27 +1600,23 @@ describe('canonicalize', () => {
     //
     // When the HTTPS self URL fails and the HTTP fallback is blocked by verifyUrlFn,
     // the algorithm should fall back to responseUrl without trying the blocked URL.
-    it('case 67: should not try alternate protocol when blocked by verifyUrlFn', async () => {
-      const content = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
-      const options = {
+    it('case 61: should not try alternate protocol when blocked by verifyUrlFn', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          // HTTPS selfUrl fails (not in mock)
-          'http://example.com/rss.xml': { body: content },
+          'https://example.com/feed': { body },
+          'http://example.com/rss.xml': { body },
         }),
         parser: createMockParser('feed://example.com/rss.xml'),
-        verifyUrlFn: (url: string) => {
-          // Block HTTP URLs
-          return !url.startsWith('http://')
-        },
+        verifyUrlFn: (url) => !url.startsWith('http://'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // HTTPS selfUrl failed, HTTP blocked by verifyUrlFn, falls back to responseUrl
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 68: Both Protocols Fail, Falls Back to responseUrl
+    // Case 62: Both protocols fail, falls back to responseUrl
     //
     // Input: https://example.com/feed
     // Self URL: feed://other.example.com/rss.xml
@@ -1783,22 +1624,21 @@ describe('canonicalize', () => {
     //
     // When both protocol versions of selfUrl fail, the algorithm should gracefully
     // fall back to using responseUrl as the variant source.
-    it('case 68: should fall back to responseUrl when both protocols fail', async () => {
-      const content = '<feed><link rel="self" href="feed://other.example.com/rss.xml"/></feed>'
-      const options = {
+    it('case 62: should fall back to responseUrl when both protocols fail', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed><link rel="self" href="feed://other.example.com/rss.xml"/></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          // Both https://other.example.com/rss.xml and http://other.example.com/rss.xml fail
+          'https://example.com/feed': { body },
         }),
         parser: createMockParser('feed://other.example.com/rss.xml'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // Both protocols failed, falls back to responseUrl
-      expect(result).toBe('https://example.com/feed')
+      expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 69: Protocol Retry with Redirect
+    // Case 63: Protocol retry with redirect
     //
     // Input: https://example.com/feed
     // Self URL: feed://cdn.example.com/rss.xml
@@ -1806,24 +1646,43 @@ describe('canonicalize', () => {
     //
     // When HTTP fallback works and redirects, the redirect destination should
     // become the variant source.
-    it('case 69: should use redirect destination from HTTP fallback', async () => {
-      const content = '<feed><link rel="self" href="feed://cdn.example.com/rss.xml"/></feed>'
-      const options = {
+    it('case 63: should use redirect destination from HTTP fallback', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/rss.xml'
+      const body = '<feed><link rel="self" href="feed://cdn.example.com/rss.xml"/></feed>'
+      const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
-          'https://example.com/feed': { body: content },
-          // HTTPS selfUrl fails
-          'http://cdn.example.com/rss.xml': {
-            body: content,
-            url: 'https://example.com/rss.xml', // Redirects to HTTPS
-          },
-          'https://example.com/rss.xml': { body: content },
+          'https://example.com/feed': { body },
+          'http://cdn.example.com/rss.xml': { body, url: 'https://example.com/rss.xml' },
+          'https://example.com/rss.xml': { body },
         }),
         parser: createMockParser('feed://cdn.example.com/rss.xml'),
       }
-      const result = await canonicalize('https://example.com/feed', options)
 
-      // HTTP fallback redirected to HTTPS, that becomes canonical
-      expect(result).toBe('https://example.com/rss.xml')
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+  })
+
+  describe('platform handler edge cases', () => {
+    // Case 64: Platform handler normalizes variants
+    //
+    // Input: https://feeds2.feedburner.com/Example?format=xml
+    // Variant: https://feeds.feedburner.com/Example (normalized by platform handler)
+    //
+    // When variant generation produces URLs that match platform handlers,
+    // those handlers should normalize the variants before testing.
+    it('case 64: should apply platform handler to generated variants', async () => {
+      const value = 'https://feeds2.feedburner.com/Example?format=xml'
+      const expected = 'https://feeds.feedburner.com/Example'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://feeds2.feedburner.com/Example?format=xml': { body },
+          'https://feeds.feedburner.com/Example': { body },
+        }),
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 })
