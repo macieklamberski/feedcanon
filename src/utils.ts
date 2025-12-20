@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto'
 import { domainToASCII } from 'node:url'
-import { defaultFeedProtocols, defaultNormalizeOptions } from './defaults.js'
+import { defaultNormalizeOptions } from './defaults.js'
 import type { FetchFn, PlatformHandler } from './types.js'
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
@@ -18,11 +19,9 @@ const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 // - rss://example.com/feed.xml → https://example.com/feed.xml
 // - pcast://example.com/podcast.xml → https://example.com/podcast.xml
 // - itpc://example.com/podcast.xml → https://example.com/podcast.xml
-export const resolveFeedProtocol = (
-  url: string,
-  feedProtocols = defaultFeedProtocols,
-  fallbackProtocol: 'http' | 'https' = 'https',
-): string => {
+const feedProtocols = ['feed:', 'rss:', 'podcast:', 'pcast:', 'itpc:']
+
+export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
   const urlLower = url.toLowerCase()
 
   for (const scheme of feedProtocols) {
@@ -37,7 +36,7 @@ export const resolveFeedProtocol = (
 
     // Case 2: Replacing protocol (e.g., feed://example.com).
     if (urlLower.startsWith(`${scheme}//`)) {
-      return `${fallbackProtocol}:${url.slice(scheme.length)}`
+      return `${protocol}:${url.slice(scheme.length)}`
     }
   }
 
@@ -51,10 +50,7 @@ export const resolveFeedProtocol = (
 // - //Users/file.xml → //Users/file.xml (unchanged, not a valid URL)
 // - example.com/feed → https://example.com/feed
 // - /path/to/feed → /path/to/feed (unchanged, relative path)
-export const addMissingProtocol = (
-  url: string,
-  fallbackProtocol: 'http' | 'https' = 'https',
-): string => {
+export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
   // Skip if URL already has a real protocol (http://, mailto:, tel:, etc.).
   // URL constructor may incorrectly parse "example.com:8080" as protocol "example.com:"
   // or "localhost:3000" as "localhost:". Real URI schemes don't contain dots (RFC 3986),
@@ -71,7 +67,7 @@ export const addMissingProtocol = (
   // Case 1: Protocol-relative URL (//example.com).
   if (url.startsWith('//') && !url.startsWith('///')) {
     try {
-      const parsed = new URL(`${fallbackProtocol}:${url}`)
+      const parsed = new URL(`${protocol}:${url}`)
       const hostname = parsed.hostname
 
       // Valid web hostnames must have at least one of:
@@ -113,7 +109,7 @@ export const addMissingProtocol = (
     return url
   }
 
-  return `${fallbackProtocol}://${url}`
+  return `${protocol}://${url}`
 }
 
 // Resolves a URL by converting feed protocols, resolving relative URLs,
@@ -299,7 +295,6 @@ export const defaultFetchFn: FetchFn = async (url, options) => {
   }
 }
 
-// Apply platform handlers to a URL (e.g., FeedBurner domain normalization).
 export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHandler>): string => {
   try {
     let parsed = new URL(url)
@@ -315,4 +310,8 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   } catch {
     return url
   }
+}
+
+export const createMd5Hash = async (content: string): Promise<string> => {
+  return createHash('md5').update(content).digest('hex')
 }

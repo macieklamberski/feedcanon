@@ -1,9 +1,5 @@
-import { createHash } from 'node:crypto'
 import { feedburnerHandler } from './platforms/feedburner.js'
-import type { HashFn, NormalizeOptions, PlatformHandler, VerifyUrlFn } from './types.js'
-
-// Known feed-related protocol schemes that should be converted to https://.
-export const defaultFeedProtocols = ['feed:', 'rss:', 'pcast:', 'itpc:']
+import type { NormalizeOptions, PlatformHandler } from './types.js'
 
 // Platform handlers for domain-specific URL normalization.
 export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
@@ -235,11 +231,3 @@ export const defaultTiers: Array<NormalizeOptions> = [
     convertToPunycode: true,
   },
 ]
-
-export const defaultVerifyUrlFn: VerifyUrlFn = () => {
-  return true
-}
-
-export const defaultHashFn: HashFn = async (content) => {
-  return createHash('md5').update(content).digest('hex')
-}
