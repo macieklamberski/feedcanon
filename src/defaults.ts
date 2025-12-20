@@ -116,6 +116,13 @@ export const defaultStrippedParams = [
 
   // Cache busters.
   '_',
+  'timestamp',
+  'ts',
+  'cb',
+  'cachebuster',
+  'nocache',
+  'rand',
+  'random',
 
   // Misc.
   'action_object_map',
