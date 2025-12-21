@@ -1,9 +1,10 @@
 import { defaultPlatforms, defaultTiers } from './defaults.js'
-import type { CanonicalizeOptions, FetchFnResponse } from './types.js'
+import type { CanonicalizeOptions, FetchFnResponse, ParserAdapter } from './types.js'
 import {
 	applyPlatformHandlers,
 	createMd5Hash,
 	defaultFetchFn,
+	feedsmithParser,
 	normalizeUrl,
 	resolveUrl,
 } from './utils.js'
@@ -16,7 +17,7 @@ export const canonicalize = async <TFeed, TExisting>(
 		fetchFn = defaultFetchFn,
 		hashFn = createMd5Hash,
 		existsFn,
-		parser,
+		parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
 		tiers = defaultTiers,
 		platforms = defaultPlatforms,
 		onFetch,
@@ -59,17 +60,16 @@ export const canonicalize = async <TFeed, TExisting>(
 
 	// Phase 2: Extract and normalize self URL.
 	let selfRequestUrl: string | undefined
-	let initialResponseFeed: TFeed | undefined
+	const initialResponseFeed = parser.parse(initialResponseBody)
 
-	if (parser) {
-		initialResponseFeed = parser.parse(initialResponseBody)
-		if (!initialResponseFeed) return
+	if (!initialResponseFeed) {
+		return
+	}
 
-		const rawSelfUrl = parser.getSelfUrl(initialResponseFeed)
+	const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
 
-		if (rawSelfUrl) {
-			selfRequestUrl = prepareUrl(rawSelfUrl, initialResponseUrl)
-		}
+	if (selfRequestUrlRaw) {
+		selfRequestUrl = prepareUrl(selfRequestUrlRaw, initialResponseUrl)
 	}
 
 	// Compare initial response against another response using 3-tier matching:
@@ -93,7 +93,7 @@ export const canonicalize = async <TFeed, TExisting>(
 		}
 
 		// Tier 3: signature match (only if parser is available).
-		if (parser && initialResponseFeed) {
+		if (initialResponseFeed) {
 			const comparedResponseFeed = parser.parse(comparedResponseBody)
 
 			if (comparedResponseFeed) {

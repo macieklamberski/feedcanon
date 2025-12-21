@@ -18,6 +18,7 @@ export type {
 } from './types.js'
 export {
 	addMissingProtocol,
+	feedsmithParser,
 	isSimilarUrl,
 	normalizeUrl,
 	resolveFeedProtocol,
