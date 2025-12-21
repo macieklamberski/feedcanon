@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { domainToASCII } from 'node:url'
+import { decodeHTML } from 'entities'
 import { parseFeed } from 'feedsmith'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { FetchFn, ParserAdapter, PlatformHandler } from './types.js'
@@ -166,7 +167,9 @@ const decodeAndNormalizeEncoding = (str: string): string => {
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
 	try {
-		const parsed = new URL(url)
+		// Decode HTML entities before parsing.
+		const decoded = options.decodeEntities ? decodeHTML(url) : url
+		const parsed = new URL(decoded)
 
 		// Unicode normalization.
 		if (options.normalizeUnicode) {

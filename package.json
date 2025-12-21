@@ -52,6 +52,7 @@
 		"build": "tsdown src/exports.ts src/defaults.ts --format cjs,esm --dts --clean --unbundle --no-fixed-extension"
 	},
 	"dependencies": {
+		"entities": "^7.0.0",
 		"feedsmith": "^2.8.0"
 	},
 	"devDependencies": {
