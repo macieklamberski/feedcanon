@@ -1284,11 +1284,16 @@ describe('canonicalize', () => {
   describe('redirect edge cases', () => {
     // Case 51: Redirect adds tracking parameters
     //
-    // When the server redirects to a URL with tracking params added,
-    // the algorithm should still strip them during normalization.
-    it('case 51: should strip tracking params added by redirect', async () => {
+    // Input: https://example.com/feed
+    // Redirects: → https://example.com/feed?utm_source=redirect&fbclid=abc123
+    // Result: https://example.com/feed?utm_source=redirect&fbclid=abc123
+    //
+    // When the server redirects to a URL with tracking params added, we use
+    // the redirect destination. Using the clean variant would cause a redirect
+    // on every fetch. The server chose to add these params, so we respect that.
+    it('case 51: should use redirect destination when server adds tracking params', async () => {
       const value = 'https://example.com/feed'
-      const expected = 'https://example.com/feed'
+      const expected = 'https://example.com/feed?utm_source=redirect&fbclid=abc123'
       const body = '<feed></feed>'
       const options: CanonicalizeOptions = {
         fetchFn: createMockFetch({
@@ -1412,6 +1417,33 @@ describe('canonicalize', () => {
           'https://example.com/feed': { body, url: 'https://example.com:8443/feed' },
           'https://example.com:8443/feed': { body },
         }),
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 86: Variant redirects back to variantSource
+    //
+    // Input: https://example.com/feed?utm_source=twitter
+    // Self URL: https://www.example.com/feed
+    // Variant: https://example.com/feed → redirects to https://www.example.com/feed
+    // Result: https://www.example.com/feed
+    //
+    // When a generated variant redirects back to variantSource, that variant should
+    // be skipped. Even though https://example.com/feed is "cleaner" (no www), we
+    // prefer the non-redirecting URL since choosing the redirecting variant means
+    // every future fetch requires a redirect.
+    it('case 86: should skip variant that redirects back to variantSource', async () => {
+      const value = 'https://example.com/feed?utm_source=twitter'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed?utm_source=twitter': { body },
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { body, url: 'https://www.example.com/feed' },
+        }),
+        parser: createMockParser('https://www.example.com/feed'),
       }
 
       expect(await canonicalize(value, options)).toBe(expected)
