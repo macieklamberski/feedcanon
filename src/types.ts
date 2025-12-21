@@ -42,6 +42,7 @@ export type CanonicalizeOptions<T = unknown> = {
   existsFn?: ExistsFn // Check if URLs exist in database.
   tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
+  preferRequestUrl?: boolean // Prefer request URL over redirect destination.
 }
 
 // Options for fetch function.
