@@ -177,7 +177,15 @@ export const canonicalize = async <T>(
       break
     }
 
-    if (await fetchAndCompare(variant)) {
+    const responseUrl = await fetchAndCompare(variant)
+    if (responseUrl) {
+      const preparedResponseUrl = prepareUrl(responseUrl)
+
+      // Skip variant if it redirects to a URL we already have as canonical.
+      if (preparedResponseUrl === variantSource || preparedResponseUrl === initialResponseUrl) {
+        continue
+      }
+
       winningUrl = variant
       break
     }
