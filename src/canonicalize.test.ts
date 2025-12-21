@@ -2140,4 +2140,106 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBeUndefined()
     })
   })
+
+  describe('with preferRequestUrl option', () => {
+    // Case 87: Initial fetch redirects - use request URL
+    //
+    // Input: https://example.com/feed
+    // Redirects: → https://example.com/feed?utm_source=redirect
+    // Result with preferRequestUrl: https://example.com/feed
+    //
+    // When preferRequestUrl is true, we use the request URL even if the server
+    // redirects to a different URL. This gives consumers cleaner URLs at the
+    // cost of a redirect on every fetch.
+    it('case 87: should use request URL when initial fetch redirects', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': {
+            body,
+            url: 'https://example.com/feed?utm_source=redirect',
+          },
+          'https://example.com/feed?utm_source=redirect': { body },
+        }),
+        preferRequestUrl: true,
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 88: Self URL redirects - use request URL
+    //
+    // Input: https://cdn.example.com/feed
+    // Self URL: https://example.com/feed
+    // Self URL redirects: → https://www.example.com/feed
+    // Result with preferRequestUrl: https://example.com/feed
+    //
+    // When preferRequestUrl is true and self URL redirects, we use the self URL
+    // (request URL) instead of the redirect destination.
+    it('case 88: should use self URL when it redirects with preferRequestUrl', async () => {
+      const value = 'https://cdn.example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://cdn.example.com/feed': { body },
+          'https://example.com/feed': { body, url: 'https://www.example.com/feed' },
+          'https://www.example.com/feed': { body },
+        }),
+        parser: createMockParser('https://example.com/feed'),
+        preferRequestUrl: true,
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 89: Variant redirects - use request URL
+    //
+    // Input: https://example.com/feed?utm_source=twitter
+    // Self URL: https://www.example.com/feed
+    // Variant: https://example.com/feed → redirects to https://www.example.com/feed
+    // Result with preferRequestUrl: https://example.com/feed
+    //
+    // When preferRequestUrl is true, we use the cleaner variant (no www) even
+    // though it redirects. This is the opposite of default behavior (Case 86).
+    it('case 89: should use variant that redirects when preferRequestUrl is true', async () => {
+      const value = 'https://example.com/feed?utm_source=twitter'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed?utm_source=twitter': { body },
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { body, url: 'https://www.example.com/feed' },
+        }),
+        parser: createMockParser('https://www.example.com/feed'),
+        preferRequestUrl: true,
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 90: Compare with default behavior
+    //
+    // Same scenario as Case 89 but with default behavior (preferRequestUrl: false).
+    // Should return the www version since the non-www variant redirects to it.
+    it('case 90: should confirm default behavior uses response URL', async () => {
+      const value = 'https://example.com/feed?utm_source=twitter'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed?utm_source=twitter': { body },
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { body, url: 'https://www.example.com/feed' },
+        }),
+        parser: createMockParser('https://www.example.com/feed'),
+        preferRequestUrl: false,
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+  })
 })

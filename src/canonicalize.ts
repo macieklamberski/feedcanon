@@ -19,6 +19,7 @@ export const canonicalize = async <T>(
     parser,
     tiers = defaultTiers,
     platforms = defaultPlatforms,
+    preferRequestUrl = false,
   } = options ?? {}
 
   // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
@@ -45,6 +46,9 @@ export const canonicalize = async <T>(
 
   const initialResponseUrl = prepareUrl(initialResponse.url)
   if (!initialResponseUrl) return
+
+  // The canonical URL from initial fetch (request or response based on option).
+  const initialCanonicalUrl = preferRequestUrl ? initialRequestUrl : initialResponseUrl
 
   const initialResponseBody = initialResponse.body
   let initialResponseHash: string | undefined
@@ -110,22 +114,23 @@ export const canonicalize = async <T>(
     return false
   }
 
-  // Fetch URL and compare with initial response. Returns response URL if match, undefined otherwise.
+  // Fetch URL and compare with initial response.
+  // Returns request URL (if preferRequestUrl) or response URL on match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<string | undefined> => {
     try {
       const response = await fetchFn(url)
       if (response.status < 200 || response.status >= 300) return
       if (!compareWithInitialResponse(response.body)) return
-      return response.url
+      return preferRequestUrl ? url : response.url
     } catch {}
   }
 
   // Phase 3: Validate self URL.
   // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https://
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
-  let variantSource = initialResponseUrl
+  let variantSource = initialCanonicalUrl
 
-  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl && initialResponseBody) {
+  if (selfRequestUrl && selfRequestUrl !== initialCanonicalUrl && initialResponseBody) {
     // Build list of URLs to try (self URL first, then alternate protocol).
     const urlsToTry = [selfRequestUrl]
 
@@ -136,10 +141,10 @@ export const canonicalize = async <T>(
     }
 
     for (const urlToTry of urlsToTry) {
-      const responseUrl = await fetchAndCompare(urlToTry)
+      const canonicalUrl = await fetchAndCompare(urlToTry)
 
-      if (responseUrl) {
-        variantSource = prepareUrl(responseUrl) ?? initialResponseUrl
+      if (canonicalUrl) {
+        variantSource = prepareUrl(canonicalUrl) ?? initialCanonicalUrl
         break
       }
     }
@@ -171,19 +176,25 @@ export const canonicalize = async <T>(
       continue
     }
 
-    // Skip if same as initial response URL (already known to work).
-    if (variant === initialResponseUrl) {
-      winningUrl = initialResponseUrl
+    // Skip if same as initial canonical URL (already known to work).
+    if (variant === initialCanonicalUrl) {
+      winningUrl = initialCanonicalUrl
       break
     }
 
-    const responseUrl = await fetchAndCompare(variant)
-    if (responseUrl) {
-      const preparedResponseUrl = prepareUrl(responseUrl)
+    const canonicalUrl = await fetchAndCompare(variant)
+    if (canonicalUrl) {
+      // When preferRequestUrl is false, skip variant if it redirects to a URL
+      // we already have as canonical (avoids saving a URL that always redirects).
+      if (!preferRequestUrl) {
+        const preparedCanonicalUrl = prepareUrl(canonicalUrl)
 
-      // Skip variant if it redirects to a URL we already have as canonical.
-      if (preparedResponseUrl === variantSource || preparedResponseUrl === initialResponseUrl) {
-        continue
+        if (
+          preparedCanonicalUrl === variantSource ||
+          preparedCanonicalUrl === initialCanonicalUrl
+        ) {
+          continue
+        }
       }
 
       winningUrl = variant
