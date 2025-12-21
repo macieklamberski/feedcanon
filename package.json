@@ -1,60 +1,60 @@
 {
-  "name": "feedcanon",
-  "description": "Canonical URL selection for web feeds.",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/macieklamberski/feedcanon.git"
-  },
-  "homepage": "https://feedcanon.dev",
-  "bugs": {
-    "url": "https://github.com/macieklamberski/feedcanon/issues"
-  },
-  "license": "MIT",
-  "author": "Maciej Lamberski",
-  "sideEffects": false,
-  "keywords": [
-    "rss",
-    "atom",
-    "feed",
-    "canonical",
-    "url",
-    "normalize",
-    "dedupe"
-  ],
-  "type": "module",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/exports.d.ts",
-        "default": "./dist/exports.js"
-      },
-      "require": {
-        "types": "./dist/exports.d.cts",
-        "default": "./dist/exports.cjs"
-      }
-    },
-    "./defaults": {
-      "import": {
-        "types": "./dist/defaults.d.ts",
-        "default": "./dist/defaults.js"
-      },
-      "require": {
-        "types": "./dist/defaults.d.cts",
-        "default": "./dist/defaults.cjs"
-      }
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "prepare": "lefthook install",
-    "build": "tsdown src/exports.ts src/defaults.ts --format cjs,esm --dts --clean --unbundle --no-fixed-extension"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "@types/bun": "^1.3.5",
-    "kvalita": "1.8.0",
-    "tsdown": "^0.18.1"
-  }
+	"name": "feedcanon",
+	"description": "Canonical URL selection for web feeds.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/macieklamberski/feedcanon.git"
+	},
+	"homepage": "https://feedcanon.dev",
+	"bugs": {
+		"url": "https://github.com/macieklamberski/feedcanon/issues"
+	},
+	"license": "MIT",
+	"author": "Maciej Lamberski",
+	"sideEffects": false,
+	"keywords": [
+		"rss",
+		"atom",
+		"feed",
+		"canonical",
+		"url",
+		"normalize",
+		"dedupe"
+	],
+	"type": "module",
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/exports.d.ts",
+				"default": "./dist/exports.js"
+			},
+			"require": {
+				"types": "./dist/exports.d.cts",
+				"default": "./dist/exports.cjs"
+			}
+		},
+		"./defaults": {
+			"import": {
+				"types": "./dist/defaults.d.ts",
+				"default": "./dist/defaults.js"
+			},
+			"require": {
+				"types": "./dist/defaults.d.cts",
+				"default": "./dist/defaults.cjs"
+			}
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"prepare": "lefthook install",
+		"build": "tsdown src/exports.ts src/defaults.ts --format cjs,esm --dts --clean --unbundle --no-fixed-extension"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "^1.3.5",
+		"kvalita": "1.8.0",
+		"tsdown": "^0.18.2"
+	}
 }
