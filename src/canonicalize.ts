@@ -2,9 +2,9 @@ import { defaultPlatforms, defaultTiers } from './defaults.js'
 import type { CanonicalizeOptions, FetchFnResponse, ParserAdapter } from './types.js'
 import {
 	applyPlatformHandlers,
-	createMd5Hash,
-	defaultFetchFn,
 	feedsmithParser,
+	md5Hash,
+	nativeFetch,
 	normalizeUrl,
 	resolveUrl,
 } from './utils.js'
@@ -14,8 +14,8 @@ export const canonicalize = async <TFeed, TExisting>(
 	options?: CanonicalizeOptions<TFeed, TExisting>,
 ): Promise<string | undefined> => {
 	const {
-		fetchFn = defaultFetchFn,
-		hashFn = createMd5Hash,
+		fetchFn = nativeFetch,
+		hashFn = md5Hash,
 		existsFn,
 		parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
 		tiers = defaultTiers,
