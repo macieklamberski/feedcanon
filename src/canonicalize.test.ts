@@ -1383,6 +1383,7 @@ describe('canonicalize', () => {
             throw new Error('Invalid feed')
           },
           getSelfUrl: () => undefined,
+          getSignature: () => ({}),
         },
       }
 
@@ -1640,7 +1641,7 @@ describe('canonicalize', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => 'https://example.com/other',
-          getSignature: (parsed) => ({ title: parsed?.includes('Feed A') ? 'A' : 'B' }),
+          getSignature: (feed) => ({ title: (feed as string)?.includes('Feed A') ? 'A' : 'B' }),
         },
       }
 
