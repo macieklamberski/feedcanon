@@ -104,9 +104,7 @@ export const canonicalize = async <T>(
 
           return initialResponseSignature === comparedResponseSignature
         }
-      } catch {
-        // Parsing failed, signatures don't match.
-      }
+      } catch {}
     }
 
     return false
