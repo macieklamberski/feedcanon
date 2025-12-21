@@ -4,8 +4,8 @@ import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types
 import {
 	addMissingProtocol,
 	applyPlatformHandlers,
-	createMd5Hash,
-	defaultFetchFn,
+	md5Hash,
+	nativeFetch,
 	normalizeUrl,
 	resolveFeedProtocol,
 	resolveUrl,
@@ -1258,7 +1258,7 @@ describe('normalizeUrl', () => {
 	})
 })
 
-describe('defaultFetchFn', () => {
+describe('nativeFetch', () => {
 	// biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
 	const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
 		implementation: T,
@@ -1292,7 +1292,7 @@ describe('defaultFetchFn', () => {
 				})
 			}),
 		)
-		const result = await defaultFetchFn('https://example.com/feed.xml')
+		const result = await nativeFetch('https://example.com/feed.xml')
 
 		expect(result.url).toBe('https://example.com/feed.xml')
 	})
@@ -1306,7 +1306,7 @@ describe('defaultFetchFn', () => {
 			}),
 		)
 
-		await defaultFetchFn('https://example.com/feed.xml')
+		await nativeFetch('https://example.com/feed.xml')
 
 		expect(capturedOptions?.method).toBe('GET')
 	})
@@ -1320,7 +1320,7 @@ describe('defaultFetchFn', () => {
 			}),
 		)
 
-		await defaultFetchFn('https://example.com/feed.xml', { method: 'HEAD' })
+		await nativeFetch('https://example.com/feed.xml', { method: 'HEAD' })
 
 		expect(capturedOptions?.method).toBe('HEAD')
 	})
@@ -1334,7 +1334,7 @@ describe('defaultFetchFn', () => {
 			}),
 		)
 
-		await defaultFetchFn('https://example.com/feed.xml', {
+		await nativeFetch('https://example.com/feed.xml', {
 			headers: { 'X-Custom': 'value' },
 		})
 
@@ -1352,7 +1352,7 @@ describe('defaultFetchFn', () => {
 				})
 			}),
 		)
-		const result = await defaultFetchFn('https://example.com/feed.xml')
+		const result = await nativeFetch('https://example.com/feed.xml')
 		const expected: FetchFnResponse = {
 			headers: new Headers({ 'content-type': 'application/rss+xml' }),
 			body: 'feed content',
@@ -1374,7 +1374,7 @@ describe('defaultFetchFn', () => {
 				})
 			}),
 		)
-		const result = await defaultFetchFn('https://example.com/feed.xml')
+		const result = await nativeFetch('https://example.com/feed.xml')
 
 		expect(result.url).toBe('https://redirect.example.com/feed.xml')
 	})
@@ -1387,7 +1387,7 @@ describe('defaultFetchFn', () => {
 				})
 			}),
 		)
-		const result = await defaultFetchFn('https://example.com/feed.xml')
+		const result = await nativeFetch('https://example.com/feed.xml')
 
 		expect(result.body).toBe('<rss>feed content</rss>')
 	})
@@ -1400,7 +1400,7 @@ describe('defaultFetchFn', () => {
 				})
 			}),
 		)
-		const result = await defaultFetchFn('https://example.com/feed.xml')
+		const result = await nativeFetch('https://example.com/feed.xml')
 
 		expect(result.status).toBe(404)
 	})
@@ -1469,24 +1469,24 @@ describe('applyPlatformHandlers', () => {
 	})
 })
 
-describe('createMd5Hash', () => {
+describe('md5Hash', () => {
 	it('should return MD5 hash of content', () => {
 		const value = 'hello world'
 		const expected = '5eb63bbbe01eeed093cb22bb8f5acdc3'
 
-		expect(createMd5Hash(value)).toBe(expected)
+		expect(md5Hash(value)).toBe(expected)
 	})
 
 	it('should return different hashes for different content', () => {
 		const value1 = 'content1'
 		const value2 = 'content2'
 
-		expect(createMd5Hash(value1)).not.toBe(createMd5Hash(value2))
+		expect(md5Hash(value1)).not.toBe(md5Hash(value2))
 	})
 
 	it('should return same hash for identical content', () => {
 		const value = 'same content'
 
-		expect(createMd5Hash(value)).toBe(createMd5Hash(value))
+		expect(md5Hash(value)).toBe(md5Hash(value))
 	})
 })

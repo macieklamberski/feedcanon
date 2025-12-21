@@ -277,7 +277,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 	}
 }
 
-export const defaultFetchFn: FetchFn = async (url, options) => {
+export const nativeFetch: FetchFn = async (url, options) => {
 	const response = await fetch(url, {
 		method: options?.method ?? 'GET',
 		headers: options?.headers,
@@ -308,7 +308,7 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
 	}
 }
 
-export const createMd5Hash = (content: string): string => {
+export const md5Hash = (content: string): string => {
 	return createHash('md5').update(content).digest('hex')
 }
 
