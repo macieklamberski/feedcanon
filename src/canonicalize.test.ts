@@ -1685,4 +1685,88 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
   })
+
+  describe('signature-based comparison', () => {
+    // Case 65: Self URL matches via signature when content differs
+    //
+    // Input: https://example.com/feed (has timestamp in body)
+    // Self URL: https://example.com/rss.xml (different timestamp, same signature)
+    //
+    // When content hashes differ but parsed signatures match, the self URL
+    // should still be accepted as valid.
+    it('case 65: should accept self URL when signatures match but content differs', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/rss.xml'
+      const body1 = '<feed><updated>2024-01-01T00:00:00Z</updated><title>Test</title></feed>'
+      const body2 = '<feed><updated>2024-01-02T00:00:00Z</updated><title>Test</title></feed>'
+      const signature = { title: 'Test' }
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: body1 },
+          'https://example.com/rss.xml': { body: body2 },
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: () => 'https://example.com/rss.xml',
+          getSignature: () => signature,
+        },
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 66: Variant matches via signature when content differs
+    //
+    // Input: https://www.example.com/feed/ (has cache buster in body)
+    // Variant: https://example.com/feed (different cache buster, same signature)
+    //
+    // When content hashes differ but parsed signatures match, the cleaner
+    // variant should still win.
+    it('case 66: should accept variant when signatures match but content differs', async () => {
+      const value = 'https://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body1 = '<feed><cachebuster>123</cachebuster><title>Test</title></feed>'
+      const body2 = '<feed><cachebuster>456</cachebuster><title>Test</title></feed>'
+      const signature = { title: 'Test' }
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed/': { body: body1 },
+          'https://example.com/feed': { body: body2 },
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: () => undefined,
+          getSignature: () => signature,
+        },
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 67: Signature mismatch rejects URL
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://example.com/other (different signature)
+    //
+    // When both content hash and signature differ, the URL should be rejected.
+    it('case 67: should reject URL when both content and signature differ', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body1 = '<feed><title>Feed A</title></feed>'
+      const body2 = '<feed><title>Feed B</title></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: body1 },
+          'https://example.com/other': { body: body2 },
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: () => 'https://example.com/other',
+          getSignature: (parsed) => ({ title: parsed?.includes('Feed A') ? 'A' : 'B' }),
+        },
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+  })
 })

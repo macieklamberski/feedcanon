@@ -1,5 +1,5 @@
 import { defaultPlatforms, defaultTiers } from './defaults.js'
-import type { CanonicalizeOptions } from './types.js'
+import type { CanonicalizeOptions, ParserAdapter } from './types.js'
 import {
   applyPlatformHandlers,
   createMd5Hash,
@@ -22,92 +22,133 @@ export const canonicalize = async <T>(
     platforms = defaultPlatforms,
   } = options ?? {}
 
+  // Helper to prepare a URL by resolving protocols, relative paths, applying platform handlers, and verifying.
+  const prepareUrl = async (url: string, baseUrl?: string): Promise<string | undefined> => {
+    const resolved = resolveUrl(url, baseUrl)
+    if (!resolved) return undefined
+
+    const platformized = applyPlatformHandlers(resolved, platforms)
+
+    if (verifyUrlFn) {
+      const isVerified = await verifyUrlFn(platformized)
+      if (!isVerified) return undefined
+    }
+
+    return platformized
+  }
+
+  // Helper to compare two responses using content hash first, then signature hash as fallback.
+  // Returns true if the responses represent the same feed content.
+  const compareResponses = async (
+    body1: string | undefined,
+    hash1: string | undefined,
+    parsed1: T | undefined,
+    body2: string | undefined,
+    parserAdapter: ParserAdapter<T> | undefined,
+  ): Promise<boolean> => {
+    // Fast path: content hash match.
+    const hash2 = body2 ? await hashFn(body2) : undefined
+    if (hash1 && hash2 && hash1 === hash2) {
+      return true
+    }
+
+    // Slow path: signature hash match (only if parser is available).
+    if (parserAdapter && parsed1 && body2) {
+      try {
+        const parsed2 = parserAdapter.parse(body2)
+        if (parsed2) {
+          const sig1 = JSON.stringify(parserAdapter.getSignature(parsed1))
+          const sig2 = JSON.stringify(parserAdapter.getSignature(parsed2))
+          const sigHash1 = await hashFn(sig1)
+          const sigHash2 = await hashFn(sig2)
+          return sigHash1 === sigHash2
+        }
+      } catch {
+        // Parsing failed, signatures don't match.
+      }
+    }
+
+    return false
+  }
+
   // Phase 1: Initial Fetch.
-  // Apply platform handlers to convert aliases to canonical domains before fetching.
-  const platformizedInputUrl = applyPlatformHandlers(inputUrl, platforms)
-  let response: Awaited<ReturnType<typeof fetchFn>>
+  const initialRequestUrl = await prepareUrl(inputUrl)
+  if (!initialRequestUrl) return
+
+  let initialResponse: Awaited<ReturnType<typeof fetchFn>>
 
   try {
-    response = await fetchFn(platformizedInputUrl)
+    initialResponse = await fetchFn(initialRequestUrl)
   } catch {
     return
   }
 
-  if (response.status < 200 || response.status >= 300) {
+  if (initialResponse.status < 200 || initialResponse.status >= 300) {
     return
   }
 
-  // Apply platform handlers to responseUrl (in case of redirects to an alias).
-  const responseUrl = applyPlatformHandlers(response.url, platforms)
-  const responseBody = response.body
-  const responseHash = responseBody ? await hashFn(responseBody) : undefined
+  const initialResponseUrl = await prepareUrl(initialResponse.url)
+  if (!initialResponseUrl) return
+
+  const initialResponseBody = initialResponse.body
+  const initialResponseHash = initialResponseBody ? await hashFn(initialResponseBody) : undefined
 
   // Phase 2: Extract and normalize self URL.
-  let selfUrl: string | undefined
+  let selfRequestUrl: string | undefined
+  let initialParsed: T | undefined
 
   if (parser) {
-    let parsed: ReturnType<typeof parser.parse>
-
     try {
-      parsed = parser.parse(responseBody)
+      initialParsed = parser.parse(initialResponseBody)
     } catch {
       // Invalid feed content (empty, malformed, etc.).
       return
     }
 
-    if (parsed) {
-      const rawSelfUrl = parser.getSelfUrl(parsed)
+    if (initialParsed) {
+      const rawSelfUrl = parser.getSelfUrl(initialParsed)
 
       if (rawSelfUrl) {
-        const resolved = resolveUrl(rawSelfUrl, responseUrl)
-
-        if (resolved) {
-          // Apply platform handlers to convert selfUrl aliases to canonical domains.
-          const platformizedSelfUrl = applyPlatformHandlers(resolved, platforms)
-          const isVerified = verifyUrlFn ? await verifyUrlFn(platformizedSelfUrl) : true
-
-          if (isVerified) {
-            selfUrl = platformizedSelfUrl
-          }
-        }
+        selfRequestUrl = await prepareUrl(rawSelfUrl, initialResponseUrl)
       }
     }
   }
 
   // Phase 3: Validate self URL.
-  // Try selfUrl first, then alternate protocol if it fails (e.g., feed:// resolved to https://
-  // but only http:// works). This ensures we don't lose a valid selfUrl due to protocol mismatch.
-  let variantSource = responseUrl
+  // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https://
+  // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
+  let variantSource = initialResponseUrl
 
-  if (selfUrl && selfUrl !== responseUrl && responseHash) {
-    // Build list of URLs to try (selfUrl first, then alternate protocol).
-    const urlsToTry = [selfUrl]
+  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl && initialResponseHash) {
+    // Build list of URLs to try (self URL first, then alternate protocol).
+    const urlsToTry = [selfRequestUrl]
 
-    if (selfUrl.startsWith('https://')) {
-      urlsToTry.push(selfUrl.replace('https://', 'http://'))
-    } else if (selfUrl.startsWith('http://')) {
-      urlsToTry.push(selfUrl.replace('http://', 'https://'))
+    if (selfRequestUrl.startsWith('https://')) {
+      urlsToTry.push(selfRequestUrl.replace('https://', 'http://'))
+    } else if (selfRequestUrl.startsWith('http://')) {
+      urlsToTry.push(selfRequestUrl.replace('http://', 'https://'))
     }
 
     for (const urlToTry of urlsToTry) {
-      // Verify URL is safe (selfUrl already verified in Phase 2, alternate needs verification).
-      if (urlToTry !== selfUrl && verifyUrlFn) {
-        const isVerified = await verifyUrlFn(urlToTry)
-
-        if (!isVerified) {
-          continue
-        }
-      }
+      // Verify URL is safe (self URL already verified, alternate needs verification).
+      const verifiedUrl = await prepareUrl(urlToTry)
+      if (!verifiedUrl) continue
 
       try {
-        const selfResponse = await fetchFn(urlToTry)
+        const selfResponse = await fetchFn(verifiedUrl)
 
         if (selfResponse.status >= 200 && selfResponse.status < 300) {
-          const selfHash = selfResponse.body ? await hashFn(selfResponse.body) : undefined
+          const isMatch = await compareResponses(
+            initialResponseBody,
+            initialResponseHash,
+            initialParsed,
+            selfResponse.body,
+            parser,
+          )
 
-          if (selfHash === responseHash) {
+          if (isMatch) {
             // URL is valid - use destination URL (after redirects) as source for variants.
-            variantSource = applyPlatformHandlers(selfResponse.url, platforms)
+            variantSource = (await prepareUrl(selfResponse.url)) ?? initialResponseUrl
             break
           }
         }
@@ -115,18 +156,15 @@ export const canonicalize = async <T>(
         // This URL failed, try next.
       }
     }
-  } else if (selfUrl === responseUrl) {
-    // selfUrl matches responseUrl, use it.
-    variantSource = responseUrl
+  } else if (selfRequestUrl === initialResponseUrl) {
+    // Self URL matches initial response URL, use it.
+    variantSource = initialResponseUrl
   }
 
   // Phase 4: Generate Variants.
-  // Apply platform handlers to each variant to normalize platform aliases.
-  const variants = new Set(
-    tiers.map((tier) => {
-      return applyPlatformHandlers(normalizeUrl(variantSource, tier), platforms)
-    }),
-  )
+  const variantPromises = tiers.map((tier) => prepareUrl(normalizeUrl(variantSource, tier)))
+  const variantResults = await Promise.all(variantPromises)
+  const variants = new Set(variantResults.filter((url): url is string => url !== undefined))
   variants.add(variantSource)
 
   // Phase 5: Test Variants (in tier order, first match wins).
@@ -147,19 +185,10 @@ export const canonicalize = async <T>(
       continue
     }
 
-    // Skip if same as responseUrl (already known to work).
-    if (variant === responseUrl) {
-      winningUrl = responseUrl
+    // Skip if same as initial response URL (already known to work).
+    if (variant === initialResponseUrl) {
+      winningUrl = initialResponseUrl
       break
-    }
-
-    // Verify URL is safe (skip check if verifyUrlFn not provided).
-    if (verifyUrlFn) {
-      const isVerified = await verifyUrlFn(variant)
-
-      if (!isVerified) {
-        continue
-      }
     }
 
     try {
@@ -169,9 +198,15 @@ export const canonicalize = async <T>(
         continue
       }
 
-      const variantHash = variantResponse.body ? await hashFn(variantResponse.body) : undefined
+      const isMatch = await compareResponses(
+        initialResponseBody,
+        initialResponseHash,
+        initialParsed,
+        variantResponse.body,
+        parser,
+      )
 
-      if (responseHash && variantHash === responseHash) {
+      if (isMatch) {
         winningUrl = variant
         break
       }
@@ -182,17 +217,22 @@ export const canonicalize = async <T>(
 
   // Phase 6: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
-    const httpsUrl = winningUrl.replace('http://', 'https://')
-    const isHttpsVerified = verifyUrlFn ? await verifyUrlFn(httpsUrl) : true
+    const httpsUrl = await prepareUrl(winningUrl.replace('http://', 'https://'))
 
-    if (isHttpsVerified) {
+    if (httpsUrl) {
       try {
         const httpsResponse = await fetchFn(httpsUrl)
 
         if (httpsResponse.status >= 200 && httpsResponse.status < 300) {
-          const httpsHash = httpsResponse.body ? await hashFn(httpsResponse.body) : undefined
+          const isMatch = await compareResponses(
+            initialResponseBody,
+            initialResponseHash,
+            initialParsed,
+            httpsResponse.body,
+            parser,
+          )
 
-          if (responseHash && httpsHash === responseHash) {
+          if (isMatch) {
             return httpsUrl
           }
         }
