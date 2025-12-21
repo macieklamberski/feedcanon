@@ -19,7 +19,6 @@ export type {
 export {
 	addMissingProtocol,
 	feedsmithParser,
-	isSimilarUrl,
 	normalizeUrl,
 	resolveFeedProtocol,
 	resolveUrl,
