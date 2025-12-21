@@ -27,31 +27,40 @@ export const canonicalize = async <T>(
     return resolved ? applyPlatformHandlers(resolved, platforms) : undefined
   }
 
-  // Compare two responses using content hash first, then signature hash as fallback.
-  // Returns true if the responses represent the same feed content.
-  const compareResponses = async (
+  // Compare two responses using 3-tier matching:
+  // 1. Exact body match (fastest)
+  // 2. Hash match (content equality, lazy evaluates initialResponseHash)
+  // 3. Signature match (semantic equality via parser)
+  const compareResponses = (
     body1: string | undefined,
-    hash1: string | undefined,
-    parsed1: T | undefined,
+    feed1: T | undefined,
     body2: string | undefined,
     parserAdapter: ParserAdapter<T> | undefined,
-  ): Promise<boolean> => {
-    // Fast path: content hash match.
-    const hash2 = body2 ? hashFn(body2) : undefined
-    if (hash1 && hash2 && hash1 === hash2) {
+  ): boolean => {
+    if (!body1 || !body2) {
+      return false
+    }
+
+    // Tier 1: exact body match.
+    if (body1 === body2) {
       return true
     }
 
-    // Slow path: signature hash match (only if parser is available).
-    if (parserAdapter && parsed1 && body2) {
+    // Tier 2: hash match (lazy evaluate hash1).
+    initialResponseHash ||= hashFn(body1)
+    if (initialResponseHash === hashFn(body2)) {
+      return true
+    }
+
+    // Tier 3: signature match (only if parser is available).
+    if (parserAdapter && feed1) {
       try {
-        const parsed2 = parserAdapter.parse(body2)
-        if (parsed2) {
-          const sig1 = JSON.stringify(parserAdapter.getSignature(parsed1))
-          const sig2 = JSON.stringify(parserAdapter.getSignature(parsed2))
-          const sigHash1 = hashFn(sig1)
-          const sigHash2 = hashFn(sig2)
-          return sigHash1 === sigHash2
+        const feed2 = parserAdapter.parse(body2)
+
+        if (feed2) {
+          const sig1 = JSON.stringify(parserAdapter.getSignature(feed1))
+          const sig2 = JSON.stringify(parserAdapter.getSignature(feed2))
+          return sig1 === sig2
         }
       } catch {
         // Parsing failed, signatures don't match.
@@ -81,22 +90,22 @@ export const canonicalize = async <T>(
   if (!initialResponseUrl) return
 
   const initialResponseBody = initialResponse.body
-  const initialResponseHash = initialResponseBody ? hashFn(initialResponseBody) : undefined
+  let initialResponseHash: string | undefined
 
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
-  let initialParsed: T | undefined
+  let initialResponseFeed: T | undefined
 
   if (parser) {
     try {
-      initialParsed = parser.parse(initialResponseBody)
+      initialResponseFeed = parser.parse(initialResponseBody)
     } catch {
       // Invalid feed content (empty, malformed, etc.).
       return
     }
 
-    if (initialParsed) {
-      const rawSelfUrl = parser.getSelfUrl(initialParsed)
+    if (initialResponseFeed) {
+      const rawSelfUrl = parser.getSelfUrl(initialResponseFeed)
 
       if (rawSelfUrl) {
         selfRequestUrl = prepareUrl(rawSelfUrl, initialResponseUrl)
@@ -109,7 +118,7 @@ export const canonicalize = async <T>(
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
   let variantSource = initialResponseUrl
 
-  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl && initialResponseHash) {
+  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl && initialResponseBody) {
     // Build list of URLs to try (self URL first, then alternate protocol).
     const urlsToTry = [selfRequestUrl]
 
@@ -124,10 +133,9 @@ export const canonicalize = async <T>(
         const selfResponse = await fetchFn(urlToTry)
 
         if (selfResponse.status >= 200 && selfResponse.status < 300) {
-          const isMatch = await compareResponses(
+          const isMatch = compareResponses(
             initialResponseBody,
-            initialResponseHash,
-            initialParsed,
+            initialResponseFeed,
             selfResponse.body,
             parser,
           )
@@ -186,10 +194,9 @@ export const canonicalize = async <T>(
         continue
       }
 
-      const isMatch = await compareResponses(
+      const isMatch = compareResponses(
         initialResponseBody,
-        initialResponseHash,
-        initialParsed,
+        initialResponseFeed,
         variantResponse.body,
         parser,
       )
@@ -212,10 +219,9 @@ export const canonicalize = async <T>(
         const httpsResponse = await fetchFn(httpsUrl)
 
         if (httpsResponse.status >= 200 && httpsResponse.status < 300) {
-          const isMatch = await compareResponses(
+          const isMatch = compareResponses(
             initialResponseBody,
-            initialResponseHash,
-            initialParsed,
+            initialResponseFeed,
             httpsResponse.body,
             parser,
           )
