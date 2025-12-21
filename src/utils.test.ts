@@ -704,6 +704,59 @@ describe('resolveUrl', () => {
 })
 
 describe('normalizeUrl', () => {
+	describe('entity decoding', () => {
+		it('should decode &amp; to & by default', () => {
+			const value = 'https://example.com/feed?a=1&amp;b=2'
+			const expected = 'example.com/feed?a=1&b=2'
+
+			expect(normalizeUrl(value)).toBe(expected)
+		})
+
+		it('should decode numeric entities', () => {
+			const value = 'https://example.com/feed&#x3F;query=1'
+			const expected = 'example.com/feed?query=1'
+
+			expect(normalizeUrl(value)).toBe(expected)
+		})
+
+		it('should decode named entities', () => {
+			const value = 'https://example.com/feed?q=a&lt;b'
+			const expected = 'example.com/feed?q=a%3Cb'
+
+			expect(normalizeUrl(value)).toBe(expected)
+		})
+
+		it('should decode entities by default', () => {
+			const value = 'https://example.com/path&amp;name/feed'
+			const expected = 'example.com/path&name/feed'
+
+			expect(normalizeUrl(value)).toBe(expected)
+		})
+
+		it('should decode entities when decodeEntities is true', () => {
+			const value = 'https://example.com/path&amp;name/feed'
+			const options = { ...defaultNormalizeOptions, decodeEntities: true }
+			const expected = 'example.com/path&name/feed'
+
+			expect(normalizeUrl(value, options)).toBe(expected)
+		})
+
+		it('should preserve entities when decodeEntities is false', () => {
+			const value = 'https://example.com/path&amp;name/feed'
+			const options = { ...defaultNormalizeOptions, decodeEntities: false }
+			const expected = 'example.com/path&amp;name/feed'
+
+			expect(normalizeUrl(value, options)).toBe(expected)
+		})
+
+		it('should handle multiple encoded ampersands', () => {
+			const value = 'https://example.com/feed?a=1&amp;b=2&amp;c=3'
+			const expected = 'example.com/feed?a=1&b=2&c=3'
+
+			expect(normalizeUrl(value)).toBe(expected)
+		})
+	})
+
 	describe('protocol stripping', () => {
 		it('should strip https:// protocol by default', () => {
 			const value = 'https://example.com/feed'

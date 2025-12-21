@@ -13,6 +13,7 @@ export type PlatformHandler = {
 
 // URL normalization options.
 export type NormalizeOptions = {
+	decodeEntities?: boolean // decode HTML entities (&amp; → &)
 	stripProtocol?: boolean // strip protocol (http ↔ https treated same)
 	stripAuthentication?: boolean // strip user:pass@
 	stripWww?: boolean // strip www. prefix
