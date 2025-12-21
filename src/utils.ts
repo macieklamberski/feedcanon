@@ -312,6 +312,6 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   }
 }
 
-export const createMd5Hash = async (content: string): Promise<string> => {
+export const createMd5Hash = (content: string): string => {
   return createHash('md5').update(content).digest('hex')
 }

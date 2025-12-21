@@ -75,4 +75,4 @@ export type FeedData = {
 }
 
 // Hash function type.
-export type HashFn = (content: string) => string | Promise<string>
+export type HashFn = (content: string) => string

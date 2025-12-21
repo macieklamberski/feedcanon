@@ -37,7 +37,7 @@ export const canonicalize = async <T>(
     parserAdapter: ParserAdapter<T> | undefined,
   ): Promise<boolean> => {
     // Fast path: content hash match.
-    const hash2 = body2 ? await hashFn(body2) : undefined
+    const hash2 = body2 ? hashFn(body2) : undefined
     if (hash1 && hash2 && hash1 === hash2) {
       return true
     }
@@ -49,8 +49,8 @@ export const canonicalize = async <T>(
         if (parsed2) {
           const sig1 = JSON.stringify(parserAdapter.getSignature(parsed1))
           const sig2 = JSON.stringify(parserAdapter.getSignature(parsed2))
-          const sigHash1 = await hashFn(sig1)
-          const sigHash2 = await hashFn(sig2)
+          const sigHash1 = hashFn(sig1)
+          const sigHash2 = hashFn(sig2)
           return sigHash1 === sigHash2
         }
       } catch {
@@ -81,7 +81,7 @@ export const canonicalize = async <T>(
   if (!initialResponseUrl) return
 
   const initialResponseBody = initialResponse.body
-  const initialResponseHash = initialResponseBody ? await hashFn(initialResponseBody) : undefined
+  const initialResponseHash = initialResponseBody ? hashFn(initialResponseBody) : undefined
 
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
