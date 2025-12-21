@@ -639,32 +639,7 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 27: Self URL fails verification
-    //
-    // Input: https://example.com/feed
-    // Self URL: https://blocked.example.com/feed (blocked by verifyUrlFn)
-    // Result: https://example.com/feed
-    //
-    // When self URL fails verification (verifyUrlFn returns false), it should be
-    // ignored and the algorithm should use responseUrl for variants. This allows
-    // blocklisting specific domains or URL patterns.
-    it('case 27: should ignore self URL when verification fails', async () => {
-      const value = 'https://example.com/feed'
-      const expected = 'https://example.com/feed'
-      const body = '<feed></feed>'
-      const options: CanonicalizeOptions = {
-        fetchFn: createMockFetch({
-          'https://example.com/feed': { body },
-          'https://blocked.example.com/feed': { body },
-        }),
-        parser: createMockParser('https://blocked.example.com/feed'),
-        verifyUrlFn: (url) => !url.includes('blocked'),
-      }
-
-      expect(await canonicalize(value, options)).toBe(expected)
-    })
-
-    // Case 28: Variant matches response URL
+    // Case 27: Variant matches response URL
     //
     // Input: https://www.example.com/feed
     // Self URL: https://other.example.com/feed (different domain)
@@ -903,38 +878,6 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
       expect(checkedUrls).toContain('https://example.com/feed')
       expect(checkedUrls).toContain('https://www.example.com/feed')
-    })
-  })
-
-  describe('with verifyUrlFn option', () => {
-    it('should skip variants that fail verification', async () => {
-      const value = 'https://www.example.com/feed'
-      const expected = 'https://www.example.com/feed'
-      const body = '<feed></feed>'
-      const options: CanonicalizeOptions = {
-        fetchFn: createMockFetch({
-          'https://www.example.com/feed': { body },
-          'https://example.com/feed': { body },
-        }),
-        verifyUrlFn: (url) => url.includes('www'),
-      }
-
-      expect(await canonicalize(value, options)).toBe(expected)
-    })
-
-    it('should skip HTTPS upgrade when verification fails', async () => {
-      const value = 'http://example.com/feed'
-      const expected = 'http://example.com/feed'
-      const body = '<feed></feed>'
-      const options: CanonicalizeOptions = {
-        fetchFn: createMockFetch({
-          'http://example.com/feed': { body },
-          'https://example.com/feed': { body },
-        }),
-        verifyUrlFn: (url) => !url.startsWith('https://'),
-      }
-
-      expect(await canonicalize(value, options)).toBe(expected)
     })
   })
 
@@ -1259,29 +1202,7 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 46: Self URL resolves to localhost/private IP
-    //
-    // When self URL resolves to localhost or private IP, verifyUrlFn should
-    // block it to prevent SSRF attacks. Algorithm falls back to responseUrl.
-    it('case 46: should reject self URL pointing to localhost via verifyUrlFn', async () => {
-      const value = 'https://example.com/feed'
-      const expected = 'https://example.com/feed'
-      const body = '<feed></feed>'
-      const options: CanonicalizeOptions = {
-        fetchFn: createMockFetch({
-          'https://example.com/feed': { body },
-        }),
-        parser: createMockParser('https://localhost/feed'),
-        verifyUrlFn: (url) => {
-          const parsed = new URL(url)
-          return !['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)
-        },
-      }
-
-      expect(await canonicalize(value, options)).toBe(expected)
-    })
-
-    // Case 47: Mixed case hostname
+    // Case 46: Mixed case hostname
     //
     // Hostnames are case-insensitive per RFC. URLs with different case should
     // be normalized to lowercase and treated as equivalent.
@@ -1523,25 +1444,6 @@ describe('canonicalize', () => {
 
       expect(await canonicalize(value, options)).toBe(expected)
     })
-
-    // Case 58: Redirect destination variants blocked by verifyUrlFn
-    //
-    // When the redirect destination's variants fail verification, the algorithm
-    // should skip those variants and use the response URL as-is if it's the only
-    // working option. verifyUrlFn applies to variant generation, not response URL.
-    it('case 58: should use responseUrl when all variants blocked by verifyUrlFn', async () => {
-      const value = 'https://www.blocked.example.com/feed/'
-      const expected = 'https://www.blocked.example.com/feed/'
-      const body = '<feed></feed>'
-      const options: CanonicalizeOptions = {
-        fetchFn: createMockFetch({
-          'https://www.blocked.example.com/feed/': { body },
-        }),
-        verifyUrlFn: (url) => url === 'https://www.blocked.example.com/feed/',
-      }
-
-      expect(await canonicalize(value, options)).toBe(expected)
-    })
   })
 
   describe('self URL protocol retry', () => {
@@ -1592,31 +1494,7 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 61: Alternate protocol blocked by verifyUrlFn
-    //
-    // Input: https://example.com/feed
-    // Self URL: feed://example.com/rss.xml (resolved to https://example.com/rss.xml)
-    // HTTPS fails, HTTP blocked by verifyUrlFn
-    //
-    // When the HTTPS self URL fails and the HTTP fallback is blocked by verifyUrlFn,
-    // the algorithm should fall back to responseUrl without trying the blocked URL.
-    it('case 61: should not try alternate protocol when blocked by verifyUrlFn', async () => {
-      const value = 'https://example.com/feed'
-      const expected = 'https://example.com/feed'
-      const body = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
-      const options: CanonicalizeOptions = {
-        fetchFn: createMockFetch({
-          'https://example.com/feed': { body },
-          'http://example.com/rss.xml': { body },
-        }),
-        parser: createMockParser('feed://example.com/rss.xml'),
-        verifyUrlFn: (url) => !url.startsWith('http://'),
-      }
-
-      expect(await canonicalize(value, options)).toBe(expected)
-    })
-
-    // Case 62: Both protocols fail, falls back to responseUrl
+    // Case 61: Both protocols fail, falls back to responseUrl
     //
     // Input: https://example.com/feed
     // Self URL: feed://other.example.com/rss.xml

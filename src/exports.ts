@@ -12,7 +12,6 @@ export type {
   NormalizeOptions,
   ParserAdapter,
   PlatformHandler,
-  VerifyUrlFn,
 } from './types.js'
 export {
   addMissingProtocol,

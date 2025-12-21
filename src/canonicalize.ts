@@ -14,7 +14,6 @@ export const canonicalize = async <T>(
 ): Promise<string | undefined> => {
   const {
     fetchFn = defaultFetchFn,
-    verifyUrlFn,
     hashFn = createMd5Hash,
     existsFn,
     parser,
@@ -22,22 +21,13 @@ export const canonicalize = async <T>(
     platforms = defaultPlatforms,
   } = options ?? {}
 
-  // Helper to prepare a URL by resolving protocols, relative paths, applying platform handlers, and verifying.
-  const prepareUrl = async (url: string, baseUrl?: string): Promise<string | undefined> => {
+  // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
+  const prepareUrl = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
-    if (!resolved) return undefined
-
-    const platformized = applyPlatformHandlers(resolved, platforms)
-
-    if (verifyUrlFn) {
-      const isVerified = await verifyUrlFn(platformized)
-      if (!isVerified) return undefined
-    }
-
-    return platformized
+    return resolved ? applyPlatformHandlers(resolved, platforms) : undefined
   }
 
-  // Helper to compare two responses using content hash first, then signature hash as fallback.
+  // Compare two responses using content hash first, then signature hash as fallback.
   // Returns true if the responses represent the same feed content.
   const compareResponses = async (
     body1: string | undefined,
@@ -72,7 +62,7 @@ export const canonicalize = async <T>(
   }
 
   // Phase 1: Initial Fetch.
-  const initialRequestUrl = await prepareUrl(inputUrl)
+  const initialRequestUrl = prepareUrl(inputUrl)
   if (!initialRequestUrl) return
 
   let initialResponse: Awaited<ReturnType<typeof fetchFn>>
@@ -87,7 +77,7 @@ export const canonicalize = async <T>(
     return
   }
 
-  const initialResponseUrl = await prepareUrl(initialResponse.url)
+  const initialResponseUrl = prepareUrl(initialResponse.url)
   if (!initialResponseUrl) return
 
   const initialResponseBody = initialResponse.body
@@ -109,7 +99,7 @@ export const canonicalize = async <T>(
       const rawSelfUrl = parser.getSelfUrl(initialParsed)
 
       if (rawSelfUrl) {
-        selfRequestUrl = await prepareUrl(rawSelfUrl, initialResponseUrl)
+        selfRequestUrl = prepareUrl(rawSelfUrl, initialResponseUrl)
       }
     }
   }
@@ -130,12 +120,8 @@ export const canonicalize = async <T>(
     }
 
     for (const urlToTry of urlsToTry) {
-      // Verify URL is safe (self URL already verified, alternate needs verification).
-      const verifiedUrl = await prepareUrl(urlToTry)
-      if (!verifiedUrl) continue
-
       try {
-        const selfResponse = await fetchFn(verifiedUrl)
+        const selfResponse = await fetchFn(urlToTry)
 
         if (selfResponse.status >= 200 && selfResponse.status < 300) {
           const isMatch = await compareResponses(
@@ -148,7 +134,7 @@ export const canonicalize = async <T>(
 
           if (isMatch) {
             // URL is valid - use destination URL (after redirects) as source for variants.
-            variantSource = (await prepareUrl(selfResponse.url)) ?? initialResponseUrl
+            variantSource = prepareUrl(selfResponse.url) ?? initialResponseUrl
             break
           }
         }
@@ -162,9 +148,11 @@ export const canonicalize = async <T>(
   }
 
   // Phase 4: Generate Variants.
-  const variantPromises = tiers.map((tier) => prepareUrl(normalizeUrl(variantSource, tier)))
-  const variantResults = await Promise.all(variantPromises)
-  const variants = new Set(variantResults.filter((url): url is string => url !== undefined))
+  const variants = new Set(
+    tiers
+      .map((tier) => prepareUrl(normalizeUrl(variantSource, tier)))
+      .filter((url): url is string => url !== undefined),
+  )
   variants.add(variantSource)
 
   // Phase 5: Test Variants (in tier order, first match wins).
@@ -217,7 +205,7 @@ export const canonicalize = async <T>(
 
   // Phase 6: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
-    const httpsUrl = await prepareUrl(winningUrl.replace('http://', 'https://'))
+    const httpsUrl = prepareUrl(winningUrl.replace('http://', 'https://'))
 
     if (httpsUrl) {
       try {
