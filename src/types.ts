@@ -38,7 +38,6 @@ export type ExistsFn = (url: string) => Promise<boolean>
 export type CanonicalizeOptions<T = unknown> = {
   parser?: ParserAdapter<T> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn
-  verifyUrlFn?: VerifyUrlFn
   hashFn?: HashFn
   existsFn?: ExistsFn // Check if URLs exist in database.
   tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
@@ -74,9 +73,6 @@ export type FeedData = {
     publishedAt?: string
   }>
 }
-
-// URL validation function type.
-export type VerifyUrlFn = (url: string) => boolean | Promise<boolean>
 
 // Hash function type.
 export type HashFn = (content: string) => string | Promise<string>
