@@ -274,14 +274,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 	}
 }
 
-export const isSimilarUrl = (
-	url1: string,
-	url2: string,
-	options = defaultNormalizeOptions,
-): boolean => {
-	return normalizeUrl(url1, options) === normalizeUrl(url2, options)
-}
-
 export const defaultFetchFn: FetchFn = async (url, options) => {
 	const response = await fetch(url, {
 		method: options?.method ?? 'GET',
