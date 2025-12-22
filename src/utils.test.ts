@@ -365,6 +365,13 @@ describe('resolveUrl', () => {
 
       expect(resolveUrl(value)).toBe(expected)
     })
+
+    it('should decode accented character entities', () => {
+      const value = 'https://example.com/caf&eacute;'
+      const expected = 'https://example.com/caf%C3%A9'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
   })
 
   describe('standard HTTP/HTTPS URLs', () => {
@@ -430,6 +437,13 @@ describe('resolveUrl', () => {
     it('should unwrap feed:https:// to https://', () => {
       const value = 'feed:https://example.com/rss.xml'
       const expected = 'https://example.com/rss.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should convert rss:// to https://', () => {
+      const value = 'rss://example.com/feed.xml'
+      const expected = 'https://example.com/feed.xml'
 
       expect(resolveUrl(value)).toBe(expected)
     })
@@ -628,6 +642,13 @@ describe('resolveUrl', () => {
       const value = 'https://example.com//feed//rss.xml'
 
       expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should apply entity decoding and protocol conversion together', () => {
+      const value = 'feed:https://example.com/feed?x=1&amp;y=2'
+      const expected = 'https://example.com/feed?x=1&y=2'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
   })
 
