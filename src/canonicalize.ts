@@ -52,8 +52,6 @@ export const canonicalize = async <TFeed, TExisting>(
 	const initialResponseUrl = prepareUrl(initialResponse.url)
 	if (!initialResponseUrl) return
 
-	onMatch?.({ url: initialRequestUrl, response: initialResponse })
-
 	const initialResponseBody = initialResponse.body
 	let initialResponseHash: string | undefined
 	let initialResponseSignature: string | undefined
@@ -65,6 +63,8 @@ export const canonicalize = async <TFeed, TExisting>(
 	if (!initialResponseFeed) {
 		return
 	}
+
+	onMatch?.({ url: initialRequestUrl, response: initialResponse })
 
 	const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
 
