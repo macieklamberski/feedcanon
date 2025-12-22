@@ -153,6 +153,8 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 }
 
 const decodeAndNormalizeEncoding = (str: string): string => {
+  if (!str.includes('%')) return str
+
   // Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
   return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
     const charCode = Number.parseInt(hex, 16)
@@ -238,7 +240,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     parsed.pathname = pathname
 
     // Remove tracking/specified parameters.
-    if (options.stripQueryParams) {
+    if (options.stripQueryParams && parsed.search) {
       for (const param of options.stripQueryParams) {
         parsed.searchParams.delete(param)
       }

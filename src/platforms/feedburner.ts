@@ -1,10 +1,10 @@
 import type { PlatformHandler } from '../types.js'
 
-const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
+const hosts = new Set(['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com'])
 
 export const feedburnerHandler: PlatformHandler = {
   match: (url) => {
-    return hosts.includes(url.hostname)
+    return hosts.has(url.hostname)
   },
 
   normalize: (url) => {
