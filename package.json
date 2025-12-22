@@ -1,6 +1,6 @@
 {
   "name": "feedcanon",
-  "description": "Canonical URL selection for web feeds.",
+  "description": "Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest, most reliable form.",
   "repository": {
     "type": "git",
     "url": "https://github.com/macieklamberski/feedcanon.git"
