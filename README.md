@@ -36,12 +36,15 @@ const url = await findCanonical('https://www.example.com/feed/?utm_source=twitte
 // 'https://example.com/feed'
 ```
 
-### With Options
+### With Callbacks
 
 ```typescript
 import { findCanonical } from 'feedcanon'
 
 const url = await findCanonical('https://example.com/feed', {
+  onFetch: ({ url, response }) => {
+    console.log('Fetched:', url, response.status)
+  },
   onMatch: ({ url, feed }) => {
     console.log('Found matching URL:', url)
   },
