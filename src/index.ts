@@ -1,5 +1,5 @@
 import { defaultPlatforms, defaultTiers } from './defaults.js'
-import type { CanonicalizeOptions, FetchFnResponse, ParserAdapter } from './types.js'
+import type { FetchFnResponse, FindCanonicalOptions, ParserAdapter } from './types.js'
 import {
   applyPlatformHandlers,
   feedsmithParser,
@@ -8,9 +8,9 @@ import {
   resolveUrl,
 } from './utils.js'
 
-export const canonicalize = async <TFeed, TExisting>(
+export const findCanonical = async <TFeed, TExisting>(
   inputUrl: string,
-  options?: CanonicalizeOptions<TFeed, TExisting>,
+  options?: FindCanonicalOptions<TFeed, TExisting>,
 ): Promise<string | undefined> => {
   const {
     fetchFn = nativeFetch,

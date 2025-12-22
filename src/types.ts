@@ -47,8 +47,8 @@ export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 // Returns data if URL exists, undefined otherwise.
 export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
 
-// Options for canonicalize function.
-export type CanonicalizeOptions<TFeed = unknown, TExisting = unknown> = {
+// Options for findCanonical function.
+export type FindCanonicalOptions<TFeed = unknown, TExisting = unknown> = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
