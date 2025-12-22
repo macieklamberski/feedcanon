@@ -75,16 +75,3 @@ export type FetchFnResponse = {
 
 // Custom fetch function type (adapter interface).
 export type FetchFn = (url: string, options?: FetchFnOptions) => Promise<FetchFnResponse>
-
-// Parsed feed data for comparison.
-export type FeedData = {
-  title?: string
-  description?: string
-  siteUrl?: string
-  items?: Array<{
-    guid?: string
-    link?: string
-    title?: string
-    publishedAt?: string
-  }>
-}

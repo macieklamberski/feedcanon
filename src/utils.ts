@@ -120,7 +120,7 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 
   // Step 1: Decode HTML entities to recover the intended URL.
   // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &).
-  resolvedUrl = decodeHTML(url)
+  resolvedUrl = url.includes('&') ? decodeHTML(url) : url
 
   // Step 2: Convert feed-related protocols.
   resolvedUrl = resolveFeedProtocol(resolvedUrl)
@@ -314,14 +314,10 @@ export const feedsmithParser: ParserAdapter<ReturnType<typeof parseFeed>> = {
   getSelfUrl: (parsed) => {
     switch (parsed.format) {
       case 'atom':
-        return parsed.feed.links?.find((link) => {
-          return link.rel === 'self'
-        })?.href
+        return parsed.feed.links?.find((link) => link.rel === 'self')?.href
       case 'rss':
       case 'rdf':
-        return parsed.feed.atom?.links?.find((link) => {
-          return link.rel === 'self'
-        })?.href
+        return parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
       case 'json':
         return parsed.feed.feed_url
     }

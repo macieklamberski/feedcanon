@@ -4,7 +4,6 @@ export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
   CanonicalizeOptions,
   ExistsFn,
-  FeedData,
   FetchFn,
   FetchFnOptions,
   FetchFnResponse,
