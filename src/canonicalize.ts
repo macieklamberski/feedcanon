@@ -3,6 +3,7 @@ import type { CanonicalizeOptions, FetchFnResponse, ParserAdapter } from './type
 import {
   applyPlatformHandlers,
   feedsmithParser,
+  md5Hash,
   nativeFetch,
   normalizeUrl,
   resolveUrl,
@@ -14,6 +15,7 @@ export const canonicalize = async <TFeed, TExisting>(
 ): Promise<string | undefined> => {
   const {
     fetchFn = nativeFetch,
+    hashFn = md5Hash,
     existsFn,
     parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
     tiers = defaultTiers,
@@ -51,6 +53,7 @@ export const canonicalize = async <TFeed, TExisting>(
   if (!initialResponseUrl) return
 
   const initialResponseBody = initialResponse.body
+  let initialResponseHash: string | undefined
   let initialResponseSignature: string | undefined
 
   // Phase 2: Extract and normalize self URL.
@@ -72,9 +75,10 @@ export const canonicalize = async <TFeed, TExisting>(
     selfRequestUrl = prepareUrl(selfRequestUrlRaw, initialResponseUrl)
   }
 
-  // Compare initial response against another response using 2-tier matching:
+  // Compare initial response against another response using 3-tier matching:
   // 1. Exact body match (fastest)
-  // 2. Signature match (semantic equality via parser)
+  // 2. Hash match (content equality, lazy evaluates initialResponseHash)
+  // 3. Signature match (semantic equality via parser)
   const compareWithInitialResponse = (comparedResponseBody: string | undefined): boolean => {
     if (!initialResponseBody || !comparedResponseBody) {
       return false
@@ -85,7 +89,13 @@ export const canonicalize = async <TFeed, TExisting>(
       return true
     }
 
-    // Tier 2: signature match via parser.
+    // Tier 2: hash match (lazy evaluate initialResponseHash).
+    initialResponseHash ||= hashFn(initialResponseBody)
+    if (initialResponseHash === hashFn(comparedResponseBody)) {
+      return true
+    }
+
+    // Tier 3: signature match via parser.
     const comparedResponseFeed = parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {

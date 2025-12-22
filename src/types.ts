@@ -51,6 +51,7 @@ export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
 export type CanonicalizeOptions<TFeed = unknown, TExisting = unknown> = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn
+  hashFn?: HashFn
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
   tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
@@ -88,3 +89,6 @@ export type FeedData = {
     publishedAt?: string
   }>
 }
+
+// Hash function type.
+export type HashFn = (content: string) => string
