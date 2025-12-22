@@ -31,17 +31,31 @@ export type NormalizeOptions = {
 }
 
 // Callback fired after each fetch operation.
-export type OnFetchFn = (data: { url: string; response: FetchFnResponse }) => void
+export type OnFetchFn = (data: {
+  url: string
+  response: FetchFnResponse
+  purpose: 'initial' | 'selfUrl' | 'selfUrlFallback' | 'variant' | 'httpsUpgrade'
+}) => void
 
 // Callback fired when a URL successfully matches the initial response.
 export type OnMatchFn<TFeed = unknown> = (data: {
   url: string
   response: FetchFnResponse
   feed: TFeed
+  matchType: 'initial' | 'selfUrl' | 'variant' | 'httpsUpgrade'
 }) => void
 
 // Callback fired when existsFn finds a URL in the database.
 export type OnExistsFn<T> = (data: { url: string; data: T }) => void
+
+// Callback fired when canonicalization completes.
+export type OnCompleteFn<TFeed = unknown> = (data: {
+  canonical: string | undefined
+  inputUrl: string
+  feed: TFeed | undefined
+  fetchCount: number
+  matchedUrls: Array<string>
+}) => void
 
 // Callback to check if URLs exist in database (early termination).
 // Returns data if URL exists, undefined otherwise.
@@ -58,6 +72,7 @@ export type CanonicalizeOptions<TFeed = unknown, TExisting = unknown> = {
   onFetch?: OnFetchFn // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed> // Called when a URL matches the initial response.
   onExists?: OnExistsFn<TExisting> // Called when existsFn finds a URL.
+  onComplete?: OnCompleteFn<TFeed> // Called when canonicalization completes.
 }
 
 // Options for fetch function.

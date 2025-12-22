@@ -23,7 +23,11 @@ export const canonicalize = async <TFeed, TExisting>(
     onFetch,
     onMatch,
     onExists,
+    onComplete,
   } = options ?? {}
+
+  let fetchCount = 0
+  const matchedUrls: Array<string> = []
 
   // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
   const prepareUrl = (url: string, baseUrl?: string): string | undefined => {
@@ -33,24 +37,33 @@ export const canonicalize = async <TFeed, TExisting>(
 
   // Phase 1: Initial Fetch.
   const initialRequestUrl = prepareUrl(inputUrl)
-  if (!initialRequestUrl) return
+  if (!initialRequestUrl) {
+    onComplete?.({ canonical: undefined, inputUrl, feed: undefined, fetchCount, matchedUrls })
+    return
+  }
 
   let initialResponse: FetchFnResponse
 
   try {
     initialResponse = await fetchFn(initialRequestUrl)
+    fetchCount++
   } catch {
+    onComplete?.({ canonical: undefined, inputUrl, feed: undefined, fetchCount, matchedUrls })
     return
   }
 
-  onFetch?.({ url: initialRequestUrl, response: initialResponse })
+  onFetch?.({ url: initialRequestUrl, response: initialResponse, purpose: 'initial' })
 
   if (initialResponse.status < 200 || initialResponse.status >= 300) {
+    onComplete?.({ canonical: undefined, inputUrl, feed: undefined, fetchCount, matchedUrls })
     return
   }
 
   const initialResponseUrl = prepareUrl(initialResponse.url)
-  if (!initialResponseUrl) return
+  if (!initialResponseUrl) {
+    onComplete?.({ canonical: undefined, inputUrl, feed: undefined, fetchCount, matchedUrls })
+    return
+  }
 
   const initialResponseBody = initialResponse.body
   let initialResponseHash: string | undefined
@@ -61,13 +74,20 @@ export const canonicalize = async <TFeed, TExisting>(
   const initialResponseFeed = parser.parse(initialResponseBody)
 
   if (!initialResponseFeed) {
+    onComplete?.({ canonical: undefined, inputUrl, feed: undefined, fetchCount, matchedUrls })
     return
   }
 
   // All onMatch calls receive initialResponseFeed because matched URLs return content
   // equivalent to the initial response (that's the matching criteria). This allows consumers
   // to access parsed feed data without redundant parsing.
-  onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
+  matchedUrls.push(initialRequestUrl)
+  onMatch?.({
+    url: initialRequestUrl,
+    response: initialResponse,
+    feed: initialResponseFeed,
+    matchType: 'initial',
+  })
 
   const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
 
@@ -111,14 +131,18 @@ export const canonicalize = async <TFeed, TExisting>(
   }
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
-  const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
+  const fetchAndCompare = async (
+    url: string,
+    purpose: 'selfUrl' | 'selfUrlFallback' | 'variant' | 'httpsUpgrade',
+  ): Promise<FetchFnResponse | undefined> => {
     let response: FetchFnResponse
     try {
       response = await fetchFn(url)
+      fetchCount++
     } catch {
       return
     }
-    onFetch?.({ url, response })
+    onFetch?.({ url, response, purpose })
     if (response.status < 200 || response.status >= 300) return
     if (!compareWithInitialResponse(response.body)) return
     return response
@@ -139,11 +163,14 @@ export const canonicalize = async <TFeed, TExisting>(
       urlsToTry.push(selfRequestUrl.replace('http://', 'https://'))
     }
 
-    for (const urlToTry of urlsToTry) {
-      const response = await fetchAndCompare(urlToTry)
+    for (let i = 0; i < urlsToTry.length; i++) {
+      const urlToTry = urlsToTry[i]
+      const purpose = i === 0 ? 'selfUrl' : 'selfUrlFallback'
+      const response = await fetchAndCompare(urlToTry, purpose)
 
       if (response) {
-        onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
+        matchedUrls.push(urlToTry)
+        onMatch?.({ url: urlToTry, response, feed: initialResponseFeed, matchType: 'selfUrl' })
         variantSource = prepareUrl(response.url) ?? initialResponseUrl
         break
       }
@@ -168,6 +195,13 @@ export const canonicalize = async <TFeed, TExisting>(
 
       if (data !== undefined) {
         onExists?.({ url: variant, data })
+        onComplete?.({
+          canonical: variant,
+          inputUrl,
+          feed: initialResponseFeed,
+          fetchCount,
+          matchedUrls,
+        })
         return variant
       }
     }
@@ -183,7 +217,7 @@ export const canonicalize = async <TFeed, TExisting>(
       break
     }
 
-    const response = await fetchAndCompare(variant)
+    const response = await fetchAndCompare(variant, 'variant')
     if (response) {
       const preparedResponseUrl = prepareUrl(response.url)
 
@@ -192,7 +226,8 @@ export const canonicalize = async <TFeed, TExisting>(
         continue
       }
 
-      onMatch?.({ url: variant, response, feed: initialResponseFeed })
+      matchedUrls.push(variant)
+      onMatch?.({ url: variant, response, feed: initialResponseFeed, matchType: 'variant' })
       winningUrl = variant
       break
     }
@@ -201,13 +236,28 @@ export const canonicalize = async <TFeed, TExisting>(
   // Phase 6: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
     const httpsUrl = winningUrl.replace('http://', 'https://')
-    const response = await fetchAndCompare(httpsUrl)
+    const response = await fetchAndCompare(httpsUrl, 'httpsUpgrade')
 
     if (response) {
-      onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
+      matchedUrls.push(httpsUrl)
+      onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed, matchType: 'httpsUpgrade' })
+      onComplete?.({
+        canonical: httpsUrl,
+        inputUrl,
+        feed: initialResponseFeed,
+        fetchCount,
+        matchedUrls,
+      })
       return httpsUrl
     }
   }
 
+  onComplete?.({
+    canonical: winningUrl,
+    inputUrl,
+    feed: initialResponseFeed,
+    fetchCount,
+    matchedUrls,
+  })
   return winningUrl
 }

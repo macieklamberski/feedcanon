@@ -2144,6 +2144,31 @@ describe('canonicalize', () => {
 
       expect(canonicalize(value, options)).rejects.toThrow('Callback error')
     })
+
+    it('should include purpose in onFetch', async () => {
+      const value = 'http://www.example.com/feed/'
+      const body = '<feed></feed>'
+      const fetchCalls: Array<{ url: string; purpose: string }> = []
+      const options: CanonicalizeOptions = {
+        parser: createMockParser(undefined),
+        fetchFn: createMockFetch({
+          'http://www.example.com/feed/': { body },
+          'http://example.com/feed': { body },
+          'https://example.com/feed': { body },
+        }),
+        onFetch: (data) => {
+          fetchCalls.push({ url: data.url, purpose: data.purpose })
+        },
+      }
+
+      await canonicalize(value, options)
+
+      expect(fetchCalls).toEqual([
+        { url: 'http://www.example.com/feed/', purpose: 'initial' },
+        { url: 'http://example.com/feed', purpose: 'variant' },
+        { url: 'https://example.com/feed', purpose: 'httpsUpgrade' },
+      ])
+    })
   })
 
   describe('with onMatch callback', () => {
@@ -2252,10 +2277,12 @@ describe('canonicalize', () => {
       expect(matchCalls).toEqual(['http://example.com/feed', 'https://example.com/feed'])
     })
 
-    it('should include full response and feed in onMatch', async () => {
+    it('should include full response, feed, and matchType in onMatch', async () => {
       const value = 'https://example.com/feed'
       const body = '<feed></feed>'
-      let matchData: { url: string; response: FetchFnResponse; feed: unknown } | undefined
+      let matchData:
+        | { url: string; response: FetchFnResponse; feed: unknown; matchType: string }
+        | undefined
       const options: CanonicalizeOptions = {
         parser: createMockParser(undefined),
         fetchFn: createMockFetch({
@@ -2272,6 +2299,7 @@ describe('canonicalize', () => {
         url: value,
         response: { body, url: value, status: 200, headers: new Headers() },
         feed: body,
+        matchType: 'initial',
       })
     })
 
@@ -2329,6 +2357,93 @@ describe('canonicalize', () => {
         }),
         existsFn: async (url) => (url === 'https://example.com/feed' ? { id: 55 } : undefined),
         onExists: () => {
+          throw new Error('Callback error')
+        },
+      }
+
+      expect(canonicalize(value, options)).rejects.toThrow('Callback error')
+    })
+  })
+
+  describe('with onComplete callback', () => {
+    it('should call onComplete with canonical URL and metadata', async () => {
+      const value = 'http://www.example.com/feed/'
+      const body = '<feed></feed>'
+      let completeData:
+        | {
+            canonical: string | undefined
+            inputUrl: string
+            feed: unknown
+            fetchCount: number
+            matchedUrls: Array<string>
+          }
+        | undefined
+      const options: CanonicalizeOptions = {
+        parser: createMockParser(undefined),
+        fetchFn: createMockFetch({
+          'http://www.example.com/feed/': { body },
+          'http://example.com/feed': { body },
+          'https://example.com/feed': { body },
+        }),
+        onComplete: (data) => {
+          completeData = data
+        },
+      }
+
+      await canonicalize(value, options)
+
+      expect(completeData).toEqual({
+        canonical: 'https://example.com/feed',
+        inputUrl: value,
+        feed: body,
+        fetchCount: 3,
+        matchedUrls: [
+          'http://www.example.com/feed/',
+          'http://example.com/feed',
+          'https://example.com/feed',
+        ],
+      })
+    })
+
+    it('should call onComplete with undefined canonical when parsing fails', async () => {
+      const value = 'https://example.com/feed'
+      let completeData:
+        | {
+            canonical: string | undefined
+            feed: unknown
+            fetchCount: number
+          }
+        | undefined
+      const options: CanonicalizeOptions = {
+        parser: {
+          parse: () => undefined,
+          getSelfUrl: () => undefined,
+          getSignature: () => ({}),
+        },
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: 'invalid' },
+        }),
+        onComplete: (data) => {
+          completeData = data
+        },
+      }
+
+      await canonicalize(value, options)
+
+      expect(completeData?.canonical).toBeUndefined()
+      expect(completeData?.feed).toBeUndefined()
+      expect(completeData?.fetchCount).toBe(1)
+    })
+
+    it('should propagate error when onComplete throws', async () => {
+      const value = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options: CanonicalizeOptions = {
+        parser: createMockParser(undefined),
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        onComplete: () => {
           throw new Error('Callback error')
         },
       }
