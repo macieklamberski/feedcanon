@@ -117,26 +117,30 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
 // Resolves a URL by converting feed protocols, resolving relative URLs,
 // and ensuring it's a valid HTTP(S) URL.
 export const resolveUrl = (url: string, base?: string): string | undefined => {
-  let processed = url
+  let resolvedUrl: string | undefined
 
-  // Step 1: Convert feed-related protocols.
-  processed = resolveFeedProtocol(processed)
+  // Step 1: Decode HTML entities to recover the intended URL.
+  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &).
+  resolvedUrl = decodeHTML(url)
 
-  // Step 2: Resolve relative URLs if base is provided.
+  // Step 2: Convert feed-related protocols.
+  resolvedUrl = resolveFeedProtocol(resolvedUrl)
+
+  // Step 3: Resolve relative URLs if base is provided.
   if (base) {
     try {
-      processed = new URL(processed, base).href
+      resolvedUrl = new URL(resolvedUrl, base).href
     } catch {
       return
     }
   }
 
-  // Step 3: Add protocol if missing (handles both // and bare domains).
-  processed = addMissingProtocol(processed)
+  // Step 4: Add protocol if missing (handles both // and bare domains).
+  resolvedUrl = addMissingProtocol(resolvedUrl)
 
-  // Step 4: Normalize using native URL constructor.
+  // Step 5: Validate using native URL constructor.
   try {
-    const parsed = new URL(processed)
+    const parsed = new URL(resolvedUrl)
 
     // Reject non-HTTP(S) protocols.
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -167,9 +171,7 @@ const decodeAndNormalizeEncoding = (str: string): string => {
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
   try {
-    // Decode HTML entities before parsing.
-    const decoded = options.decodeEntities ? decodeHTML(url) : url
-    const parsed = new URL(decoded)
+    const parsed = new URL(url)
 
     // Unicode normalization.
     if (options.normalizeUnicode) {

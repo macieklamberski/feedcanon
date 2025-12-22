@@ -153,7 +153,6 @@ export const defaultStrippedParams = [
 ]
 
 export const defaultNormalizeOptions: NormalizeOptions = {
-  decodeEntities: true,
   stripProtocol: true,
   stripAuthentication: false,
   stripWww: true,
@@ -175,7 +174,6 @@ export const defaultNormalizeOptions: NormalizeOptions = {
 export const defaultTiers: Array<NormalizeOptions> = [
   // Tier 1: Most aggressive - strip www, trailing slash, tracking params.
   {
-    decodeEntities: true,
     stripProtocol: false,
     stripAuthentication: false,
     stripWww: true,
@@ -194,7 +192,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
   },
   // Tier 2: Keep www, strip trailing slash.
   {
-    decodeEntities: true,
     stripProtocol: false,
     stripAuthentication: false,
     stripWww: false,
@@ -213,7 +210,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
   },
   // Tier 3: Keep www and trailing slash.
   {
-    decodeEntities: true,
     stripProtocol: false,
     stripAuthentication: false,
     stripWww: false,
