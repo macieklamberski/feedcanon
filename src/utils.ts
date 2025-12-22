@@ -74,7 +74,7 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
       // Valid web hostnames must have at least one of:
       // Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
       if (
-        hostname.indexOf('.') !== -1 ||
+        hostname.includes('.') ||
         hostname === 'localhost' ||
         ipv4Pattern.test(hostname) ||
         ipv6Pattern.test(hostname.replace(/^\[|\]$/g, ''))
