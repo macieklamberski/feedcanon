@@ -127,7 +127,7 @@ export const canonicalize = async <TFeed, TExisting>(
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
   let variantSource = initialResponseUrl
 
-  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl && initialResponseBody) {
+  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {
     // Build list of URLs to try (self URL first, then alternate protocol).
     const urlsToTry = [selfRequestUrl]
 
