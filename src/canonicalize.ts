@@ -51,15 +51,15 @@ export const canonicalize = async <TFeed, TExisting>(
   if (!initialResponseUrl) return
 
   const initialResponseBody = initialResponse.body
+  if (!initialResponseBody) return
+
   let initialResponseSignature: string | undefined
 
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
-  const initialResponseFeed = parser.parse(initialResponseBody)
 
-  if (!initialResponseFeed) {
-    return
-  }
+  const initialResponseFeed = parser.parse(initialResponseBody)
+  if (!initialResponseFeed) return
 
   // All onMatch calls receive initialResponseFeed because matched URLs return content
   // equivalent to the initial response (that's the matching criteria). This allows consumers
@@ -76,7 +76,7 @@ export const canonicalize = async <TFeed, TExisting>(
   // 1. Exact body match (fastest)
   // 2. Signature match (semantic equality via parser)
   const compareWithInitialResponse = (comparedResponseBody: string | undefined): boolean => {
-    if (!initialResponseBody || !comparedResponseBody) {
+    if (!comparedResponseBody) {
       return false
     }
 
