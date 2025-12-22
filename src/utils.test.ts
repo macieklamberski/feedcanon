@@ -4,6 +4,7 @@ import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types
 import {
   addMissingProtocol,
   applyPlatformHandlers,
+  md5Hash,
   nativeFetch,
   normalizeUrl,
   resolveFeedProtocol,
@@ -1469,5 +1470,27 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+})
+
+describe('md5Hash', () => {
+  it('should return MD5 hash of content', () => {
+    const value = 'hello world'
+    const expected = '5eb63bbbe01eeed093cb22bb8f5acdc3'
+
+    expect(md5Hash(value)).toBe(expected)
+  })
+
+  it('should return different hashes for different content', () => {
+    const value1 = 'content1'
+    const value2 = 'content2'
+
+    expect(md5Hash(value1)).not.toBe(md5Hash(value2))
+  })
+
+  it('should return same hash for identical content', () => {
+    const value = 'same content'
+
+    expect(md5Hash(value)).toBe(md5Hash(value))
   })
 })

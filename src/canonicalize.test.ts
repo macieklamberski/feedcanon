@@ -136,7 +136,7 @@ describe('canonicalize', () => {
     //
     // When a publisher misconfigures their self URL to point to a different feed
     // variant (e.g., full-text vs summary), the algorithm detects the content
-    // difference via signature comparison and uses the response URL instead.
+    // difference via hash comparison and uses the response URL instead.
     it('case 5: should use responseUrl when self URL produces different content', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
@@ -1289,7 +1289,7 @@ describe('canonicalize', () => {
 
     // Case 49: First matching variant wins
     //
-    // When multiple variants would match (same content), the first one
+    // When multiple variants would match (same hash), the first one
     // tested (cleanest tier) wins.
     it('case 50: should return first matching variant when multiple match', async () => {
       const value = 'https://www.example.com/feed/'
@@ -1590,7 +1590,7 @@ describe('canonicalize', () => {
     // Self URL: https://example.com/rss.xml (identical body)
     //
     // When bodies are exactly identical, comparison succeeds immediately
-    // without needing signature comparison.
+    // without needing hash or signature comparison.
     it('case 63: should match when bodies are exactly identical', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/rss.xml'
@@ -1606,14 +1606,38 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 63: Signature match with different content (Tier 2)
+    // Case 63: Hash match with different bodies (Tier 2)
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://example.com/rss.xml (different body, same hash)
+    //
+    // When bodies differ but hashes match (tested via custom hashFn),
+    // comparison succeeds at hash tier.
+    it('case 64: should match when hashes are identical despite different bodies', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/rss.xml'
+      const body1 = '<feed><title>Test</title><updated>2024-01-01</updated></feed>'
+      const body2 = '<feed><title>Test</title><updated>2024-01-02</updated></feed>'
+      const options: CanonicalizeOptions = {
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body: body1 },
+          'https://example.com/rss.xml': { body: body2 },
+        }),
+        parser: createMockParser('https://example.com/rss.xml'),
+        hashFn: () => 'same-hash-for-all',
+      }
+
+      expect(await canonicalize(value, options)).toBe(expected)
+    })
+
+    // Case 64: Signature match with different content (Tier 3)
     //
     // Input: https://example.com/feed (has timestamp in body)
     // Self URL: https://example.com/rss.xml (different timestamp, same signature)
     //
-    // When bodies differ but parsed signatures match, the self URL
+    // When content hashes differ but parsed signatures match, the self URL
     // should still be accepted as valid.
-    it('case 64: should match when signatures are identical despite different content', async () => {
+    it('case 65: should match when signatures are identical despite different content', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/rss.xml'
       const body1 = '<feed><updated>2024-01-01T00:00:00Z</updated><title>Test</title></feed>'
@@ -1634,14 +1658,14 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 64: Variant matches via signature when content differs (Tier 2)
+    // Case 65: Variant matches via signature when content differs (Tier 3)
     //
     // Input: https://www.example.com/feed/ (has cache buster in body)
     // Variant: https://example.com/feed (different cache buster, same signature)
     //
-    // When bodies differ but parsed signatures match, the cleaner
+    // When content hashes differ but parsed signatures match, the cleaner
     // variant should still win.
-    it('case 65: should accept variant when signatures match but content differs', async () => {
+    it('case 66: should accept variant when signatures match but content differs', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://example.com/feed'
       const body1 = '<feed><cachebuster>123</cachebuster><title>Test</title></feed>'
@@ -1662,13 +1686,13 @@ describe('canonicalize', () => {
       expect(await canonicalize(value, options)).toBe(expected)
     })
 
-    // Case 65: Signature mismatch rejects URL
+    // Case 66: Signature mismatch rejects URL
     //
     // Input: https://example.com/feed
     // Self URL: https://example.com/other (different signature)
     //
-    // When both body and signature differ, the URL should be rejected.
-    it('case 66: should reject URL when both content and signature differ', async () => {
+    // When both content hash and signature differ, the URL should be rejected.
+    it('case 67: should reject URL when both content and signature differ', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body1 = '<feed><title>Feed A</title></feed>'
