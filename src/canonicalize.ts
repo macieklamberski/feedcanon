@@ -95,16 +95,14 @@ export const canonicalize = async <TFeed, TExisting>(
       return true
     }
 
-    // Tier 3: signature match (only if parser is available).
-    if (initialResponseFeed) {
-      const comparedResponseFeed = parser.parse(comparedResponseBody)
+    // Tier 3: signature match via parser.
+    const comparedResponseFeed = parser.parse(comparedResponseBody)
 
-      if (comparedResponseFeed) {
-        initialResponseSignature ||= JSON.stringify(parser.getSignature(initialResponseFeed))
-        const comparedResponseSignature = JSON.stringify(parser.getSignature(comparedResponseFeed))
+    if (comparedResponseFeed) {
+      initialResponseSignature ||= JSON.stringify(parser.getSignature(initialResponseFeed))
+      const comparedResponseSignature = JSON.stringify(parser.getSignature(comparedResponseFeed))
 
-        return initialResponseSignature === comparedResponseSignature
-      }
+      return initialResponseSignature === comparedResponseSignature
     }
 
     return false
