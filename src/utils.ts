@@ -152,11 +152,13 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   }
 }
 
-const decodeAndNormalizeEncoding = (str: string): string => {
-  if (!str.includes('%')) return str
+const decodeAndNormalizeEncoding = (value: string): string => {
+  if (!value.includes('%')) {
+    return value
+  }
 
   // Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
-  return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
+  return value.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
     const charCode = Number.parseInt(hex, 16)
     const char = String.fromCharCode(charCode)
 
