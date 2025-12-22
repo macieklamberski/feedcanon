@@ -6,42 +6,17 @@
 
 Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest, most reliable form.
 
-Many URLs can point to the same feed—varying by protocol, www prefixes, trailing slashes, unnecessary params, or domain aliases. This library compares actual feed content, considers the feed's declared self URL, and tests simpler URL alternatives to find the cleanest working one. Perfect for feed readers that need consistent, deduplicated subscriptions.
+Many URLs can point to the same feed—varying by protocol, www prefixes, trailing slashes, order of params, or domain aliases. Feedcanon compares actual feed content, considers the feed's declared self URL, and tests simpler URL alternatives to find the cleanest working one. Perfect for feed readers that need consistent, deduplicated subscriptions.
 
 ---
 
-## Features
-
-### How It Works
+## How It Works
 
 - Read the feed's declared self URL (`atom:link rel="self"`) and validate it serves identical content.
 - Generate URL variants from cleanest to least clean, testing each until one works.
 - Verify URLs serve the same feed using exact body match, then signature-based matching.
 - Attempt to upgrade HTTP URLs to HTTPS when both serve identical content.
 - Normalize platform-specific domains (e.g., FeedBurner aliases like `feedproxy.google.com` → `feeds.feedburner.com`).
-
-### URL Transforms
-
-- Strip www prefix — `www.example.com` → `example.com`
-- Strip trailing slashes — `/feed/` → `/feed`
-- Strip tracking params — remove 100+ known tracking parameters (UTM, Facebook, Google Ads, etc.)
-- Collapse slashes — `//feed///rss` → `/feed/rss`
-- Strip fragments — remove `#hash` and text fragments
-- Sort query params — alphabetically sort remaining query parameters
-- Normalize encoding — standardize percent-encoded characters
-- Lowercase hostname — `EXAMPLE.COM` → `example.com`
-- Unicode support — NFC for consistent representation
-- Punycode support — convert internationalized domain names
-
-### Customize
-
-- **Custom fetch** — use your own HTTP client (Axios, Got, Ky, etc.)
-- **Custom parser** — bring your own feed parser with the `ParserAdapter` interface.
-- **Custom tiers** — define your own URL variant priority order.
-- **Custom platforms** — add handlers for platform-specific URL patterns.
-- **Database lookup** — use `existsFn` to check if a URL already exists in your database.
-- **Progress callbacks** — monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
-- **Type-safe** — full TypeScript support with exported types.
 
 ## Quick Start
 
@@ -73,6 +48,26 @@ const url = await findCanonical('https://example.com/feed', {
 })
 ```
 
+### Custom Fetch
+
+```typescript
+import { findCanonical } from 'feedcanon'
+import axios from 'axios'
+
+const url = await findCanonical('https://example.com/feed', {
+  fetchFn: async (url) => {
+    const response = await axios.get(url)
+  
+    return {
+      status: response.status,
+      url: response.request.res.responseUrl,
+      body: response.data,
+      headers: new Headers(response.headers),
+    }
+  },
+})
+```
+
 ### Database Integration
 
 ```typescript
@@ -88,21 +83,3 @@ const url = await findCanonical('https://example.com/feed', {
   },
 })
 ```
-
-### Custom Fetch
-
-```typescript
-import { findCanonical } from 'feedcanon'
-import axios from 'axios'
-
-const url = await findCanonical('https://example.com/feed', {
-  fetchFn: async (url) => {
-    const response = await axios.get(url)
-    return {
-      status: response.status,
-      url: response.request.res.responseUrl,
-      body: response.data,
-      headers: new Headers(response.headers),
-    }
-  },
-})
