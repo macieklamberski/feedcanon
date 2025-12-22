@@ -12,36 +12,36 @@ Many URLs can point to the same feed—varying by protocol, www prefixes, traili
 
 ## Features
 
-### Resolution Process
+### How It Works
 
-- **Self URL extraction** — Reads the feed's declared self URL (`atom:link rel="self"`) and validates it serves identical content.
-- **Tiered normalization** — Generates URL variants from cleanest to least clean, testing each until one works.
-- **Content comparison** — Verifies URLs serve the same feed using exact body match, then signature-based comparison.
-- **HTTPS upgrade** — Attempts to upgrade HTTP URLs to HTTPS when both serve identical content.
-- **Platform handlers** — Normalizes platform-specific domains (e.g., FeedBurner aliases like `feedproxy.google.com` → `feeds.feedburner.com`).
+- Read the feed's declared self URL (`atom:link rel="self"`) and validate it serves identical content.
+- Generate URL variants from cleanest to least clean, testing each until one works.
+- Verify URLs serve the same feed using exact body match, then signature-based matching.
+- Attempt to upgrade HTTP URLs to HTTPS when both serve identical content.
+- Normalize platform-specific domains (e.g., FeedBurner aliases like `feedproxy.google.com` → `feeds.feedburner.com`).
 
-### URL Normalization
+### URL Transforms
 
-- **Strip www prefix** — `www.example.com` → `example.com`
-- **Strip trailing slashes** — `/feed/` → `/feed`
-- **Strip tracking params** — Removes 100+ known tracking parameters (UTM, Facebook, Google Ads, etc.)
-- **Collapse slashes** — `//feed///rss` → `/feed/rss`
-- **Strip fragments** — Removes `#hash` and text fragments
-- **Sort query params** — Alphabetically sorts remaining query parameters
-- **Normalize encoding** — Standardizes percent-encoded characters
-- **Lowercase hostname** — `EXAMPLE.COM` → `example.com`
-- **Unicode normalization** — NFC normalization for consistent representation
-- **Punycode conversion** — Converts internationalized domain names
+- Strip www prefix — `www.example.com` → `example.com`
+- Strip trailing slashes — `/feed/` → `/feed`
+- Strip tracking params — remove 100+ known tracking parameters (UTM, Facebook, Google Ads, etc.)
+- Collapse slashes — `//feed///rss` → `/feed/rss`
+- Strip fragments — remove `#hash` and text fragments
+- Sort query params — alphabetically sort remaining query parameters
+- Normalize encoding — standardize percent-encoded characters
+- Lowercase hostname — `EXAMPLE.COM` → `example.com`
+- Unicode support — NFC for consistent representation
+- Punycode support — convert internationalized domain names
 
-### Customization
+### Customize
 
-- **Custom fetch** — Use your own HTTP client (Axios, Got, Ky, etc.)
-- **Custom parser** — Bring your own feed parser with the `ParserAdapter` interface.
-- **Custom tiers** — Define your own normalization priority order.
-- **Custom platforms** — Add handlers for platform-specific URL patterns.
-- **Database integration** — Use `existsFn` to check if a URL already exists in your database.
-- **Progress callbacks** — Monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
-- **Type-safe** — Full TypeScript support with exported types.
+- **Custom fetch** — use your own HTTP client (Axios, Got, Ky, etc.)
+- **Custom parser** — bring your own feed parser with the `ParserAdapter` interface.
+- **Custom tiers** — define your own URL variant priority order.
+- **Custom platforms** — add handlers for platform-specific URL patterns.
+- **Database lookup** — use `existsFn` to check if a URL already exists in your database.
+- **Progress callbacks** — monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
+- **Type-safe** — full TypeScript support with exported types.
 
 ## Quick Start
 
