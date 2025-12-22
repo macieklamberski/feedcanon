@@ -17,7 +17,6 @@ export type NormalizeOptions = {
   stripProtocol?: boolean // strip protocol (http ↔ https treated same)
   stripAuthentication?: boolean // strip user:pass@
   stripWww?: boolean // strip www. prefix
-  stripDefaultPorts?: boolean // strip :80 and :443
   stripTrailingSlash?: boolean // /feed/ → /feed
   stripRootSlash?: boolean // example.com/ → example.com
   collapseSlashes?: boolean // /// → /

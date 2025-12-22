@@ -24,25 +24,25 @@ const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 const feedProtocols = ['feed:', 'rss:', 'podcast:', 'pcast:', 'itpc:']
 
 export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-	const urlLower = url.toLowerCase()
+  const urlLower = url.toLowerCase()
 
-	for (const scheme of feedProtocols) {
-		if (!urlLower.startsWith(scheme)) {
-			continue
-		}
+  for (const scheme of feedProtocols) {
+    if (!urlLower.startsWith(scheme)) {
+      continue
+    }
 
-		// Case 1: Wrapping protocol (e.g., feed:https://example.com).
-		if (urlLower.startsWith(`${scheme}http://`) || urlLower.startsWith(`${scheme}https://`)) {
-			return url.slice(scheme.length)
-		}
+    // Case 1: Wrapping protocol (e.g., feed:https://example.com).
+    if (urlLower.startsWith(`${scheme}http://`) || urlLower.startsWith(`${scheme}https://`)) {
+      return url.slice(scheme.length)
+    }
 
-		// Case 2: Replacing protocol (e.g., feed://example.com).
-		if (urlLower.startsWith(`${scheme}//`)) {
-			return `${protocol}:${url.slice(scheme.length)}`
-		}
-	}
+    // Case 2: Replacing protocol (e.g., feed://example.com).
+    if (urlLower.startsWith(`${scheme}//`)) {
+      return `${protocol}:${url.slice(scheme.length)}`
+    }
+  }
 
-	return url
+  return url
 }
 
 // Adds protocol to URLs missing a scheme. Handles both protocol-relative
@@ -53,289 +53,279 @@ export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'h
 // - example.com/feed → https://example.com/feed
 // - /path/to/feed → /path/to/feed (unchanged, relative path)
 export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-	// Skip if URL already has a real protocol (http://, mailto:, tel:, etc.).
-	// URL constructor may incorrectly parse "example.com:8080" as protocol "example.com:"
-	// or "localhost:3000" as "localhost:". Real URI schemes don't contain dots (RFC 3986),
-	// so a dot in the protocol reveals it was actually a hostname:port, not a scheme.
-	try {
-		const parsed = new URL(url)
-		if (!parsed.protocol.includes('.') && parsed.protocol !== 'localhost:') {
-			return url
-		}
-	} catch {
-		// Not a valid URL yet, continue with protocol addition.
-	}
+  // Skip if URL already has a real protocol (http://, mailto:, tel:, etc.).
+  // URL constructor may incorrectly parse "example.com:8080" as protocol "example.com:"
+  // or "localhost:3000" as "localhost:". Real URI schemes don't contain dots (RFC 3986),
+  // so a dot in the protocol reveals it was actually a hostname:port, not a scheme.
+  try {
+    const parsed = new URL(url)
+    if (!parsed.protocol.includes('.') && parsed.protocol !== 'localhost:') {
+      return url
+    }
+  } catch {
+    // Not a valid URL yet, continue with protocol addition.
+  }
 
-	// Case 1: Protocol-relative URL (//example.com).
-	if (url.startsWith('//') && !url.startsWith('///')) {
-		try {
-			const parsed = new URL(`${protocol}:${url}`)
-			const hostname = parsed.hostname
+  // Case 1: Protocol-relative URL (//example.com).
+  if (url.startsWith('//') && !url.startsWith('///')) {
+    try {
+      const parsed = new URL(`${protocol}:${url}`)
+      const hostname = parsed.hostname
 
-			// Valid web hostnames must have at least one of:
-			// Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
-			if (
-				hostname.indexOf('.') !== -1 ||
-				hostname === 'localhost' ||
-				ipv4Pattern.test(hostname) ||
-				ipv6Pattern.test(hostname.replace(/^\[|\]$/g, ''))
-			) {
-				return parsed.href
-			}
+      // Valid web hostnames must have at least one of:
+      // Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
+      if (
+        hostname.indexOf('.') !== -1 ||
+        hostname === 'localhost' ||
+        ipv4Pattern.test(hostname) ||
+        ipv6Pattern.test(hostname.replace(/^\[|\]$/g, ''))
+      ) {
+        return parsed.href
+      }
 
-			return url
-		} catch {
-			return url
-		}
-	}
+      return url
+    } catch {
+      return url
+    }
+  }
 
-	// Case 2: Bare domain (example.com/feed).
-	// Skip if is a path.
-	if (url.startsWith('/') || url.startsWith('.')) {
-		return url
-	}
+  // Case 2: Bare domain (example.com/feed).
+  // Skip if is a path.
+  if (url.startsWith('/') || url.startsWith('.')) {
+    return url
+  }
 
-	// Dot must be in the hostname (before first slash), not in the path.
-	const slashIndex = url.indexOf('/')
-	const dotIndex = url.indexOf('.')
-	if (dotIndex === -1 || (slashIndex !== -1 && dotIndex > slashIndex)) {
-		// Exception: localhost is valid without a dot.
-		if (!url.startsWith('localhost')) {
-			return url
-		}
-	}
+  // Dot must be in the hostname (before first slash), not in the path.
+  const slashIndex = url.indexOf('/')
+  const dotIndex = url.indexOf('.')
+  if (dotIndex === -1 || (slashIndex !== -1 && dotIndex > slashIndex)) {
+    // Exception: localhost is valid without a dot.
+    if (!url.startsWith('localhost')) {
+      return url
+    }
+  }
 
-	// Check if it looks like a domain (no spaces or special chars at start).
-	const firstChar = url.charAt(0)
-	if (firstChar === ' ' || firstChar === '\t' || firstChar === '\n') {
-		return url
-	}
+  // Check if it looks like a domain (no spaces or special chars at start).
+  const firstChar = url.charAt(0)
+  if (firstChar === ' ' || firstChar === '\t' || firstChar === '\n') {
+    return url
+  }
 
-	return `${protocol}://${url}`
+  return `${protocol}://${url}`
 }
 
 // Resolves a URL by converting feed protocols, resolving relative URLs,
 // and ensuring it's a valid HTTP(S) URL.
 export const resolveUrl = (url: string, base?: string): string | undefined => {
-	let processed = url
+  let processed = url
 
-	// Step 1: Convert feed-related protocols.
-	processed = resolveFeedProtocol(processed)
+  // Step 1: Convert feed-related protocols.
+  processed = resolveFeedProtocol(processed)
 
-	// Step 2: Resolve relative URLs if base is provided.
-	if (base) {
-		try {
-			processed = new URL(processed, base).href
-		} catch {
-			return
-		}
-	}
+  // Step 2: Resolve relative URLs if base is provided.
+  if (base) {
+    try {
+      processed = new URL(processed, base).href
+    } catch {
+      return
+    }
+  }
 
-	// Step 3: Add protocol if missing (handles both // and bare domains).
-	processed = addMissingProtocol(processed)
+  // Step 3: Add protocol if missing (handles both // and bare domains).
+  processed = addMissingProtocol(processed)
 
-	// Step 4: Normalize using native URL constructor.
-	try {
-		const parsed = new URL(processed)
+  // Step 4: Normalize using native URL constructor.
+  try {
+    const parsed = new URL(processed)
 
-		// Reject non-HTTP(S) protocols.
-		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-			return
-		}
+    // Reject non-HTTP(S) protocols.
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
 
-		return parsed.href
-	} catch {
-		return
-	}
+    return parsed.href
+  } catch {
+    return
+  }
 }
 
 const decodeAndNormalizeEncoding = (str: string): string => {
-	// Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
-	return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
-		const charCode = Number.parseInt(hex, 16)
-		const char = String.fromCharCode(charCode)
+  // Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
+  return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
+    const charCode = Number.parseInt(hex, 16)
+    const char = String.fromCharCode(charCode)
 
-		// Decode if it's a safe character that doesn't need encoding.
-		if (safePathChars.test(char)) {
-			return char
-		}
+    // Decode if it's a safe character that doesn't need encoding.
+    if (safePathChars.test(char)) {
+      return char
+    }
 
-		// Keep encoded but normalize to uppercase.
-		return `%${hex.toUpperCase()}`
-	})
+    // Keep encoded but normalize to uppercase.
+    return `%${hex.toUpperCase()}`
+  })
 }
 
 export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
-	try {
-		// Decode HTML entities before parsing.
-		const decoded = options.decodeEntities ? decodeHTML(url) : url
-		const parsed = new URL(decoded)
+  try {
+    // Decode HTML entities before parsing.
+    const decoded = options.decodeEntities ? decodeHTML(url) : url
+    const parsed = new URL(decoded)
 
-		// Unicode normalization.
-		if (options.normalizeUnicode) {
-			parsed.hostname = parsed.hostname.normalize('NFC')
-			parsed.pathname = parsed.pathname.normalize('NFC')
-		}
+    // Unicode normalization.
+    if (options.normalizeUnicode) {
+      parsed.hostname = parsed.hostname.normalize('NFC')
+      parsed.pathname = parsed.pathname.normalize('NFC')
+    }
 
-		// Punycode normalization (IDN to ASCII).
-		if (options.convertToPunycode) {
-			const ascii = domainToASCII(parsed.hostname)
-			if (ascii) {
-				parsed.hostname = ascii
-			}
-		}
+    // Punycode normalization (IDN to ASCII).
+    if (options.convertToPunycode) {
+      const ascii = domainToASCII(parsed.hostname)
+      if (ascii) {
+        parsed.hostname = ascii
+      }
+    }
 
-		// Lowercase hostname.
-		if (options.lowercaseHostname) {
-			parsed.hostname = parsed.hostname.toLowerCase()
-		}
+    // Lowercase hostname.
+    if (options.lowercaseHostname) {
+      parsed.hostname = parsed.hostname.toLowerCase()
+    }
 
-		// Strip authentication.
-		if (options.stripAuthentication) {
-			parsed.username = ''
-			parsed.password = ''
-		}
+    // Strip authentication.
+    if (options.stripAuthentication) {
+      parsed.username = ''
+      parsed.password = ''
+    }
 
-		// Strip www prefix.
-		if (options.stripWww && parsed.hostname.startsWith('www.')) {
-			parsed.hostname = parsed.hostname.slice(4)
-		}
+    // Strip www prefix.
+    if (options.stripWww && parsed.hostname.startsWith('www.')) {
+      parsed.hostname = parsed.hostname.slice(4)
+    }
 
-		// Strip default ports.
-		if (options.stripDefaultPorts) {
-			if (
-				(parsed.protocol === 'https:' && parsed.port === '443') ||
-				(parsed.protocol === 'http:' && parsed.port === '80')
-			) {
-				parsed.port = ''
-			}
-		}
+    // Strip hash/fragment.
+    if (options.stripHash) {
+      parsed.hash = ''
+    }
 
-		// Strip hash/fragment.
-		if (options.stripHash) {
-			parsed.hash = ''
-		}
+    // Strip text fragments (Chrome's #:~:text= feature).
+    if (options.stripTextFragment && parsed.hash.startsWith('#:~:')) {
+      parsed.hash = ''
+    }
 
-		// Strip text fragments (Chrome's #:~:text= feature).
-		if (options.stripTextFragment && parsed.hash.startsWith('#:~:')) {
-			parsed.hash = ''
-		}
+    // Handle pathname normalization.
+    let pathname = parsed.pathname
 
-		// Handle pathname normalization.
-		let pathname = parsed.pathname
+    // Normalize percent encoding (decode unnecessarily encoded chars, uppercase hex).
+    if (options.normalizeEncoding) {
+      pathname = decodeAndNormalizeEncoding(pathname)
+    }
 
-		// Normalize percent encoding (decode unnecessarily encoded chars, uppercase hex).
-		if (options.normalizeEncoding) {
-			pathname = decodeAndNormalizeEncoding(pathname)
-		}
+    // Collapse multiple slashes.
+    if (options.collapseSlashes) {
+      pathname = pathname.replace(/\/+/g, '/')
+    }
 
-		// Collapse multiple slashes.
-		if (options.collapseSlashes) {
-			pathname = pathname.replace(/\/+/g, '/')
-		}
+    // Handle trailing slash.
+    if (options.stripTrailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1)
+    }
 
-		// Handle trailing slash.
-		if (options.stripTrailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
-			pathname = pathname.slice(0, -1)
-		}
+    // Handle single slash (root path).
+    if (options.stripRootSlash && pathname === '/') {
+      pathname = ''
+    }
 
-		// Handle single slash (root path).
-		if (options.stripRootSlash && pathname === '/') {
-			pathname = ''
-		}
+    parsed.pathname = pathname
 
-		parsed.pathname = pathname
+    // Remove tracking/specified parameters.
+    if (options.stripQueryParams) {
+      for (const param of options.stripQueryParams) {
+        parsed.searchParams.delete(param)
+      }
+    }
 
-		// Remove tracking/specified parameters.
-		if (options.stripQueryParams) {
-			for (const param of options.stripQueryParams) {
-				parsed.searchParams.delete(param)
-			}
-		}
+    // Sort query parameters.
+    if (options.sortQueryParams) {
+      parsed.searchParams.sort()
+    }
 
-		// Sort query parameters.
-		if (options.sortQueryParams) {
-			parsed.searchParams.sort()
-		}
+    // Remove empty query string.
+    if (options.stripEmptyQuery && parsed.search === '?') {
+      parsed.search = ''
+    }
 
-		// Remove empty query string.
-		if (options.stripEmptyQuery && parsed.search === '?') {
-			parsed.search = ''
-		}
+    // Build result URL.
+    let result = parsed.href
 
-		// Build result URL.
-		let result = parsed.href
+    // Strip protocol for comparison.
+    if (options.stripProtocol) {
+      result = result.replace(/^https?:\/\//, '')
+    }
 
-		// Strip protocol for comparison.
-		if (options.stripProtocol) {
-			result = result.replace(/^https?:\/\//, '')
-		}
-
-		return result
-	} catch {
-		return url
-	}
+    return result
+  } catch {
+    return url
+  }
 }
 
 export const nativeFetch: FetchFn = async (url, options) => {
-	const response = await fetch(url, {
-		method: options?.method ?? 'GET',
-		headers: options?.headers,
-	})
+  const response = await fetch(url, {
+    method: options?.method ?? 'GET',
+    headers: options?.headers,
+  })
 
-	return {
-		headers: response.headers,
-		body: await response.text(),
-		url: response.url,
-		status: response.status,
-	}
+  return {
+    headers: response.headers,
+    body: await response.text(),
+    url: response.url,
+    status: response.status,
+  }
 }
 
 export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHandler>): string => {
-	try {
-		let parsed = new URL(url)
+  try {
+    let parsed = new URL(url)
 
-		for (const handler of platforms) {
-			if (handler.match(parsed)) {
-				parsed = handler.normalize(parsed)
-				break
-			}
-		}
+    for (const handler of platforms) {
+      if (handler.match(parsed)) {
+        parsed = handler.normalize(parsed)
+        break
+      }
+    }
 
-		return parsed.href
-	} catch {
-		return url
-	}
+    return parsed.href
+  } catch {
+    return url
+  }
 }
 
 export const md5Hash = (content: string): string => {
-	return createHash('md5').update(content).digest('hex')
+  return createHash('md5').update(content).digest('hex')
 }
 
 export const feedsmithParser: ParserAdapter<ReturnType<typeof parseFeed>> = {
-	parse: (body) => {
-		try {
-			return parseFeed(body)
-		} catch {
-			return undefined
-		}
-	},
-	getSelfUrl: (parsed) => {
-		switch (parsed.format) {
-			case 'atom':
-				return parsed.feed.links?.find((link) => {
-					return link.rel === 'self'
-				})?.href
-			case 'rss':
-			case 'rdf':
-				return parsed.feed.atom?.links?.find((link) => {
-					return link.rel === 'self'
-				})?.href
-			case 'json':
-				return parsed.feed.feed_url
-		}
-	},
-	getSignature: (parsed) => {
-		return parsed.feed
-	},
+  parse: (body) => {
+    try {
+      return parseFeed(body)
+    } catch {
+      return undefined
+    }
+  },
+  getSelfUrl: (parsed) => {
+    switch (parsed.format) {
+      case 'atom':
+        return parsed.feed.links?.find((link) => {
+          return link.rel === 'self'
+        })?.href
+      case 'rss':
+      case 'rdf':
+        return parsed.feed.atom?.links?.find((link) => {
+          return link.rel === 'self'
+        })?.href
+      case 'json':
+        return parsed.feed.feed_url
+    }
+  },
+  getSignature: (parsed) => {
+    return parsed.feed
+  },
 }
