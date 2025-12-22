@@ -24,13 +24,13 @@ export const canonicalize = async <TFeed, TExisting>(
   } = options ?? {}
 
   // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
-  const prepareUrl = (url: string, baseUrl?: string): string | undefined => {
+  const resolveAndApplyPlatformHandlers = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
     return resolved ? applyPlatformHandlers(resolved, platforms) : undefined
   }
 
   // Phase 1: Initial Fetch.
-  const initialRequestUrl = prepareUrl(inputUrl)
+  const initialRequestUrl = resolveAndApplyPlatformHandlers(inputUrl)
   if (!initialRequestUrl) return
 
   let initialResponse: FetchFnResponse
@@ -47,7 +47,7 @@ export const canonicalize = async <TFeed, TExisting>(
     return
   }
 
-  const initialResponseUrl = prepareUrl(initialResponse.url)
+  const initialResponseUrl = resolveAndApplyPlatformHandlers(initialResponse.url)
   if (!initialResponseUrl) return
 
   const initialResponseBody = initialResponse.body
@@ -69,7 +69,7 @@ export const canonicalize = async <TFeed, TExisting>(
   const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
 
   if (selfRequestUrlRaw) {
-    selfRequestUrl = prepareUrl(selfRequestUrlRaw, initialResponseUrl)
+    selfRequestUrl = resolveAndApplyPlatformHandlers(selfRequestUrlRaw, initialResponseUrl)
   }
 
   // Compare initial response against another response using 2-tier matching:
@@ -132,16 +132,17 @@ export const canonicalize = async <TFeed, TExisting>(
 
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        variantSource = prepareUrl(response.url) ?? initialResponseUrl
+        variantSource = resolveAndApplyPlatformHandlers(response.url) ?? initialResponseUrl
         break
       }
     }
   }
 
   // Phase 4: Generate Variants.
+  // Include variantSource for existsFn check, but skip fetch/compare (already verified).
   const variants = new Set(
     tiers
-      .map((tier) => prepareUrl(normalizeUrl(variantSource, tier)))
+      .map((tier) => resolveAndApplyPlatformHandlers(normalizeUrl(variantSource, tier)))
       .filter((url): url is string => url !== undefined),
   )
   variants.add(variantSource)
@@ -173,7 +174,7 @@ export const canonicalize = async <TFeed, TExisting>(
 
     const response = await fetchAndCompare(variant)
     if (response) {
-      const preparedResponseUrl = prepareUrl(response.url)
+      const preparedResponseUrl = resolveAndApplyPlatformHandlers(response.url)
 
       // Skip variant if it redirects to a URL we already have as canonical.
       if (preparedResponseUrl === variantSource || preparedResponseUrl === initialResponseUrl) {
