@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { parseFeed } from 'feedsmith'
@@ -298,10 +297,6 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   } catch {
     return url
   }
-}
-
-export const md5Hash = (content: string): string => {
-  return createHash('md5').update(content).digest('hex')
 }
 
 export const feedsmithParser: ParserAdapter<ReturnType<typeof parseFeed>> = {
