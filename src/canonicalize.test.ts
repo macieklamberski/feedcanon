@@ -2169,6 +2169,29 @@ describe('canonicalize', () => {
 			expect(matchCalls).toEqual([{ url: 'https://example.com/feed', body }])
 		})
 
+		it('should not call onMatch when parsing fails', async () => {
+			const value = 'https://example.com/feed'
+			const matchCalls: Array<string> = []
+			const options: CanonicalizeOptions = {
+				parser: {
+					parse: () => undefined,
+					getSelfUrl: () => undefined,
+					getSignature: () => ({}),
+				},
+				fetchFn: createMockFetch({
+					'https://example.com/feed': { body: 'not a valid feed' },
+				}),
+				onMatch: (data) => {
+					matchCalls.push(data.url)
+				},
+			}
+
+			const result = await canonicalize(value, options)
+
+			expect(result).toBeUndefined()
+			expect(matchCalls).toEqual([])
+		})
+
 		it('should call onMatch for self URL validation', async () => {
 			const value = 'https://cdn.example.com/feed'
 			const body = '<feed></feed>'
