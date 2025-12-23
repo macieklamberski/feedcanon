@@ -24,6 +24,10 @@ export const defaultStrippedParams = [
   'wbraid',
   'gclsrc',
   'gad_source',
+  'gad_campaignid',
+
+  // Google Search Results.
+  'srsltid',
 
   // Meta / Facebook.
   'fbclid',
@@ -80,7 +84,7 @@ export const defaultStrippedParams = [
   // 'source', // Too generic, often functional.
   // 'via', // Too generic, often functional.
 
-  // Hubspot.
+  // HubSpot.
   'hsa_acc',
   'hsa_ad',
   'hsa_cam',
@@ -91,6 +95,10 @@ export const defaultStrippedParams = [
   'hsa_src',
   'hsa_tgt',
   'hsa_ver',
+  'hsCtaTracking',
+  '__hstc',
+  '__hsfp',
+  '__hssc',
 
   // Adobe.
   'cid',
@@ -104,6 +112,41 @@ export const defaultStrippedParams = [
   // Yahoo.
   'yclid',
 
+  // Affiliate networks.
+  'awinaffid',
+  'awinmid',
+  'clickref',
+  'afftrack',
+
+  // Internal tracking systems.
+  'itm_source',
+  'itm_medium',
+  'itm_campaign',
+  'itm_content',
+  'itm_channel',
+  'itm_audience',
+  'int_source',
+  'int_medium',
+  'int_campaign',
+  'int_content',
+  'int_placement',
+  'int_campaign_type',
+  'int_keycode',
+
+  // G2i tracking.
+  'g2i_source',
+  'g2i_medium',
+  'g2i_campaign',
+  'g2i_or_o',
+  'g2i_or_p',
+
+  // WordPress internal.
+  'doing_wp_cron',
+  'preview',
+  'preview_id',
+  'preview_nonce',
+  'replytocom',
+
   // Cache busters.
   '_',
   'timestamp',
@@ -113,6 +156,16 @@ export const defaultStrippedParams = [
   'nocache',
   'rand',
   'random',
+  'forceByPassCache',
+  'sucurianticache',
+  'cleancache',
+  'rebuildcache',
+  'kontrol_health_check_timestamp',
+
+  // Translation services.
+  '_x_tr_sl',
+  '_x_tr_tl',
+  '_x_tr_hl',
 
   // Misc.
   'action_object_map',
@@ -134,9 +187,6 @@ export const defaultStrippedParams = [
   'hmb_campaign',
   'hmb_medium',
   'hmb_source',
-  'itm_campaign',
-  'itm_medium',
-  'itm_source',
   'ml_subscriber',
   'ml_subscriber_hash',
   'oly_anon_id',
