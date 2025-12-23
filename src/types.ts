@@ -1,3 +1,8 @@
+import type { parseFeed } from 'feedsmith'
+
+// Default feed type from feedsmith parser.
+export type FeedsmithFeed = ReturnType<typeof parseFeed>
+
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
   parse: (body: string) => T | undefined
@@ -48,7 +53,7 @@ export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
 
 // Options for findCanonical function.
-export type FindCanonicalOptions<TFeed = unknown, TExisting = unknown> = {
+export type FindCanonicalOptions<TFeed = FeedsmithFeed, TExisting = unknown> = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.

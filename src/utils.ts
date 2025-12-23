@@ -2,7 +2,7 @@ import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { parseFeed } from 'feedsmith'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { FetchFn, ParserAdapter, PlatformHandler } from './types.js'
+import type { FeedsmithFeed, FetchFn, ParserAdapter, PlatformHandler } from './types.js'
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
@@ -303,13 +303,11 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   }
 }
 
-export const feedsmithParser: ParserAdapter<ReturnType<typeof parseFeed>> = {
+export const feedsmithParser: ParserAdapter<FeedsmithFeed> = {
   parse: (body) => {
     try {
       return parseFeed(body)
-    } catch {
-      return undefined
-    }
+    } catch {}
   },
   getSelfUrl: (parsed) => {
     switch (parsed.format) {

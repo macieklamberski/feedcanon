@@ -3,6 +3,7 @@ export { findCanonical } from './index.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
   ExistsFn,
+  FeedsmithFeed,
   FetchFn,
   FetchFnOptions,
   FetchFnResponse,

@@ -1,5 +1,10 @@
 import { defaultPlatforms, defaultTiers } from './defaults.js'
-import type { FetchFnResponse, FindCanonicalOptions, ParserAdapter } from './types.js'
+import type {
+  FeedsmithFeed,
+  FetchFnResponse,
+  FindCanonicalOptions,
+  ParserAdapter,
+} from './types.js'
 import {
   applyPlatformHandlers,
   feedsmithParser,
@@ -8,7 +13,7 @@ import {
   resolveUrl,
 } from './utils.js'
 
-export const findCanonical = async <TFeed, TExisting>(
+export const findCanonical = async <TFeed = FeedsmithFeed, TExisting = unknown>(
   inputUrl: string,
   options?: FindCanonicalOptions<TFeed, TExisting>,
 ): Promise<string | undefined> => {
