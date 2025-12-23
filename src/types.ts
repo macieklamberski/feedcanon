@@ -1,7 +1,7 @@
-import type { parseFeed } from 'feedsmith'
-
-// Default feed type from feedsmith parser.
-export type FeedsmithFeed = ReturnType<typeof parseFeed>
+// Default feed type from feedsmith parser. Uses inline typeof import() because
+// tsdown strips `import type` in .d.ts files, breaking type resolution. Can be
+// simplified once feedsmith exports a ParsedFeed type directly.
+export type FeedsmithFeed = ReturnType<typeof import('feedsmith').parseFeed>
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
