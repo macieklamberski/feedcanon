@@ -16,11 +16,11 @@ import {
 
 export const findCanonical = async <
   TFeed = FeedsmithFeed,
-  TExisting = unknown,
   TResponse extends FetchFnResponse = FetchFnResponse,
+  TExisting = unknown,
 >(
   inputUrl: string,
-  options?: FindCanonicalOptions<TFeed, TExisting, TResponse>,
+  options?: FindCanonicalOptions<TFeed, TResponse, TExisting>,
 ): Promise<string | undefined> => {
   const {
     fetchFn = nativeFetch as FetchFn<TResponse>,

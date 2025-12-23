@@ -57,8 +57,8 @@ export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
 // Options for findCanonical function.
 export type FindCanonicalOptions<
   TFeed = FeedsmithFeed,
-  TExisting = unknown,
   TResponse extends FetchFnResponse = FetchFnResponse,
+  TExisting = unknown,
 > = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn<TResponse>
