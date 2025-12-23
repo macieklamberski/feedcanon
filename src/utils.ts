@@ -315,7 +315,8 @@ export const feedsmithParser: ParserAdapter<FeedsmithFeed> = {
         return parsed.feed.feed_url
     }
   },
-  getSignature: (parsed) => {
-    return parsed.feed
+  getSignature: (parsed, selfUrl) => {
+    const signature = JSON.stringify(parsed.feed)
+    return selfUrl ? signature.replaceAll(`"${selfUrl}"`, '"__SELF_URL__"') : signature
   },
 }
