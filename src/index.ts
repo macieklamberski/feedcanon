@@ -122,12 +122,18 @@ export async function findCanonical(
       return true
     }
 
-    // Tier 2: Signature match via parser.
+    // Tier 2: Signature match via parser (self URLs neutralized for comparison).
     const comparedResponseFeed = parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {
-      initialResponseSignature ||= JSON.stringify(parser.getSignature(initialResponseFeed))
-      const comparedResponseSignature = JSON.stringify(parser.getSignature(comparedResponseFeed))
+      initialResponseSignature ||= parser.getSignature(
+        initialResponseFeed,
+        parser.getSelfUrl(initialResponseFeed),
+      )
+      const comparedResponseSignature = parser.getSignature(
+        comparedResponseFeed,
+        parser.getSelfUrl(comparedResponseFeed),
+      )
 
       return initialResponseSignature === comparedResponseSignature
     }
