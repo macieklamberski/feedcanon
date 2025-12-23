@@ -954,24 +954,6 @@ describe('normalizeUrl', () => {
     })
   })
 
-  describe('text fragment stripping', () => {
-    it('should strip text fragments by default when stripHash is false', () => {
-      const value = 'https://example.com/feed#:~:text=hello'
-      const options = { ...defaultNormalizeOptions, stripHash: false }
-      const expected = 'example.com/feed'
-
-      expect(normalizeUrl(value, options)).toBe(expected)
-    })
-
-    it('should preserve text fragments when stripTextFragment is false', () => {
-      const value = 'https://example.com/feed#:~:text=hello'
-      const options = { ...defaultNormalizeOptions, stripHash: false, stripTextFragment: false }
-      const expected = 'example.com/feed#:~:text=hello'
-
-      expect(normalizeUrl(value, options)).toBe(expected)
-    })
-  })
-
   describe('query parameter sorting', () => {
     it('should sort query parameters alphabetically by default', () => {
       const value = 'https://example.com/feed?z=3&a=1&m=2'
@@ -1114,7 +1096,6 @@ describe('normalizeUrl', () => {
         stripRootSlash: false,
         collapseSlashes: false,
         stripHash: false,
-        stripTextFragment: false,
         sortQueryParams: false,
         stripQueryParams: [],
         stripEmptyQuery: false,

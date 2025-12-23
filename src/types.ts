@@ -25,7 +25,6 @@ export type NormalizeOptions = {
   stripRootSlash?: boolean // example.com/ → example.com
   collapseSlashes?: boolean // /// → /
   stripHash?: boolean // strip #fragment
-  stripTextFragment?: boolean // strip #:~:text=
   sortQueryParams?: boolean // sort query params alphabetically
   stripQueryParams?: Array<string> // query params to strip
   stripEmptyQuery?: boolean // /feed? → /feed

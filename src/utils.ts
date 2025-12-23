@@ -211,11 +211,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       parsed.hash = ''
     }
 
-    // Strip text fragments (Chrome's #:~:text= feature).
-    if (options.stripTextFragment && parsed.hash.startsWith('#:~:')) {
-      parsed.hash = ''
-    }
-
     // Handle pathname normalization.
     let pathname = parsed.pathname
 
