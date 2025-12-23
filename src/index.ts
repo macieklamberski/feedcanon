@@ -39,7 +39,7 @@ export const findCanonical = async <
     return resolved ? applyPlatformHandlers(resolved, platforms) : undefined
   }
 
-  // Phase 1: Initial Fetch.
+  // Phase 1: Initial fetch.
   const initialRequestUrl = resolveAndApplyPlatformHandlers(inputUrl)
   if (!initialRequestUrl) return
 
@@ -90,12 +90,12 @@ export const findCanonical = async <
       return false
     }
 
-    // Tier 1: exact body match.
+    // Tier 1: Exact body match.
     if (initialResponseBody === comparedResponseBody) {
       return true
     }
 
-    // Tier 2: signature match via parser.
+    // Tier 2: Signature match via parser.
     const comparedResponseFeed = parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {
