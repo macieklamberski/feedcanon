@@ -1,7 +1,6 @@
 import { defaultPlatforms, defaultTiers } from './defaults.js'
 import type {
   FeedsmithFeed,
-  FetchFn,
   FetchFnResponse,
   FindCanonicalOptions,
   ParserAdapter,
@@ -14,17 +13,35 @@ import {
   resolveUrl,
 } from './utils.js'
 
-export const findCanonical = async <
-  TFeed = FeedsmithFeed,
+// Overload 1: Default FeedsmithFeed, parser optional.
+export function findCanonical<
   TResponse extends FetchFnResponse = FetchFnResponse,
   TExisting = unknown,
 >(
   inputUrl: string,
-  options?: FindCanonicalOptions<TFeed, TResponse, TExisting>,
-): Promise<string | undefined> => {
+  options?: Omit<FindCanonicalOptions<FeedsmithFeed, TResponse, TExisting>, 'parser'>,
+): Promise<string | undefined>
+
+// Overload 2: Custom TFeed, parser required.
+export function findCanonical<
+  TFeed,
+  TResponse extends FetchFnResponse = FetchFnResponse,
+  TExisting = unknown,
+>(
+  inputUrl: string,
+  options: FindCanonicalOptions<TFeed, TResponse, TExisting> & { parser: ParserAdapter<TFeed> },
+): Promise<string | undefined>
+
+// Implementation uses 'any' for TFeed to avoid variance issues with parser default.
+// Type safety is enforced by the overload signatures above.
+export async function findCanonical(
+  inputUrl: string,
+  // biome-ignore lint/suspicious/noExplicitAny: Necessary for function overloads.
+  options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
+): Promise<string | undefined> {
   const {
-    parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
-    fetchFn = nativeFetch as FetchFn<TResponse>,
+    parser = feedsmithParser,
+    fetchFn = nativeFetch,
     existsFn,
     tiers = defaultTiers,
     platforms = defaultPlatforms,
@@ -43,7 +60,7 @@ export const findCanonical = async <
   const initialRequestUrl = resolveAndApplyPlatformHandlers(inputUrl)
   if (!initialRequestUrl) return
 
-  let initialResponse: TResponse
+  let initialResponse: FetchFnResponse
 
   try {
     initialResponse = await fetchFn(initialRequestUrl)
@@ -109,8 +126,8 @@ export const findCanonical = async <
   }
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
-  const fetchAndCompare = async (url: string): Promise<TResponse | undefined> => {
-    let response: TResponse
+  const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
+    let response: FetchFnResponse
     try {
       response = await fetchFn(url)
     } catch {
