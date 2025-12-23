@@ -116,7 +116,7 @@ describe('findCanonical', () => {
     // When a feed declares a self URL pointing to an outdated or dead domain, the
     // algorithm detects the self URL fails (404, timeout) and falls back to using
     // the response URL that is known to work.
-    it('case 4: should use responseUrl when self URL does not work', async () => {
+    it('case 4: should use initialResponseUrl when self URL does not work', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -140,7 +140,7 @@ describe('findCanonical', () => {
     // When a publisher misconfigures their self URL to point to a different feed
     // variant (e.g., full-text vs summary), the algorithm detects the content
     // difference via signature comparison and uses the response URL instead.
-    it('case 5: should use responseUrl when self URL produces different content', async () => {
+    it('case 5: should use initialResponseUrl when self URL produces different content', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const options = toOptions({
@@ -371,7 +371,7 @@ describe('findCanonical', () => {
     // When a feed doesn't declare a rel="self" link, the algorithm uses the
     // response URL as the sole source for generating variants. This is common
     // for older or simpler feeds.
-    it('case 14: should use responseUrl when no self URL present', async () => {
+    it('case 14: should use initialResponseUrl when no self URL present', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -478,7 +478,7 @@ describe('findCanonical', () => {
     // Case 19: Self URL triggers redirect chain
     //
     // Input: https://example.com/feed
-    // Self URL: https://old.example.com/rss (outdated, redirects to responseUrl)
+    // Self URL: https://old.example.com/rss (outdated, redirects to initialResponseUrl)
     // Result: https://example.com/feed
     //
     // When a self URL is outdated and redirects to a new location, the algorithm
@@ -665,10 +665,10 @@ describe('findCanonical', () => {
     // Self URL: https://other.example.com/feed (different domain)
     // Result: https://www.example.com/feed
     //
-    // When a variant matches responseUrl but not variantSource, it should set
-    // winningUrl to responseUrl and break early without extra fetching. This
-    // optimizes the common case where responseUrl is already clean.
-    it('case 27: should use responseUrl when variant matches it', async () => {
+    // When a variant matches initialResponseUrl but not variantSourceUrl, it should set
+    // winningUrl to initialResponseUrl and break early without extra fetching. This
+    // optimizes the common case where initialResponseUrl is already clean.
+    it('case 27: should use initialResponseUrl when variant matches it', async () => {
       const value = 'https://www.example.com/feed'
       const expected = 'https://www.example.com/feed'
       const body = '<feed></feed>'
@@ -764,9 +764,9 @@ describe('findCanonical', () => {
     // Result: https://www.example.com/feed/
     //
     // When all normalized variants fail (404, network error) but the original
-    // variantSource works, it should be returned as the canonical URL. This
+    // variantSourceUrl works, it should be returned as the canonical URL. This
     // ensures we always return a working URL.
-    it('case 31: should fall back to variantSource when all variants fail', async () => {
+    it('case 31: should fall back to variantSourceUrl when all variants fail', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://www.example.com/feed/'
       const body = '<feed></feed>'
@@ -1086,7 +1086,7 @@ describe('findCanonical', () => {
     // Case 40: Self URL with dangerous scheme
     //
     // Self URLs with dangerous schemes (javascript:, data:, file:) should be
-    // rejected and the algorithm should fall back to responseUrl.
+    // rejected and the algorithm should fall back to initialResponseUrl.
     it('case 40: should reject self URL with javascript: scheme', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
@@ -1101,7 +1101,7 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    it('case 41: should reject self URL with data: scheme', async () => {
+    it('case 40b: should reject self URL with data: scheme', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1118,8 +1118,8 @@ describe('findCanonical', () => {
     // Case 41: Malformed/unparseable self URL
     //
     // When self URL is completely malformed and cannot be parsed, the algorithm
-    // should continue gracefully using responseUrl.
-    it('case 42: should handle malformed self URL gracefully', async () => {
+    // should continue gracefully using initialResponseUrl.
+    it('case 41: should handle malformed self URL gracefully', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1141,7 +1141,7 @@ describe('findCanonical', () => {
     //
     // TODO: Consider preferring simpler/more secure URL when both work (e.g., prefer
     // URL without credentials when both authenticated and non-authenticated work).
-    it('case 43: should use self URL with credentials when it validates', async () => {
+    it('case 42: should use self URL with credentials when it validates', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://user:pass@example.com/feed'
       const body = '<feed></feed>'
@@ -1160,7 +1160,7 @@ describe('findCanonical', () => {
     //
     // Relative self URLs with path traversal (../) should resolve correctly
     // against the response URL base and be used if content matches.
-    it('case 44: should resolve relative self URL with path traversal', async () => {
+    it('case 43: should resolve relative self URL with path traversal', async () => {
       const value = 'https://example.com/blog/posts/feed.xml'
       const expected = 'https://example.com/feed.xml'
       const body = '<feed></feed>'
@@ -1181,7 +1181,7 @@ describe('findCanonical', () => {
     //
     // When existsFn returns true for a variant that isn't the first one tested,
     // that variant should be returned immediately (early termination).
-    it('case 45: should return early when existsFn matches non-first variant', async () => {
+    it('case 44: should return early when existsFn matches non-first variant', async () => {
       const value = 'https://www.example.com/feed'
       const expected = 'https://www.example.com/feed'
       const body = '<feed></feed>'
@@ -1208,7 +1208,7 @@ describe('findCanonical', () => {
     //
     // Hostnames are case-insensitive per RFC. URLs with different case should
     // be normalized to lowercase and treated as equivalent.
-    it('case 46: should normalize mixed case hostname', async () => {
+    it('case 45: should normalize mixed case hostname', async () => {
       const value = 'https://Example.COM/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1226,7 +1226,7 @@ describe('findCanonical', () => {
     //
     // When all normalization tiers produce the same URL (degenerate case),
     // the algorithm should handle it gracefully without unnecessary fetches.
-    it('case 47: should handle when all tiers produce identical URL', async () => {
+    it('case 46: should handle when all tiers produce identical URL', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1248,7 +1248,7 @@ describe('findCanonical', () => {
     //
     // When self URL validates but redirects to a different final URL,
     // the redirect destination becomes the variant source.
-    it('case 48: should use self URL redirect destination as variant source', async () => {
+    it('case 47: should use self URL redirect destination as variant source', async () => {
       const value = 'https://old.example.com/feed'
       const expected = 'https://new.example.com/feed'
       const body = '<feed></feed>'
@@ -1267,8 +1267,8 @@ describe('findCanonical', () => {
     // Case 48: Variant testing exhausts all options
     //
     // When no variant matches (all return different content or fail),
-    // the algorithm falls back to variantSource.
-    it('case 49: should fall back to variantSource when all variants fail', async () => {
+    // the algorithm falls back to variantSourceUrl.
+    it('case 48: should fall back to variantSourceUrl when all variants fail', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://www.example.com/feed/'
       const body = '<feed></feed>'
@@ -1294,7 +1294,7 @@ describe('findCanonical', () => {
     //
     // When multiple variants would match (same content), the first one
     // tested (cleanest tier) wins.
-    it('case 50: should return first matching variant when multiple match', async () => {
+    it('case 49: should return first matching variant when multiple match', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1316,26 +1316,97 @@ describe('findCanonical', () => {
   })
 
   describe('redirect edge cases', () => {
-    // Case 50: Redirect adds tracking parameters
+    // Case 50: Redirect adds strippable params (doing_wp_cron)
     //
     // Input: https://example.com/feed
-    // Redirects: → https://example.com/feed?utm_source=redirect&fbclid=abc123
-    // Result: https://example.com/feed?utm_source=redirect&fbclid=abc123
+    // Redirects: → https://example.com/feed?doing_wp_cron=123
+    // Result: https://example.com/feed
     //
-    // When the server redirects to a URL with tracking params added, we use
-    // the redirect destination. Using the clean variant would cause a redirect
-    // on every fetch. The server chose to add these params, so we respect that.
-    it('case 51: should use redirect destination when server adds tracking params', async () => {
+    // When the server redirects to a URL with strippable params added, we strip
+    // those params early. The clean URL is returned as canonical regardless of
+    // what params the server adds via redirect.
+    it('case 50: should strip params even when added by redirect', async () => {
       const value = 'https://example.com/feed'
-      const expected = 'https://example.com/feed?utm_source=redirect&fbclid=abc123'
+      const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
       const options = toOptions({
         fetchFn: createMockFetch({
           'https://example.com/feed': {
             body,
-            url: 'https://example.com/feed?utm_source=redirect&fbclid=abc123',
+            url: 'https://example.com/feed?doing_wp_cron=123',
           },
-          'https://example.com/feed?utm_source=redirect&fbclid=abc123': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 50b: Redirect adds doing_wp_cron but URL has functional params
+    //
+    // Input: https://example.com/?feed=rss2
+    // Redirects: → https://example.com/?doing_wp_cron=123&feed=rss2
+    // Result: https://example.com/?feed=rss2
+    //
+    // Real-world WordPress scenario where feed URL uses query param format.
+    // The doing_wp_cron should be stripped but feed=rss2 preserved.
+    it('case 50b: should strip doing_wp_cron but keep functional params', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/?feed=rss2'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': {
+            body,
+            url: 'https://example.com/?doing_wp_cron=1746970623&feed=rss2',
+          },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 50c: Self URL contains doing_wp_cron
+    //
+    // Input: https://example.com/feed
+    // Self URL: https://example.com/feed?doing_wp_cron=123
+    // Result: https://example.com/feed
+    //
+    // When feed's self URL contains strippable params, they should be stripped
+    // before using it as variantSourceUrl.
+    it('case 50c: should strip doing_wp_cron from self URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser('https://example.com/feed?doing_wp_cron=123'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 50d: Multiple strippable params combined
+    //
+    // Input: https://example.com/comments/feed/
+    // Redirects: → https://example.com/comments/feed/?doing_wp_cron=123&utm_source=rss
+    // Result: https://example.com/comments/feed
+    //
+    // Both doing_wp_cron and utm_source should be stripped.
+    it('case 50d: should strip multiple tracking params from redirect', async () => {
+      const value = 'https://example.com/comments/feed/'
+      const expected = 'https://example.com/comments/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/comments/feed/': {
+            body,
+            url: 'https://example.com/comments/feed/?doing_wp_cron=123&utm_source=rss',
+          },
+          'https://example.com/comments/feed': { body },
         }),
         parser: createMockParser(undefined),
       })
@@ -1347,7 +1418,7 @@ describe('findCanonical', () => {
     //
     // When HTTP redirects to HTTPS (common pattern), the algorithm
     // should use the HTTPS URL as canonical.
-    it('case 52: should use HTTPS when HTTP redirects to it', async () => {
+    it('case 51: should use HTTPS when HTTP redirects to it', async () => {
       const value = 'http://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1366,7 +1437,7 @@ describe('findCanonical', () => {
     //
     // When redirected to a completely different domain that serves
     // the same content, the redirect destination becomes canonical.
-    it('case 53: should use redirect destination domain', async () => {
+    it('case 52: should use redirect destination domain', async () => {
       const value = 'https://old.example.com/feed'
       const expected = 'https://new.example.org/feed'
       const body = '<feed></feed>'
@@ -1384,8 +1455,8 @@ describe('findCanonical', () => {
     // Case 53: Self URL points to redirect that returns different content
     //
     // When self URL redirects but the destination returns different content,
-    // the algorithm should fall back to responseUrl.
-    it('case 54: should reject self URL redirect when content differs', async () => {
+    // the algorithm should fall back to initialResponseUrl.
+    it('case 53: should reject self URL redirect when content differs', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const options = toOptions({
@@ -1406,7 +1477,7 @@ describe('findCanonical', () => {
     //
     // When redirect adds authentication credentials to the URL,
     // they should be preserved (credentials are functional).
-    it('case 55: should preserve credentials added by redirect', async () => {
+    it('case 54: should preserve credentials added by redirect', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://user:token@example.com/feed'
       const body = '<feed></feed>'
@@ -1424,7 +1495,7 @@ describe('findCanonical', () => {
     // Case 55: Redirect to URL with non-standard port
     //
     // When redirect adds a non-standard port, it should be preserved.
-    it('case 56: should preserve non-standard port from redirect', async () => {
+    it('case 55: should preserve non-standard port from redirect', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com:8443/feed'
       const body = '<feed></feed>'
@@ -1439,26 +1510,25 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 56: Variant redirects back to variantSource
+    // Case 56: Variant redirects back to variantSourceUrl
     //
-    // Input: https://example.com/feed?utm_source=twitter
+    // Input: https://example.com/feed → redirects to https://www.example.com/feed
     // Self URL: https://www.example.com/feed
     // Variant: https://example.com/feed → redirects to https://www.example.com/feed
     // Result: https://www.example.com/feed
     //
-    // When a generated variant redirects back to variantSource, that variant should
+    // When a generated variant redirects back to variantSourceUrl, that variant should
     // be skipped. Even though https://example.com/feed is "cleaner" (no www), we
     // prefer the non-redirecting URL since choosing the redirecting variant means
     // every future fetch requires a redirect.
-    it('case 57: should skip variant that redirects back to variantSource', async () => {
-      const value = 'https://example.com/feed?utm_source=twitter'
+    it('case 56: should skip variant that redirects back to variantSourceUrl', async () => {
+      const value = 'https://example.com/feed'
       const expected = 'https://www.example.com/feed'
       const body = '<feed></feed>'
       const options = toOptions({
         fetchFn: createMockFetch({
-          'https://example.com/feed?utm_source=twitter': { body },
-          'https://www.example.com/feed': { body },
           'https://example.com/feed': { body, url: 'https://www.example.com/feed' },
+          'https://www.example.com/feed': { body },
         }),
         parser: createMockParser('https://www.example.com/feed'),
       })
@@ -1476,8 +1546,8 @@ describe('findCanonical', () => {
     //
     // When a feed declares a protocol-ambiguous self URL (e.g., feed://) and the
     // HTTPS resolution fails, the algorithm should try HTTP before falling back
-    // to responseUrl.
-    it('case 58: should try HTTP when self URL HTTPS fails', async () => {
+    // to initialResponseUrl.
+    it('case 57: should try HTTP when self URL HTTPS fails', async () => {
       const value = 'https://example.com/feed'
       const expected = 'http://example.com/rss.xml'
       const body = '<feed><link rel="self" href="feed://example.com/rss.xml"/></feed>'
@@ -1499,8 +1569,8 @@ describe('findCanonical', () => {
     // HTTP version fails, HTTPS version works
     //
     // When a feed declares an HTTP self URL but that URL doesn't work,
-    // the algorithm should try HTTPS before falling back to responseUrl.
-    it('case 59: should try HTTPS when self URL HTTP fails', async () => {
+    // the algorithm should try HTTPS before falling back to initialResponseUrl.
+    it('case 58: should try HTTPS when self URL HTTP fails', async () => {
       const value = 'http://example.com/feed'
       const expected = 'https://example.com/rss.xml'
       const body = '<feed><link rel="self" href="http://example.com/rss.xml"/></feed>'
@@ -1515,15 +1585,15 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 59: Both protocols fail, falls back to responseUrl
+    // Case 59: Both protocols fail, falls back to initialResponseUrl
     //
     // Input: https://example.com/feed
     // Self URL: feed://other.example.com/rss.xml
     // Both HTTPS and HTTP fail
     //
     // When both protocol versions of selfUrl fail, the algorithm should gracefully
-    // fall back to using responseUrl as the variant source.
-    it('case 60: should fall back to responseUrl when both protocols fail', async () => {
+    // fall back to using initialResponseUrl as the variant source.
+    it('case 59: should fall back to initialResponseUrl when both protocols fail', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed><link rel="self" href="feed://other.example.com/rss.xml"/></feed>'
@@ -1545,7 +1615,7 @@ describe('findCanonical', () => {
     //
     // When HTTP fallback works and redirects, the redirect destination should
     // become the variant source.
-    it('case 61: should use redirect destination from HTTP fallback', async () => {
+    it('case 60: should use redirect destination from HTTP fallback', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/rss.xml'
       const body = '<feed><link rel="self" href="feed://cdn.example.com/rss.xml"/></feed>'
@@ -1570,7 +1640,7 @@ describe('findCanonical', () => {
     //
     // When variant generation produces URLs that match platform handlers,
     // those handlers should normalize the variants before testing.
-    it('case 62: should apply platform handler to generated variants', async () => {
+    it('case 61: should apply platform handler to generated variants', async () => {
       const value = 'https://feeds2.feedburner.com/Example?format=xml'
       const expected = 'https://feeds.feedburner.com/Example'
       const body = '<feed></feed>'
@@ -1594,7 +1664,7 @@ describe('findCanonical', () => {
     //
     // When bodies are exactly identical, comparison succeeds immediately
     // without needing signature comparison.
-    it('case 63: should match when bodies are exactly identical', async () => {
+    it('case 62: should match when bodies are exactly identical', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/rss.xml'
       const body = '<feed><title>Test</title></feed>'
@@ -1616,7 +1686,7 @@ describe('findCanonical', () => {
     //
     // When bodies differ but parsed signatures match, the self URL
     // should still be accepted as valid.
-    it('case 64: should match when signatures are identical despite different content', async () => {
+    it('case 63: should match when signatures are identical despite different content', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/rss.xml'
       const body1 = '<feed><updated>2024-01-01T00:00:00Z</updated><title>Test</title></feed>'
@@ -1644,7 +1714,7 @@ describe('findCanonical', () => {
     //
     // When bodies differ but parsed signatures match, the cleaner
     // variant should still win.
-    it('case 65: should accept variant when signatures match but content differs', async () => {
+    it('case 64: should accept variant when signatures match but content differs', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://example.com/feed'
       const body1 = '<feed><cachebuster>123</cachebuster><title>Test</title></feed>'
@@ -1671,7 +1741,7 @@ describe('findCanonical', () => {
     // Self URL: https://example.com/other (different signature)
     //
     // When both body and signature differ, the URL should be rejected.
-    it('case 66: should reject URL when both content and signature differ', async () => {
+    it('case 65: should reject URL when both content and signature differ', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body1 = '<feed><title>Feed A</title></feed>'
@@ -1693,11 +1763,11 @@ describe('findCanonical', () => {
   })
 
   describe('response body edge cases', () => {
-    // Case 67: Empty body response
+    // Case 66: Empty body response
     //
     // When initial fetch returns an empty string body, the parser fails
     // and the algorithm returns undefined (not a valid feed).
-    it('case 68: should return undefined for empty body response', async () => {
+    it('case 66: should return undefined for empty body response', async () => {
       const value = 'https://example.com/feed'
       const options = toOptions({
         fetchFn: createMockFetch({
@@ -1709,11 +1779,11 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBeUndefined()
     })
 
-    // Case 68: Response body is undefined
+    // Case 67: Response body is undefined
     //
     // When fetchFn returns undefined body, the parser fails and the
     // algorithm returns undefined (not a valid feed).
-    it('case 69: should return undefined for undefined body response', async () => {
+    it('case 67: should return undefined for undefined body response', async () => {
       const value = 'https://example.com/feed'
       const options = toOptions({
         parser: createMockParser(undefined),
@@ -1728,11 +1798,11 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBeUndefined()
     })
 
-    // Case 69: Self URL equals response URL
+    // Case 68: Self URL equals response URL
     //
     // When self URL exactly matches the response URL, the algorithm should
     // use it directly without additional fetching (optimization path).
-    it('case 70: should use response URL when self URL matches exactly', async () => {
+    it('case 68: should use response URL when self URL matches exactly', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1750,11 +1820,11 @@ describe('findCanonical', () => {
       expect(fetchCalls).toEqual(['https://example.com/feed'])
     })
 
-    // Case 70: Self URL is already canonical form
+    // Case 69: Self URL is already canonical form
     //
     // When self URL matches what normalization would produce from response URL,
     // no additional fetching is needed.
-    it('case 71: should recognize self URL as canonical form of response URL', async () => {
+    it('case 69: should recognize self URL as canonical form of response URL', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1771,11 +1841,11 @@ describe('findCanonical', () => {
   })
 
   describe('error handling edge cases', () => {
-    // Case 71: HTTPS upgrade throws
+    // Case 70: HTTPS upgrade throws
     //
     // When HTTPS upgrade fetch throws (network error), the algorithm should
     // fall back to HTTP URL gracefully.
-    it('case 72: should keep HTTP when HTTPS upgrade throws', async () => {
+    it('case 70: should keep HTTP when HTTPS upgrade throws', async () => {
       const value = 'http://example.com/feed'
       const expected = 'http://example.com/feed'
       const body = '<feed></feed>'
@@ -1794,14 +1864,14 @@ describe('findCanonical', () => {
   })
 
   describe('input URL edge cases', () => {
-    // Case 72: Bare domain input URL
+    // Case 71: Bare domain input URL
     //
     // Input: example.com/feed.xml (no protocol)
     // Result: https://example.com/feed.xml
     //
     // When users paste a URL without protocol, the algorithm should
     // automatically add https:// and proceed with canonicalization.
-    it('case 73: should handle bare domain input URL', async () => {
+    it('case 71: should handle bare domain input URL', async () => {
       const value = 'example.com/feed.xml'
       const expected = 'https://example.com/feed.xml'
       const body = '<feed></feed>'
@@ -1815,13 +1885,13 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 73: Protocol-relative input URL
+    // Case 72: Protocol-relative input URL
     //
     // Input: //example.com/feed.xml
     // Result: https://example.com/feed.xml
     //
     // Protocol-relative URLs should default to HTTPS.
-    it('case 74: should handle protocol-relative input URL', async () => {
+    it('case 72: should handle protocol-relative input URL', async () => {
       const value = '//example.com/feed.xml'
       const expected = 'https://example.com/feed.xml'
       const body = '<feed></feed>'
@@ -1835,14 +1905,14 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 74: Invalid/malformed input URL
+    // Case 73: Invalid/malformed input URL
     //
     // Input: not a url at all :::
     // Result: undefined
     //
     // Completely invalid URLs should return undefined immediately
     // without attempting any fetch.
-    it('case 75: should return undefined for invalid input URL', async () => {
+    it('case 73: should return undefined for invalid input URL', async () => {
       const value = 'not a url at all :::'
       const fetchCalls: Array<string> = []
       const options = toOptions({
@@ -1857,13 +1927,13 @@ describe('findCanonical', () => {
       expect(fetchCalls).toEqual([])
     })
 
-    // Case 75: file:// scheme input URL
+    // Case 74: file:// scheme input URL
     //
     // Input: file:///etc/passwd
     // Result: undefined
     //
     // Non-HTTP schemes should be rejected immediately.
-    it('case 76: should return undefined for file:// scheme', async () => {
+    it('case 74: should return undefined for file:// scheme', async () => {
       const value = 'file:///etc/passwd'
       const fetchCalls: Array<string> = []
       const options = toOptions({
@@ -1878,14 +1948,14 @@ describe('findCanonical', () => {
       expect(fetchCalls).toEqual([])
     })
 
-    // Case 76: Input URL with tracking params
+    // Case 75: Input URL with tracking params
     //
     // Input: https://example.com/feed?utm_source=twitter&utm_medium=social
     // Result: https://example.com/feed (stripped)
     //
     // When input URL contains tracking params and the clean variant works,
     // the clean variant should be returned.
-    it('case 77: should strip tracking params from input URL when variant works', async () => {
+    it('case 75: should strip tracking params from input URL when variant works', async () => {
       const value = 'https://example.com/feed?utm_source=twitter&utm_medium=social'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1902,15 +1972,15 @@ describe('findCanonical', () => {
   })
 
   describe('self URL validation edge cases', () => {
-    // Case 77: Self URL returns empty body
+    // Case 76: Self URL returns empty body
     //
     // Input: https://example.com/feed
     // Self URL: https://example.com/rss.xml (returns 200 but empty body)
     // Result: https://example.com/feed
     //
     // When self URL fetch succeeds but returns empty body, comparison
-    // should fail and fall back to responseUrl.
-    it('case 78: should reject self URL when it returns empty body', async () => {
+    // should fail and fall back to initialResponseUrl.
+    it('case 76: should reject self URL when it returns empty body', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const options = toOptions({
@@ -1924,15 +1994,15 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 78: Protocol fallback - second protocol returns different content
+    // Case 77: Protocol fallback - second protocol returns different content
     //
     // Input: https://example.com/feed
     // Self URL: https://other.example.com/rss (404) → try http:// (200 but different)
     // Result: https://example.com/feed
     //
     // When HTTPS self URL fails and HTTP fallback returns different content,
-    // both are rejected and responseUrl is used.
-    it('case 79: should reject self URL when both protocols fail to match', async () => {
+    // both are rejected and initialResponseUrl is used.
+    it('case 77: should reject self URL when both protocols fail to match', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const options = toOptions({
@@ -1947,15 +2017,15 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 79: Self URL redirects to invalid URL
+    // Case 78: Self URL redirects to invalid URL
     //
     // Input: https://example.com/feed
     // Self URL: https://self.example.com/rss → redirects to file:///invalid
     // Result: https://example.com/feed
     //
     // When self URL redirects to a non-HTTP URL, prepareUrl returns undefined
-    // and we fall back to responseUrl.
-    it('case 80: should reject self URL when redirect destination is invalid', async () => {
+    // and we fall back to initialResponseUrl.
+    it('case 78: should reject self URL when redirect destination is invalid', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
@@ -1977,11 +2047,11 @@ describe('findCanonical', () => {
   })
 
   describe('variant comparison edge cases', () => {
-    // Case 80: Variant parse returns undefined - skip to next variant
+    // Case 79: Variant parse returns undefined - skip to next variant
     //
     // When parser.parse returns undefined on a variant's body, comparison
     // should fail and that variant should be skipped.
-    it('case 81: should skip variant when parser.parse returns undefined on compared body', async () => {
+    it('case 79: should skip variant when parser.parse returns undefined on compared body', async () => {
       const value = 'https://www.example.com/feed/'
       const expected = 'https://www.example.com/feed'
       const validBody = '<feed><valid>true</valid></feed>'
@@ -2013,11 +2083,11 @@ describe('findCanonical', () => {
   })
 
   describe('platform handler edge cases (continued)', () => {
-    // Case 81: Response URL invalid after platform handler
+    // Case 80: Response URL invalid after platform handler
     //
     // When initial fetch succeeds but the response URL becomes invalid
     // after platform handler processing, return undefined.
-    it('case 82: should return undefined when response URL is invalid after platform handler', async () => {
+    it('case 80: should return undefined when response URL is invalid after platform handler', async () => {
       const value = 'https://example.com/feed'
       const badHandler: PlatformHandler = {
         match: () => true,

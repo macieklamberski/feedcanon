@@ -34,6 +34,9 @@ export type NormalizeOptions = {
   convertToPunycode?: boolean // IDNA/Punycode conversion
 }
 
+// Tier options for findCanonical (stripQueryParams handled at top level).
+export type Tier = Omit<NormalizeOptions, 'stripQueryParams'>
+
 // Callback fired after each fetch operation.
 export type OnFetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (data: {
   url: string
@@ -58,8 +61,9 @@ export type FindCanonicalOptions<
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
-  tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
+  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
+  stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.
   onExists?: OnExistsFn<TExisting> // Called when existsFn finds a URL.

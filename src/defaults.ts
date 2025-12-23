@@ -1,5 +1,5 @@
 import { feedburnerHandler } from './platforms/feedburner.js'
-import type { NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler, Tier } from './types.js'
 
 // Platform handlers for domain-specific URL normalization.
 export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
@@ -220,8 +220,8 @@ export const defaultNormalizeOptions: NormalizeOptions = {
 }
 
 // Normalization tiers ordered from cleanest to least clean.
-export const defaultTiers: Array<NormalizeOptions> = [
-  // Tier 1: Most aggressive - strip www, trailing slash, tracking params.
+export const defaultTiers: Array<Tier> = [
+  // Tier 1: Most aggressive - strip www and trailing slash.
   {
     stripProtocol: false,
     stripAuthentication: false,
@@ -231,7 +231,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: true,
-    stripQueryParams: defaultStrippedParams,
     stripEmptyQuery: true,
     normalizeEncoding: true,
     lowercaseHostname: true,
@@ -248,7 +247,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: true,
-    stripQueryParams: defaultStrippedParams,
     stripEmptyQuery: true,
     normalizeEncoding: true,
     lowercaseHostname: true,
@@ -265,7 +263,6 @@ export const defaultTiers: Array<NormalizeOptions> = [
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: true,
-    stripQueryParams: defaultStrippedParams,
     stripEmptyQuery: true,
     normalizeEncoding: true,
     lowercaseHostname: true,

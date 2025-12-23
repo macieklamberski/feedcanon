@@ -1,4 +1,4 @@
-import { defaultPlatforms, defaultTiers } from './defaults.js'
+import { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
 import type {
   FeedsmithFeed,
   FetchFnResponse,
@@ -45,10 +45,18 @@ export async function findCanonical(
     existsFn,
     tiers = defaultTiers,
     platforms = defaultPlatforms,
+    stripQueryParams = defaultStrippedParams,
     onFetch,
     onMatch,
     onExists,
   } = options ?? {}
+
+  // Strip tracking params from URL using normalizeUrl with minimal options.
+  const stripParams = (url: string): string => {
+    return stripQueryParams?.length
+      ? normalizeUrl(url, { stripQueryParams, sortQueryParams: true, stripEmptyQuery: true })
+      : url
+  }
 
   // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
   const resolveAndApplyPlatformHandlers = (url: string, baseUrl?: string): string | undefined => {
@@ -74,8 +82,9 @@ export async function findCanonical(
     return
   }
 
-  const initialResponseUrl = resolveAndApplyPlatformHandlers(initialResponse.url)
-  if (!initialResponseUrl) return
+  const initialResponseUrlRaw = resolveAndApplyPlatformHandlers(initialResponse.url)
+  if (!initialResponseUrlRaw) return
+  const initialResponseUrl = stripParams(initialResponseUrlRaw)
 
   const initialResponseBody = initialResponse.body
   if (!initialResponseBody) return
@@ -97,6 +106,7 @@ export async function findCanonical(
 
   if (selfRequestUrlRaw) {
     selfRequestUrl = resolveAndApplyPlatformHandlers(selfRequestUrlRaw, initialResponseUrl)
+    selfRequestUrl = selfRequestUrl ? stripParams(selfRequestUrl) : undefined
   }
 
   // Compare initial response against another response using 2-tier matching:
@@ -142,7 +152,7 @@ export async function findCanonical(
   // Phase 3: Validate self URL.
   // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https://
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
-  let variantSource = initialResponseUrl
+  let variantSourceUrl = initialResponseUrl
 
   if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {
     // Build list of URLs to try (self URL first, then alternate protocol).
@@ -159,7 +169,8 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        variantSource = resolveAndApplyPlatformHandlers(response.url) ?? initialResponseUrl
+        variantSourceUrl = resolveAndApplyPlatformHandlers(response.url) ?? initialResponseUrl
+        variantSourceUrl = stripParams(variantSourceUrl)
         break
       }
     }
@@ -167,49 +178,52 @@ export async function findCanonical(
 
   // Phase 4: Generate Variants.
   // Include variantSource for existsFn check, but skip fetch/compare (already verified).
-  const variants = new Set(
+  const variantUrls = new Set(
     tiers
-      .map((tier) => resolveAndApplyPlatformHandlers(normalizeUrl(variantSource, tier)))
-      .filter((url): url is string => url !== undefined),
+      .map((tier) => resolveAndApplyPlatformHandlers(normalizeUrl(variantSourceUrl, tier)))
+      .filter((variantUrl): variantUrl is string => !!variantUrl),
   )
-  variants.add(variantSource)
+  variantUrls.add(variantSourceUrl)
 
   // Phase 5: Test Variants (in tier order, first match wins).
-  let winningUrl = variantSource
+  let winningUrl = variantSourceUrl
 
-  for (const variant of variants) {
+  for (const variantUrl of variantUrls) {
     // Check if variant exists in database.
     if (existsFn) {
-      const data = await existsFn(variant)
+      const data = await existsFn(variantUrl)
 
       if (data !== undefined) {
-        onExists?.({ url: variant, data })
-        return variant
+        onExists?.({ url: variantUrl, data })
+        return variantUrl
       }
     }
 
     // Skip if same as variantSource (already verified).
-    if (variant === variantSource) {
+    if (variantUrl === variantSourceUrl) {
       continue
     }
 
-    // Skip if same as initial response URL (already known to work).
-    if (variant === initialResponseUrl) {
+    // Use initial response URL if it's the cleanest variant (already verified via initial fetch).
+    if (variantUrl === initialResponseUrl) {
       winningUrl = initialResponseUrl
       break
     }
 
-    const response = await fetchAndCompare(variant)
-    if (response) {
-      const preparedResponseUrl = resolveAndApplyPlatformHandlers(response.url)
+    const variantResponse = await fetchAndCompare(variantUrl)
+    if (variantResponse) {
+      let variantResponseUrl = resolveAndApplyPlatformHandlers(variantResponse.url)
+      if (variantResponseUrl) {
+        variantResponseUrl = stripParams(variantResponseUrl)
+      }
 
       // Skip variant if it redirects to a URL we already have as canonical.
-      if (preparedResponseUrl === variantSource || preparedResponseUrl === initialResponseUrl) {
+      if (variantResponseUrl === variantSourceUrl || variantResponseUrl === initialResponseUrl) {
         continue
       }
 
-      onMatch?.({ url: variant, response, feed: initialResponseFeed })
-      winningUrl = variant
+      onMatch?.({ url: variantUrl, response: variantResponse, feed: initialResponseFeed })
+      winningUrl = variantUrl
       break
     }
   }
