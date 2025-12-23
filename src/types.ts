@@ -36,14 +36,16 @@ export type NormalizeOptions = {
 }
 
 // Callback fired after each fetch operation.
-export type OnFetchFn = (data: { url: string; response: FetchFnResponse }) => void
+export type OnFetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (data: {
+  url: string
+  response: TResponse
+}) => void
 
 // Callback fired when a URL successfully matches the initial response.
-export type OnMatchFn<TFeed = unknown> = (data: {
-  url: string
-  response: FetchFnResponse
-  feed: TFeed
-}) => void
+export type OnMatchFn<
+  TFeed = unknown,
+  TResponse extends FetchFnResponse = FetchFnResponse,
+> = (data: { url: string; response: TResponse; feed: TFeed }) => void
 
 // Callback fired when existsFn finds a URL in the database.
 export type OnExistsFn<T> = (data: { url: string; data: T }) => void
@@ -53,14 +55,18 @@ export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
 
 // Options for findCanonical function.
-export type FindCanonicalOptions<TFeed = FeedsmithFeed, TExisting = unknown> = {
+export type FindCanonicalOptions<
+  TFeed = FeedsmithFeed,
+  TExisting = unknown,
+  TResponse extends FetchFnResponse = FetchFnResponse,
+> = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
-  fetchFn?: FetchFn
+  fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
   tiers?: Array<NormalizeOptions> // Normalization tiers (cleanest to least clean).
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
-  onFetch?: OnFetchFn // Called after each fetch operation.
-  onMatch?: OnMatchFn<TFeed> // Called when a URL matches the initial response.
+  onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
+  onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.
   onExists?: OnExistsFn<TExisting> // Called when existsFn finds a URL.
 }
 
@@ -79,4 +85,7 @@ export type FetchFnResponse = {
 }
 
 // Custom fetch function type (adapter interface).
-export type FetchFn = (url: string, options?: FetchFnOptions) => Promise<FetchFnResponse>
+export type FetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (
+  url: string,
+  options?: FetchFnOptions,
+) => Promise<TResponse>

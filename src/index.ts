@@ -1,6 +1,7 @@
 import { defaultPlatforms, defaultTiers } from './defaults.js'
 import type {
   FeedsmithFeed,
+  FetchFn,
   FetchFnResponse,
   FindCanonicalOptions,
   ParserAdapter,
@@ -13,12 +14,16 @@ import {
   resolveUrl,
 } from './utils.js'
 
-export const findCanonical = async <TFeed = FeedsmithFeed, TExisting = unknown>(
+export const findCanonical = async <
+  TFeed = FeedsmithFeed,
+  TExisting = unknown,
+  TResponse extends FetchFnResponse = FetchFnResponse,
+>(
   inputUrl: string,
-  options?: FindCanonicalOptions<TFeed, TExisting>,
+  options?: FindCanonicalOptions<TFeed, TExisting, TResponse>,
 ): Promise<string | undefined> => {
   const {
-    fetchFn = nativeFetch,
+    fetchFn = nativeFetch as FetchFn<TResponse>,
     existsFn,
     parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
     tiers = defaultTiers,
@@ -38,7 +43,7 @@ export const findCanonical = async <TFeed = FeedsmithFeed, TExisting = unknown>(
   const initialRequestUrl = resolveAndApplyPlatformHandlers(inputUrl)
   if (!initialRequestUrl) return
 
-  let initialResponse: FetchFnResponse
+  let initialResponse: TResponse
 
   try {
     initialResponse = await fetchFn(initialRequestUrl)
@@ -104,8 +109,8 @@ export const findCanonical = async <TFeed = FeedsmithFeed, TExisting = unknown>(
   }
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
-  const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
-    let response: FetchFnResponse
+  const fetchAndCompare = async (url: string): Promise<TResponse | undefined> => {
+    let response: TResponse
     try {
       response = await fetchFn(url)
     } catch {
