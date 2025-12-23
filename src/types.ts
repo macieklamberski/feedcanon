@@ -49,10 +49,6 @@ export type OnMatchFn<
 // Callback fired when existsFn finds a URL in the database.
 export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 
-// Callback to check if URLs exist in database (early termination).
-// Returns data if URL exists, undefined otherwise.
-export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
-
 // Options for findCanonical function.
 export type FindCanonicalOptions<
   TFeed = FeedsmithFeed,
@@ -74,6 +70,10 @@ export type FetchFnOptions = {
   method?: 'GET' | 'HEAD'
   headers?: Record<string, string>
 }
+
+// Callback to check if URLs exist in database (early termination).
+// Returns data if URL exists, undefined otherwise.
+export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {

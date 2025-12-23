@@ -23,9 +23,9 @@ export const findCanonical = async <
   options?: FindCanonicalOptions<TFeed, TResponse, TExisting>,
 ): Promise<string | undefined> => {
   const {
+    parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
     fetchFn = nativeFetch as FetchFn<TResponse>,
     existsFn,
-    parser = feedsmithParser as unknown as ParserAdapter<TFeed>,
     tiers = defaultTiers,
     platforms = defaultPlatforms,
     onFetch,
