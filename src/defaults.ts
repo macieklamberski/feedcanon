@@ -153,14 +153,19 @@ export const defaultStrippedParams = [
   'ts',
   'cb',
   'cachebuster',
+  'cHash',
   'nocache',
   'rand',
   'random',
+  'sbdcrw',
   'forceByPassCache',
   'sucurianticache',
   'cleancache',
   'rebuildcache',
   'kontrol_health_check_timestamp',
+
+  // A/B testing.
+  'userab',
 
   // Translation services.
   '_x_tr_sl',
