@@ -1,9 +1,8 @@
-import { bloggerHandler } from './platforms/blogger.js'
 import { feedburnerHandler } from './platforms/feedburner.js'
 import type { NormalizeOptions, PlatformHandler, Tier } from './types.js'
 
 // Platform handlers for domain-specific URL normalization.
-export const defaultPlatforms: Array<PlatformHandler> = [bloggerHandler, feedburnerHandler]
+export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [

@@ -7,7 +7,7 @@ export type FeedsmithFeed = ReturnType<typeof import('feedsmith').parseFeed>
 export type ParserAdapter<T> = {
   parse: (body: string) => T | undefined
   getSelfUrl: (parsed: T) => string | undefined
-  getSignature: (parsed: T, selfUrl?: string) => string
+  getSignature: (parsed: T) => object
 }
 
 // Platform handler for URL normalization (e.g., FeedBurner domain aliasing).

@@ -1,6 +1,5 @@
 export { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
 export { findCanonical } from './index.js'
-export { bloggerHandler } from './platforms/blogger.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
   ExistsFn,
