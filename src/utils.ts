@@ -317,11 +317,7 @@ export const feedsmithParser: ParserAdapter<FeedsmithFeed> = {
   getSelfUrl: (parsed) => {
     return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
   },
-  getSignature: (parsed, selfUrl) => {
-    if (!selfUrl) {
-      return JSON.stringify(parsed.feed)
-    }
-
+  getSignature: (parsed) => {
     if (parsed.format === 'json') {
       const original = parsed.feed.feed_url
       parsed.feed.feed_url = undefined

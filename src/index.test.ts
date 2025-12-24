@@ -2130,10 +2130,10 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: (body) => body.replace('self:', ''),
-          getSignature: (body, selfUrl) => {
-            // Replace self URL in body before stringifying to neutralize it
-            const normalizedBody = selfUrl ? body.replaceAll(selfUrl, '__SELF_URL__') : body
-            return JSON.stringify({ body: normalizedBody })
+          getSignature: (body) => {
+            // Neutralize self URL by replacing it with placeholder.
+            const selfUrl = body.replace('self:', '')
+            return JSON.stringify({ body: body.replaceAll(selfUrl, '__SELF_URL__') })
           },
         },
       })
