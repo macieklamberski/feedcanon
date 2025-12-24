@@ -1,10 +1,10 @@
 import type { PlatformHandler } from '../types.js'
 
-const hosts = new Set(['blogger.com', 'www.blogger.com'])
+const hosts = ['blogger.com', 'www.blogger.com']
 
 export const bloggerHandler: PlatformHandler = {
   match: (url) => {
-    return hosts.has(url.hostname)
+    return hosts.includes(url.hostname)
   },
 
   normalize: (url) => {
