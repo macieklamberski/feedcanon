@@ -4,6 +4,7 @@ import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types
 import {
   addMissingProtocol,
   applyPlatformHandlers,
+  feedsmithParser,
   nativeFetch,
   normalizeUrl,
   resolveFeedProtocol,
@@ -1450,5 +1451,323 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+})
+
+describe('feedsmithParser', () => {
+  describe('parse', () => {
+    it('should parse valid RSS feed', () => {
+      const value = `<?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+          </channel>
+        </rss>`
+      const result = feedsmithParser.parse(value)
+
+      expect(result).toBeDefined()
+      expect(result?.format).toBe('rss')
+    })
+
+    it('should parse valid Atom feed', () => {
+      const value = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test Feed</title>
+        </feed>`
+      const result = feedsmithParser.parse(value)
+
+      expect(result).toBeDefined()
+      expect(result?.format).toBe('atom')
+    })
+
+    it('should parse valid JSON Feed', () => {
+      const value = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test Feed',
+      })
+      const result = feedsmithParser.parse(value)
+
+      expect(result).toBeDefined()
+      expect(result?.format).toBe('json')
+    })
+
+    it('should return undefined for invalid feed', () => {
+      const value = 'not a feed'
+      const result = feedsmithParser.parse(value)
+
+      expect(result).toBeUndefined()
+    })
+
+    it('should return undefined for empty string', () => {
+      const value = ''
+      const result = feedsmithParser.parse(value)
+
+      expect(result).toBeUndefined()
+    })
+  })
+
+  describe('getSelfUrl', () => {
+    it('should return self URL from JSON Feed', () => {
+      const value = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test',
+        feed_url: 'https://example.com/feed.json',
+      })
+      const expected = 'https://example.com/feed.json'
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBe(expected)
+    })
+
+    it('should return undefined for JSON Feed without feed_url', () => {
+      const value = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test',
+      })
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBeUndefined()
+    })
+
+    it('should return self URL from Atom feed', () => {
+      const value = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="self" href="https://example.com/feed.atom"/>
+        </feed>`
+      const expected = 'https://example.com/feed.atom'
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBe(expected)
+    })
+
+    it('should return undefined for Atom feed without self link', () => {
+      const value = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="alternate" href="https://example.com"/>
+        </feed>`
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBeUndefined()
+    })
+
+    it('should return self URL from RSS feed with atom:link', () => {
+      const value = `<?xml version="1.0"?>
+        <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+          <channel>
+            <title>Test</title>
+            <atom:link rel="self" href="https://example.com/feed.rss"/>
+          </channel>
+        </rss>`
+      const expected = 'https://example.com/feed.rss'
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBe(expected)
+    })
+
+    it('should return undefined for RSS feed without self link', () => {
+      const value = `<?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+          </channel>
+        </rss>`
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBeUndefined()
+    })
+  })
+
+  describe('getSignature', () => {
+    it('should return signature for JSON Feed without feed_url', () => {
+      const value = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test',
+        items: [{ id: '1', content_text: 'Hello' }],
+      })
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+
+      const result = feedsmithParser.getSignature(parsed as NonNullable<typeof parsed>)
+      const expected = JSON.stringify(parsed?.feed)
+
+      expect(result).toBe(expected)
+    })
+
+    it('should neutralize feed_url in JSON Feed signature', () => {
+      const value1 = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test',
+        feed_url: 'https://example.com/feed1.json',
+        items: [{ id: '1' }],
+      })
+      const value2 = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test',
+        feed_url: 'https://example.com/feed2.json',
+        items: [{ id: '1' }],
+      })
+      const parsed1 = feedsmithParser.parse(value1)
+      const parsed2 = feedsmithParser.parse(value2)
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = feedsmithParser.getSignature(parsed1 as NonNullable<typeof parsed1>)
+      const signature2 = feedsmithParser.getSignature(parsed2 as NonNullable<typeof parsed2>)
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore feed_url after generating signature', () => {
+      const expected = 'https://example.com/feed.json'
+      const value = JSON.stringify({
+        version: 'https://jsonfeed.org/version/1.1',
+        title: 'Test',
+        feed_url: expected,
+      })
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(parsed?.format).toBe('json')
+
+      if (parsed?.format === 'json') {
+        feedsmithParser.getSignature(parsed)
+
+        expect(parsed.feed.feed_url).toBe(expected)
+      }
+    })
+
+    it('should return signature for Atom feed without self link', () => {
+      const value = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+        </feed>`
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+
+      const result = feedsmithParser.getSignature(parsed as NonNullable<typeof parsed>)
+      const expected = JSON.stringify(parsed?.feed)
+
+      expect(result).toBe(expected)
+    })
+
+    it('should neutralize self link in Atom feed signature', () => {
+      const value1 = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="self" href="https://example.com/feed1.atom"/>
+        </feed>`
+      const value2 = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="self" href="https://example.com/feed2.atom"/>
+        </feed>`
+      const parsed1 = feedsmithParser.parse(value1)
+      const parsed2 = feedsmithParser.parse(value2)
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = feedsmithParser.getSignature(parsed1 as NonNullable<typeof parsed1>)
+      const signature2 = feedsmithParser.getSignature(parsed2 as NonNullable<typeof parsed2>)
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore self link href after generating Atom signature', () => {
+      const expected = 'https://example.com/feed.atom'
+      const value = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="self" href="${expected}"/>
+        </feed>`
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(parsed?.format).toBe('atom')
+
+      if (parsed?.format === 'atom') {
+        feedsmithParser.getSignature(parsed)
+        const result = parsed.feed.links?.find((link) => link.rel === 'self')?.href
+
+        expect(result).toBe(expected)
+      }
+    })
+
+    it('should neutralize self link in RSS feed signature', () => {
+      const value1 = `<?xml version="1.0"?>
+        <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+          <channel>
+            <title>Test</title>
+            <atom:link rel="self" href="https://example.com/feed1.rss"/>
+          </channel>
+        </rss>`
+      const value2 = `<?xml version="1.0"?>
+        <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+          <channel>
+            <title>Test</title>
+            <atom:link rel="self" href="https://example.com/feed2.rss"/>
+          </channel>
+        </rss>`
+      const parsed1 = feedsmithParser.parse(value1)
+      const parsed2 = feedsmithParser.parse(value2)
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = feedsmithParser.getSignature(parsed1 as NonNullable<typeof parsed1>)
+      const signature2 = feedsmithParser.getSignature(parsed2 as NonNullable<typeof parsed2>)
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore self link href after generating RSS signature', () => {
+      const expected = 'https://example.com/feed.rss'
+      const value = `<?xml version="1.0"?>
+        <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+          <channel>
+            <title>Test</title>
+            <atom:link rel="self" href="${expected}"/>
+          </channel>
+        </rss>`
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+      expect(parsed?.format).toBe('rss')
+
+      if (parsed?.format === 'rss') {
+        feedsmithParser.getSignature(parsed)
+        const result = parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
+
+        expect(result).toBe(expected)
+      }
+    })
+
+    it('should return signature for RSS feed without self link', () => {
+      const value = `<?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+          </channel>
+        </rss>`
+      const parsed = feedsmithParser.parse(value)
+
+      expect(parsed).toBeDefined()
+
+      const result = feedsmithParser.getSignature(parsed as NonNullable<typeof parsed>)
+      const expected = JSON.stringify(parsed?.feed)
+
+      expect(result).toBe(expected)
+    })
   })
 })
