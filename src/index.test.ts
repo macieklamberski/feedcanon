@@ -1174,6 +1174,44 @@ describe('findCanonical', () => {
 
       expect(await findCanonical(value, options)).toBe(expected)
     })
+
+    // Uppercase hostname in input URL
+    //
+    // Hostnames are case-insensitive per URL spec. The URL constructor
+    // automatically lowercases hostnames, so uppercase input hostnames
+    // should be normalized to lowercase in the result.
+    it('should lowercase uppercase hostname in input URL', async () => {
+      const value = 'https://EXAMPLE.COM/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Uppercase hostname in self URL
+    //
+    // Self URLs with uppercase hostnames should also be lowercased.
+    // The URL constructor normalizes hostnames regardless of source.
+    it('should lowercase uppercase hostname in self URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/canonical/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+          'https://example.com/canonical/feed': { body },
+        }),
+        parser: createMockParser('https://EXAMPLE.COM/canonical/feed'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
   })
 
   describe('algorithm path coverage', () => {
