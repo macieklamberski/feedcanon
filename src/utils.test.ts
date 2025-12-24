@@ -1100,7 +1100,6 @@ describe('normalizeUrl', () => {
         stripQueryParams: [],
         stripEmptyQuery: false,
         normalizeUnicode: false,
-        lowercaseHostname: false,
       }
       const expected = 'https://www.example.com:8080/feed/'
 
