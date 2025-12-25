@@ -4,6 +4,7 @@ import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types
 import {
   addMissingProtocol,
   applyPlatformHandlers,
+  feedsmithParser,
   nativeFetch,
   normalizeUrl,
   resolveFeedProtocol,
@@ -324,6 +325,12 @@ describe('addMissingProtocol', () => {
       expect(addMissingProtocol('data:text/html,<h1>Test</h1>')).toBe(
         'data:text/html,<h1>Test</h1>',
       )
+    })
+
+    it('should return URLs with leading whitespace unchanged', () => {
+      expect(addMissingProtocol(' example.com')).toBe(' example.com')
+      expect(addMissingProtocol('\texample.com')).toBe('\texample.com')
+      expect(addMissingProtocol('\nexample.com')).toBe('\nexample.com')
     })
   })
 })
@@ -995,6 +1002,22 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value)).toBe(expected)
     })
+
+    it('should remove empty query string when sortQueryParams is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve empty query string when stripEmptyQuery is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false, stripEmptyQuery: false }
+      const expected = 'example.com/feed?'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
   })
 
   describe('percent encoding normalization', () => {
@@ -1449,5 +1472,65 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+})
+
+describe('feedsmithParser', () => {
+  describe('parse', () => {
+    it('should return undefined for invalid feed content', () => {
+      const value = 'not a valid feed'
+
+      expect(feedsmithParser.parse(value)).toBeUndefined()
+    })
+  })
+
+  describe('getSelfUrl', () => {
+    it('should extract self URL from Atom feed', () => {
+      const value = {
+        format: 'atom' as const,
+        feed: {
+          links: [{ rel: 'self', href: 'https://example.com/atom.xml' }],
+        },
+      }
+
+      expect(feedsmithParser.getSelfUrl(value)).toBe('https://example.com/atom.xml')
+    })
+
+    it('should extract self URL from RSS feed', () => {
+      const value = {
+        format: 'rss' as const,
+        feed: {
+          atom: {
+            links: [{ rel: 'self', href: 'https://example.com/rss.xml' }],
+          },
+        },
+      }
+
+      expect(feedsmithParser.getSelfUrl(value)).toBe('https://example.com/rss.xml')
+    })
+
+    it('should extract self URL from RDF feed', () => {
+      const value = {
+        format: 'rdf' as const,
+        feed: {
+          atom: {
+            links: [{ rel: 'self', href: 'https://example.com/rdf.xml' }],
+          },
+        },
+      }
+
+      expect(feedsmithParser.getSelfUrl(value)).toBe('https://example.com/rdf.xml')
+    })
+
+    it('should extract self URL from JSON feed', () => {
+      const value = {
+        format: 'json' as const,
+        feed: {
+          feed_url: 'https://example.com/feed.json',
+        },
+      }
+
+      expect(feedsmithParser.getSelfUrl(value)).toBe('https://example.com/feed.json')
+    })
   })
 })
