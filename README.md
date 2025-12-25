@@ -42,12 +42,12 @@ The 9 URLs below all work and return identical content. None redirect to each ot
 
 ### Customization
 
+- **Progress callbacks** — monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
+- **Database lookup** — use `existsFn` to check if a URL already exists in your database.
 - **Custom fetch** — use your own HTTP client (Axios, Got, Ky, etc.)
 - **Custom parser** — bring your own parser (Feedsmith by default).
 - **Custom tiers** — define your own URL normalization variants.
 - **Custom platforms** — add handlers to normalize domain aliases (like FeedBurner).
-- **Database lookup** — use `existsFn` to check if a URL already exists in your database.
-- **Progress callbacks** — monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
 - **Type-safe** — full TypeScript support with exported types.
 
 ## Quick Start
