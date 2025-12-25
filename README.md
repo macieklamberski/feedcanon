@@ -62,30 +62,47 @@ npm install feedcanon
 
 ### Basic Usage
 
+When you just need to clean up a feed URL and get its canonical form.
+
 ```typescript
 import { findCanonical } from 'feedcanon'
 
 const url = await findCanonical('http://www.example.com/feed/?utm_source=twitter')
 
-// 'https://example.com/feed' or undefined if feed is invalid or unreachable
+// 'https://example.com/feed'
 ```
 
+Returns `undefined` if the feed is invalid or unreachable.
+
 ### With Callbacks
+
+When you want to log the canonicalization process for debugging. Or store all URL aliases that resolve to the same feed.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
 
-const url = await findCanonical('https://example.com/feed', {
+const aliases = []
+
+const url = await findCanonical('http://www.example.com/feed/', {
   onFetch: ({ url, response }) => {
     console.log('Fetched:', url, response.status)
   },
-  onMatch: ({ url, feed }) => {
-    console.log('Found matching URL:', url)
+  onMatch: ({ url }) => {
+    aliases.push(url)
   },
 })
+
+// url: 'https://example.com/feed'
+// aliases: [
+//   'http://www.example.com/feed/',
+//   'https://www.example.com/feed/',
+//   'https://example.com/feed',
+// ]
 ```
 
 ### Custom Fetch
+
+When you need custom HTTP behavior or a different HTTP client.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -105,6 +122,8 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 ### Database Integration
+
+When you want to check if a URL already exists in your database before processing further.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
