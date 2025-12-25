@@ -318,23 +318,38 @@ export const feedsmithParser: ParserAdapter<FeedsmithFeed> = {
     return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
   },
   getSignature: (parsed) => {
+    // Neutralize dynamic timestamp fields that change on each request.
+    // Many feeds regenerate lastBuildDate on every fetch, breaking content comparison.
+    let origLastBuildDate: string | undefined
+    if (parsed.format === 'rss') {
+      origLastBuildDate = parsed.feed.lastBuildDate
+      parsed.feed.lastBuildDate = undefined
+    }
+
+    let signature: string
+
     if (parsed.format === 'json') {
       const original = parsed.feed.feed_url
       parsed.feed.feed_url = undefined
-      const signature = JSON.stringify(parsed.feed)
+      signature = JSON.stringify(parsed.feed)
       parsed.feed.feed_url = original
-      return signature
+    } else {
+      const link = findSelfLink(parsed)
+      if (!link) {
+        signature = JSON.stringify(parsed.feed)
+      } else {
+        const original = link.href
+        link.href = undefined
+        signature = JSON.stringify(parsed.feed)
+        link.href = original
+      }
     }
 
-    const link = findSelfLink(parsed)
-    if (!link) {
-      return JSON.stringify(parsed.feed)
+    // Restore original timestamp.
+    if (parsed.format === 'rss') {
+      parsed.feed.lastBuildDate = origLastBuildDate
     }
 
-    const original = link.href
-    link.href = undefined
-    const signature = JSON.stringify(parsed.feed)
-    link.href = original
     return signature
   },
 }
