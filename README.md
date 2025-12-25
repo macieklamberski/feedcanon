@@ -40,23 +40,11 @@ The 9 URLs below all work and return identical content. None redirect to each ot
 4. Test variants in order—the first one serving identical content wins.
 5. Upgrade HTTP to HTTPS if both serve identical content.
 
-### URL Normalization
-
-- Strip www prefix — `www.example.com` → `example.com`
-- Strip trailing slashes — `/feed/` → `/feed`
-- Strip tracking params — remove 100+ known tracking parameters (UTM, Facebook, Google Ads, etc.)
-- Collapse slashes — `//feed///rss` → `/feed/rss`
-- Strip fragments — remove `#hash` and text fragments
-- Sort query params — alphabetically sort remaining query parameters
-- Normalize encoding — standardize percent-encoded characters
-- Unicode support — NFC for consistent representation
-- Punycode support — convert internationalized domain names
-
 ### Customization
 
 - **Custom fetch** — use your own HTTP client (Axios, Got, Ky, etc.)
-- **Custom parser** — bring your own feed parser with the `ParserAdapter` interface.
-- **Custom tiers** — define your own URL variant priority order.
+- **Custom parser** — bring your own parser (Feedsmith by default).
+- **Custom tiers** — define your own URL normalization variants.
 - **Custom platforms** — add handlers to normalize domain aliases (like FeedBurner).
 - **Database lookup** — use `existsFn` to check if a URL already exists in your database.
 - **Progress callbacks** — monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
