@@ -18,16 +18,16 @@ Many URLs can point to the same feed, varying by protocol, www prefixes, trailin
 
 The 9 URLs below all work and return identical content. None redirect to each other, normally making each appear unique. Feedcanon compares content, normalizes URLs and resolves them to a single URL.
 
-```
-http://feeds.kottke.org/main ───────────┐
-http://feeds.kottke.org/main/ ──────────┤
-https://feeds.kottke.org/main ──────────┤
-https://feeds.kottke.org/main/ ─────────┤
-https://feeds.kottke.org///main/ ───────┼───→ https://feeds.kottke.org/main
-http://feeds.feedburner.com/kottke ─────┤
-http://feeds.feedburner.com/kottke/ ────┤
-https://feeds.feedburner.com/kottke ────┤
-https://feeds.feedburner.com/kottke/ ───┘
+```fortran
+'http://feeds.kottke.org/main' ───────────┐
+'http://feeds.kottke.org/main/' ──────────┤
+'https://feeds.kottke.org/main' ──────────┤
+'https://feeds.kottke.org/main/' ─────────┤
+'https://feeds.kottke.org///main/' ───────┼───→ 'https://feeds.kottke.org/main'
+'http://feeds.feedburner.com/kottke' ─────┤
+'http://feeds.feedburner.com/kottke/' ────┤
+'https://feeds.feedburner.com/kottke' ────┤
+'https://feeds.feedburner.com/kottke/' ───┘
 ```
 
 ## Features
@@ -40,7 +40,7 @@ https://feeds.feedburner.com/kottke/ ───┘
 4. Test variants in order—the first one serving identical content wins.
 5. Upgrade HTTP to HTTPS if both serve identical content.
 
-### URL Transforms
+### URL Normalization
 
 - Strip www prefix — `www.example.com` → `example.com`
 - Strip trailing slashes — `/feed/` → `/feed`
