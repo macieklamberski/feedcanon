@@ -326,6 +326,12 @@ describe('addMissingProtocol', () => {
         'data:text/html,<h1>Test</h1>',
       )
     })
+
+    it('should return URLs with leading whitespace unchanged', () => {
+      expect(addMissingProtocol(' example.com')).toBe(' example.com')
+      expect(addMissingProtocol('\texample.com')).toBe('\texample.com')
+      expect(addMissingProtocol('\nexample.com')).toBe('\nexample.com')
+    })
   })
 })
 
@@ -996,6 +1002,22 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value)).toBe(expected)
     })
+
+    it('should remove empty query string when sortQueryParams is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve empty query string when stripEmptyQuery is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false, stripEmptyQuery: false }
+      const expected = 'example.com/feed?'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
   })
 
   describe('percent encoding normalization', () => {
@@ -1101,7 +1123,6 @@ describe('normalizeUrl', () => {
         stripQueryParams: [],
         stripEmptyQuery: false,
         normalizeUnicode: false,
-        lowercaseHostname: false,
       }
       const expected = 'https://www.example.com:8080/feed/'
 
@@ -1582,6 +1603,19 @@ describe('feedsmithParser', () => {
 
       expect(parsed).toBeDefined()
       expect(feedsmithParser.getSelfUrl(parsed as NonNullable<typeof parsed>)).toBeUndefined()
+    })
+
+    it('should extract self URL from RDF feed', () => {
+      const value = {
+        format: 'rdf' as const,
+        feed: {
+          atom: {
+            links: [{ rel: 'self', href: 'https://example.com/rdf.xml' }],
+          },
+        },
+      }
+
+      expect(feedsmithParser.getSelfUrl(value)).toBe('https://example.com/rdf.xml')
     })
   })
 

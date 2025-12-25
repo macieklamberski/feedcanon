@@ -29,7 +29,6 @@ export type NormalizeOptions = {
   stripQueryParams?: Array<string> // query params to strip
   stripEmptyQuery?: boolean // /feed? → /feed
   normalizeEncoding?: boolean // normalize %XX encoding
-  lowercaseHostname?: boolean // lowercase hostname
   normalizeUnicode?: boolean // NFC normalization
   convertToPunycode?: boolean // IDNA/Punycode conversion
 }

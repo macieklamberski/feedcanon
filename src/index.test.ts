@@ -685,6 +685,38 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
+    // Case 27b: Variant normalized from self URL matches initialResponseUrl
+    //
+    // Input: http://www.example.com/feed/ (redirects to https://example.com/feed)
+    // Initial Response URL: https://example.com/feed
+    // Self URL: https://www.example.com/feed/ (valid, becomes variantSourceUrl)
+    // Result: https://example.com/feed
+    //
+    // When the input URL redirects and the self URL is valid but different from
+    // initialResponseUrl, variants are generated from the self URL. If a normalized
+    // variant matches initialResponseUrl, we use it directly without refetching.
+    it('case 27b: should use initialResponseUrl when normalized variant matches it', async () => {
+      const value = 'http://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: async (url: string) => {
+          if (url === 'http://www.example.com/feed/') {
+            // Input redirects to clean URL.
+            return { status: 200, url: 'https://example.com/feed', body, headers: new Headers() }
+          }
+          if (url === 'https://www.example.com/feed/') {
+            // Self URL works.
+            return { status: 200, url, body, headers: new Headers() }
+          }
+          throw new Error(`Unexpected fetch: ${url}`)
+        },
+        parser: createMockParser('https://www.example.com/feed/'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     // Case 28: Parser returns undefined
     //
     // Input: https://example.com/feed
@@ -1170,6 +1202,44 @@ describe('findCanonical', () => {
           'https://example.com/feed.xml': { body },
         }),
         parser: createMockParser('../../feed.xml'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Uppercase hostname in input URL
+    //
+    // Hostnames are case-insensitive per URL spec. The URL constructor
+    // automatically lowercases hostnames, so uppercase input hostnames
+    // should be normalized to lowercase in the result.
+    it('should lowercase uppercase hostname in input URL', async () => {
+      const value = 'https://EXAMPLE.COM/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Uppercase hostname in self URL
+    //
+    // Self URLs with uppercase hostnames should also be lowercased.
+    // The URL constructor normalizes hostnames regardless of source.
+    it('should lowercase uppercase hostname in self URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/canonical/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+          'https://example.com/canonical/feed': { body },
+        }),
+        parser: createMockParser('https://EXAMPLE.COM/canonical/feed'),
       })
 
       expect(await findCanonical(value, options)).toBe(expected)

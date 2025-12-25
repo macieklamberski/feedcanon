@@ -190,11 +190,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       }
     }
 
-    // Lowercase hostname.
-    if (options.lowercaseHostname) {
-      parsed.hostname = parsed.hostname.toLowerCase()
-    }
-
     // Strip authentication.
     if (options.stripAuthentication) {
       parsed.username = ''
@@ -249,7 +244,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     }
 
     // Remove empty query string.
-    if (options.stripEmptyQuery && parsed.search === '?') {
+    if (options.stripEmptyQuery && parsed.href.endsWith('?')) {
       parsed.search = ''
     }
 
