@@ -685,6 +685,38 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
+    // Case 27b: Variant normalized from self URL matches initialResponseUrl
+    //
+    // Input: http://www.example.com/feed/ (redirects to https://example.com/feed)
+    // Initial Response URL: https://example.com/feed
+    // Self URL: https://www.example.com/feed/ (valid, becomes variantSourceUrl)
+    // Result: https://example.com/feed
+    //
+    // When the input URL redirects and the self URL is valid but different from
+    // initialResponseUrl, variants are generated from the self URL. If a normalized
+    // variant matches initialResponseUrl, we use it directly without refetching.
+    it('case 27b: should use initialResponseUrl when normalized variant matches it', async () => {
+      const value = 'http://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: async (url: string) => {
+          if (url === 'http://www.example.com/feed/') {
+            // Input redirects to clean URL.
+            return { status: 200, url: 'https://example.com/feed', body, headers: new Headers() }
+          }
+          if (url === 'https://www.example.com/feed/') {
+            // Self URL works.
+            return { status: 200, url, body, headers: new Headers() }
+          }
+          throw new Error(`Unexpected fetch: ${url}`)
+        },
+        parser: createMockParser('https://www.example.com/feed/'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     // Case 28: Parser returns undefined
     //
     // Input: https://example.com/feed
