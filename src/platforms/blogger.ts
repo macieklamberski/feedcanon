@@ -19,6 +19,16 @@ export const bloggerHandler: PlatformHandler = {
     // Strip redirect param (controls redirect behavior, not content).
     normalized.searchParams.delete('redirect')
 
+    // Strip pagination and date filter params. Feed readers subscribe to full
+    // feeds, not filtered views. Stripping these ensures subscriptions to the
+    // same blog with different limits or date ranges canonicalize to one URL.
+    normalized.searchParams.delete('max-results')
+    normalized.searchParams.delete('start-index')
+    normalized.searchParams.delete('published-min')
+    normalized.searchParams.delete('published-max')
+    normalized.searchParams.delete('updated-min')
+    normalized.searchParams.delete('updated-max')
+
     return normalized
   },
 }
