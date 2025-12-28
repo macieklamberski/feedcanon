@@ -5,7 +5,7 @@ export type FeedsmithFeed = ReturnType<typeof import('feedsmith').parseFeed>
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
-  parse: (body: string) => T | undefined
+  parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
   getSignature: (parsed: T) => object
 }

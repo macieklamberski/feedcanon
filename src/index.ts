@@ -94,7 +94,7 @@ export async function findCanonical(
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
 
-  const initialResponseFeed = parser.parse(initialResponseBody)
+  const initialResponseFeed = await parser.parse(initialResponseBody)
   if (!initialResponseFeed) return
 
   // All onMatch calls receive initialResponseFeed because matched URLs return content
@@ -112,7 +112,9 @@ export async function findCanonical(
   // Compare initial response against another response using 2-tier matching:
   // 1. Exact body match (fastest)
   // 2. Signature match (semantic equality via parser)
-  const compareWithInitialResponse = (comparedResponseBody: string | undefined): boolean => {
+  const compareWithInitialResponse = async (
+    comparedResponseBody: string | undefined,
+  ): Promise<boolean> => {
     if (!comparedResponseBody) {
       return false
     }
@@ -123,7 +125,7 @@ export async function findCanonical(
     }
 
     // Tier 2: Signature match via parser.
-    const comparedResponseFeed = parser.parse(comparedResponseBody)
+    const comparedResponseFeed = await parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {
       initialResponseSignature ||= JSON.stringify(parser.getSignature(initialResponseFeed))
@@ -145,7 +147,7 @@ export async function findCanonical(
     }
     onFetch?.({ url, response })
     if (response.status < 200 || response.status >= 300) return
-    if (!compareWithInitialResponse(response.body)) return
+    if (!(await compareWithInitialResponse(response.body))) return
     return response
   }
 
