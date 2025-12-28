@@ -13,7 +13,7 @@ The `parser` option must implement `ParserAdapter<T>`:
 
 ```typescript
 type ParserAdapter<T> = {
-  parse: (body: string) => T | undefined
+  parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
   getSignature: (parsed: T) => object
 }
@@ -21,10 +21,10 @@ type ParserAdapter<T> = {
 
 ### parse
 
-Parse the feed body and return your feed type, or `undefined` if parsing fails:
+Parse the feed body and return your feed type, or `undefined` if parsing fails. Both sync and async parsers are supported:
 
 ```typescript
-parse: (body: string) => Feed | undefined
+parse: (body: string) => Promise<Feed | undefined> | Feed | undefined
 ```
 
 ### getSelfUrl
@@ -61,15 +61,7 @@ const rssParser = new Parser()
 
 const url = await findCanonical('https://example.com/feed', {
   parser: {
-    parse: (body) => {
-      try {
-        // rss-parser is async, but we need sync
-        // Consider using Feedsmith or fast-xml-parser instead
-        return undefined
-      } catch {
-        return undefined
-      }
-    },
+    parse: (body) => rssParser.parseString(body).catch(() => undefined),
     getSelfUrl: (feed) => feed.feedUrl,
     getSignature: (feed) => ({
       title: feed.title,
@@ -77,41 +69,4 @@ const url = await findCanonical('https://example.com/feed', {
     }),
   },
 })
-```
-
-::: warning
-Most feed parsers are asynchronous. The `parse` function in `ParserAdapter` is synchronous. Consider using [Feedsmith](https://github.com/macieklamberski/feedsmith) (the default) or another synchronous parser.
-:::
-
-## Default Parser
-
-Feedcanon uses [Feedsmith](https://github.com/macieklamberski/feedsmith) by default, which supports RSS 0.9x, RSS 1.0, RSS 2.0, Atom 0.3, Atom 1.0, JSON Feed 1.0, and JSON Feed 1.1.
-
-The default implementation:
-
-```typescript
-import { parseFeed } from 'feedsmith'
-import type { ParserAdapter, FeedsmithFeed } from 'feedcanon'
-
-export const defaultParser: ParserAdapter<FeedsmithFeed> = {
-  parse: (body) => {
-    try {
-      return parseFeed(body)
-    } catch {}
-  },
-
-  getSelfUrl: (parsed) => {
-    switch (parsed.format) {
-      case 'atom':
-        return parsed.feed.links?.find((link) => link.rel === 'self')?.href
-      case 'rss':
-      case 'rdf':
-        return parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
-      case 'json':
-        return parsed.feed.feed_url
-    }
-  },
-
-  getSignature: (parsed) => parsed.feed,
-}
 ```
