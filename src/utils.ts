@@ -1,8 +1,7 @@
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
-import { parseFeed } from 'feedsmith'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { FeedsmithFeed, FetchFn, ParserAdapter, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler } from './types.js'
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
@@ -172,7 +171,10 @@ const decodeAndNormalizeEncoding = (value: string): string => {
   })
 }
 
-export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
+export const normalizeUrl = (
+  url: string,
+  options: NormalizeOptions = defaultNormalizeOptions,
+): string => {
   try {
     const parsed = new URL(url)
 
@@ -262,20 +264,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
   }
 }
 
-export const nativeFetch: FetchFn = async (url, options) => {
-  const response = await fetch(url, {
-    method: options?.method ?? 'GET',
-    headers: options?.headers,
-  })
-
-  return {
-    headers: response.headers,
-    body: await response.text(),
-    url: response.url,
-    status: response.status,
-  }
-}
-
 export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHandler>): string => {
   try {
     let parsed = new URL(url)
@@ -291,26 +279,4 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   } catch {
     return url
   }
-}
-
-export const feedsmithParser: ParserAdapter<FeedsmithFeed> = {
-  parse: (body) => {
-    try {
-      return parseFeed(body)
-    } catch {}
-  },
-  getSelfUrl: (parsed) => {
-    switch (parsed.format) {
-      case 'atom':
-        return parsed.feed.links?.find((link) => link.rel === 'self')?.href
-      case 'rss':
-      case 'rdf':
-        return parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
-      case 'json':
-        return parsed.feed.feed_url
-    }
-  },
-  getSignature: (parsed) => {
-    return parsed.feed
-  },
 }

@@ -1,4 +1,10 @@
-export { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
+export {
+  defaultFetch,
+  defaultParser,
+  defaultPlatforms,
+  defaultStrippedParams,
+  defaultTiers,
+} from './defaults.js'
 export { findCanonical } from './index.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
@@ -17,7 +23,6 @@ export type {
 } from './types.js'
 export {
   addMissingProtocol,
-  feedsmithParser,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,

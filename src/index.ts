@@ -1,17 +1,17 @@
-import { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
+import {
+  defaultFetch,
+  defaultParser,
+  defaultPlatforms,
+  defaultStrippedParams,
+  defaultTiers,
+} from './defaults.js'
 import type {
   FeedsmithFeed,
   FetchFnResponse,
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import {
-  applyPlatformHandlers,
-  feedsmithParser,
-  nativeFetch,
-  normalizeUrl,
-  resolveUrl,
-} from './utils.js'
+import { applyPlatformHandlers, normalizeUrl, resolveUrl } from './utils.js'
 
 // Overload 1: Default FeedsmithFeed, parser optional.
 export function findCanonical<
@@ -40,8 +40,8 @@ export async function findCanonical(
   options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
 ): Promise<string | undefined> {
   const {
-    parser = feedsmithParser,
-    fetchFn = nativeFetch,
+    parser = defaultParser,
+    fetchFn = defaultFetch,
     existsFn,
     tiers = defaultTiers,
     platforms = defaultPlatforms,

@@ -1,5 +1,13 @@
+import { parseFeed } from 'feedsmith'
 import { feedburnerHandler } from './platforms/feedburner.js'
-import type { NormalizeOptions, PlatformHandler, Tier } from './types.js'
+import type {
+  FeedsmithFeed,
+  FetchFn,
+  NormalizeOptions,
+  ParserAdapter,
+  PlatformHandler,
+  Tier,
+} from './types.js'
 
 // Platform handlers for domain-specific URL normalization.
 export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
@@ -222,6 +230,42 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   normalizeEncoding: true,
   normalizeUnicode: true,
   convertToPunycode: true,
+}
+
+export const defaultFetch: FetchFn = async (url, options) => {
+  const response = await fetch(url, {
+    method: options?.method ?? 'GET',
+    headers: options?.headers,
+  })
+
+  return {
+    headers: response.headers,
+    body: await response.text(),
+    url: response.url,
+    status: response.status,
+  }
+}
+
+export const defaultParser: ParserAdapter<FeedsmithFeed> = {
+  parse: (body) => {
+    try {
+      return parseFeed(body)
+    } catch {}
+  },
+  getSelfUrl: (parsed) => {
+    switch (parsed.format) {
+      case 'atom':
+        return parsed.feed.links?.find((link) => link.rel === 'self')?.href
+      case 'rss':
+      case 'rdf':
+        return parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
+      case 'json':
+        return parsed.feed.feed_url
+    }
+  },
+  getSignature: (parsed) => {
+    return parsed.feed
+  },
 }
 
 // Normalization tiers ordered from cleanest to least clean.
