@@ -116,7 +116,7 @@ const url = await findCanonical('https://example.com/feed', {
     parse: (body) => {
       try {
         // rss-parser is async, but we need sync
-        // Consider using feedsmith or fast-xml-parser instead
+        // Consider using Feedsmith or fast-xml-parser instead
         return undefined
       } catch {
         return undefined
@@ -132,12 +132,12 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 ::: warning
-Most feed parsers are asynchronous. The `parse` function in `ParserAdapter` is synchronous. Consider using [feedsmith](https://github.com/macieklamberski/feedsmith) (the default) or another synchronous parser.
+Most feed parsers are asynchronous. The `parse` function in `ParserAdapter` is synchronous. Consider using [Feedsmith](https://github.com/macieklamberski/feedsmith) (the default) or another synchronous parser.
 :::
 
 ## Default Parser
 
-Feedcanon uses [feedsmith](https://github.com/macieklamberski/feedsmith) by default, which supports RSS 0.9x, RSS 1.0, RSS 2.0, Atom 0.3, Atom 1.0, JSON Feed 1.0, and JSON Feed 1.1.
+Feedcanon uses [Feedsmith](https://github.com/macieklamberski/feedsmith) by default, which supports RSS 0.9x, RSS 1.0, RSS 2.0, Atom 0.3, Atom 1.0, JSON Feed 1.0, and JSON Feed 1.1.
 
 The default implementation:
 
