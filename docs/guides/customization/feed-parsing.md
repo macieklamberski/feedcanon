@@ -51,58 +51,6 @@ The signature should include stable identifiers like:
 
 ## Examples
 
-### Custom Parser
-
-```typescript
-import { findCanonical } from 'feedcanon'
-import { XMLParser } from 'fast-xml-parser'
-
-type MyFeed = {
-  title: string
-  link: string
-  selfUrl?: string
-  items: Array<{
-    guid: string
-    title: string
-    pubDate: string
-  }>
-}
-
-const xmlParser = new XMLParser()
-
-const url = await findCanonical('https://example.com/feed', {
-  parser: {
-    parse: (body) => {
-      try {
-        const xml = xmlParser.parse(body)
-        const channel = xml.rss?.channel
-
-        if (!channel) return undefined
-
-        return {
-          title: channel.title,
-          link: channel.link,
-          selfUrl: channel['atom:link']?.href,
-          items: (channel.item || []).map((item: any) => ({
-            guid: item.guid || item.link,
-            title: item.title,
-            pubDate: item.pubDate,
-          })),
-        }
-      } catch {}
-    },
-
-    getSelfUrl: (feed) => feed.selfUrl,
-
-    getSignature: (feed) => ({
-      title: feed.title,
-      link: feed.link,
-      itemGuids: feed.items.map((i) => i.guid),
-    }),
-  },
-})
-```
-
 ### rss-parser
 
 ```typescript
