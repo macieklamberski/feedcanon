@@ -993,6 +993,23 @@ describe('normalizeUrl', () => {
     })
   })
 
+  describe('query string stripping', () => {
+    it('should strip entire query string when stripQuery is true', () => {
+      const value = 'https://example.com/feed?a=1&b=2&c=3'
+      const options = { ...defaultNormalizeOptions, stripQuery: true }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve query string by default', () => {
+      const value = 'https://example.com/feed?id=123'
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+  })
+
   describe('empty query removal', () => {
     it('should remove empty query string by default', () => {
       const value = 'https://example.com/feed?'

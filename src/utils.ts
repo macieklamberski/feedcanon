@@ -233,6 +233,11 @@ export const normalizeUrl = (
 
     parsed.pathname = pathname
 
+    // Strip entire query string.
+    if (options.stripQuery) {
+      parsed.search = ''
+    }
+
     // Remove tracking/specified parameters.
     if (options.stripQueryParams && parsed.search) {
       for (const param of options.stripQueryParams) {

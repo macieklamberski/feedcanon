@@ -27,6 +27,7 @@ export type NormalizeOptions = {
   stripHash?: boolean // strip #fragment
   sortQueryParams?: boolean // sort query params alphabetically
   stripQueryParams?: Array<string> // query params to strip
+  stripQuery?: boolean // strip entire query string
   stripEmptyQuery?: boolean // /feed? → /feed
   normalizeEncoding?: boolean // normalize %XX encoding
   normalizeUnicode?: boolean // NFC normalization

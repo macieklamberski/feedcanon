@@ -32,6 +32,7 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`:
 | `stripHash` | `true` | Remove `#fragment` |
 | `sortQueryParams` | `true` | Sort params alphabetically |
 | ~~`stripQueryParams`~~ | ~~—~~ | ~~Handled at top level, not per-tier~~ |
+| `stripQuery` | `false` | Remove entire query string |
 | `stripEmptyQuery` | `true` | Remove empty `?` |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
 | `normalizeUnicode` | `true` | NFC normalization |
