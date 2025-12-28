@@ -208,4 +208,13 @@ describe('defaultParser', () => {
       expect(defaultParser.getSelfUrl(value)).toBe('https://example.com/feed.json')
     })
   })
+
+  describe('getSignature', () => {
+    it('should return feed object as signature', () => {
+      const feed = { title: 'Test Feed', items: [] }
+      const value = { format: 'rss' as const, feed }
+
+      expect(defaultParser.getSignature(value)).toBe(feed)
+    })
+  })
 })

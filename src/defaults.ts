@@ -53,6 +53,7 @@ export const defaultStrippedParams = [
   // Email marketing.
   'mc_cid', // Mailchimp campaign ID.
   'mc_eid', // Mailchimp subscriber/member ID.
+  'mc_tc', // Mailchimp time of click tracking.
   'mkt_tok', // Marketo email tracking token.
 
   // Microsoft / LinkedIn.
@@ -104,6 +105,9 @@ export const defaultStrippedParams = [
   'hsa_tgt', // Target audience.
   'hsa_ver', // Tracking version.
   'hsCtaTracking', // CTA click tracking.
+  'hsctatracking', // CTA click tracking (lowercase variant).
+  '_hsenc', // Encrypted tracking identifier.
+  '_hsmi', // Email message ID.
   '__hstc', // Cross-domain visitor tracking cookie.
   '__hsfp', // Browser fingerprint for cross-domain tracking.
   '__hssc', // Session tracking (view count, session start).
@@ -111,14 +115,17 @@ export const defaultStrippedParams = [
   // Adobe.
   'cid', // Adobe Analytics campaign tracking (s.campaign).
   's_kwcid', // Adobe Advertising AMO ID for attribution.
+  'sc_cid', // Site Catalyst campaign ID.
   'ef_id', // Adobe EF ID for granular event tracking.
 
   // Outbrain / Taboola.
   'obOrigUrl', // Outbrain original URL preservation.
   'dicbo', // Outbrain click ID for conversion tracking.
 
-  // Yahoo.
-  'yclid', // Yahoo/Yandex click ID for ad attribution.
+  // Yahoo / Yandex.
+  'yclid', // Yahoo click ID for ad attribution.
+  'ysclid', // Yandex click ID for ad attribution.
+  '_openstat', // OpenStat campaign tracking (Russian analytics).
 
   // Affiliate networks.
   'awinaffid', // Awin affiliate/publisher ID.
@@ -192,6 +199,16 @@ export const defaultStrippedParams = [
   'at_custom4', // Custom tracking field 4.
   'at_medium', // Adobe Target medium.
   'at_preview_index', // Preview index.
+
+  // Newsletter platforms.
+  '_bhlid', // Beehiiv link tracking ID.
+
+  // Deep linking.
+  '_branch_match_id', // Branch.io match ID.
+  '_branch_referrer', // Branch.io referrer tracking.
+
+  // Reader apps.
+  '__readwiseLocation', // Readwise Reader position tracking.
 
   // Misc tracking.
   'campaign_id', // Generic campaign ID.
