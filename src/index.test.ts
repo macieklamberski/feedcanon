@@ -953,6 +953,58 @@ describe('findCanonical', () => {
 
       expect(await findCanonical(value, options)).toBe(expected)
     })
+
+    it('should await async parser on initial parse', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      let parseCompleted = false
+      const asyncParser: ParserAdapter<string> = {
+        parse: async (body) => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+          parseCompleted = true
+          return body
+        },
+        getSelfUrl: () => undefined,
+        getSignature: (parsed) => ({ content: parsed }),
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: asyncParser,
+      })
+
+      const result = await findCanonical(value, options)
+      expect(parseCompleted).toBe(true)
+      expect(result).toBe(expected)
+    })
+
+    it('should await async parser during signature comparison', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://example.com/feed'
+      let comparisonParseCount = 0
+      const asyncParser: ParserAdapter<{ id: string }> = {
+        parse: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+          comparisonParseCount++
+          return { id: 'same-feed' }
+        },
+        getSelfUrl: () => undefined,
+        getSignature: (parsed) => parsed,
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed': { body: '<feed>a</feed>' },
+          'https://example.com/feed': { body: '<feed>b</feed>' },
+        }),
+        parser: asyncParser,
+      })
+
+      const result = await findCanonical(value, options)
+      expect(comparisonParseCount).toBeGreaterThan(1) // Initial + comparison
+      expect(result).toBe(expected)
+    })
   })
 
   describe('when fetch fails', () => {
