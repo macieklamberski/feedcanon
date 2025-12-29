@@ -2498,4 +2498,22 @@ describe('findCanonical', () => {
       expect(findCanonical(value, options)).rejects.toThrow('Callback error')
     })
   })
+
+  describe('BOM handling', () => {
+    it('should match feeds with BOM difference via exact body comparison', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://example.com/feed'
+      const bodyWithBom = '\uFEFF<feed><item>test</item></feed>'
+      const bodyWithoutBom = '<feed><item>test</item></feed>'
+      const options = toOptions({
+        parser: createMockParser(undefined),
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed': { body: bodyWithBom },
+          'https://example.com/feed': { body: bodyWithoutBom },
+        }),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+  })
 })

@@ -7,6 +7,7 @@ import {
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
+  stripBom,
 } from './utils.js'
 
 describe('resolveFeedProtocol', () => {
@@ -1339,5 +1340,39 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+})
+
+describe('stripBom', () => {
+  it('should strip UTF-8 BOM from start of string', () => {
+    const value = '\uFEFF<?xml version="1.0"?>'
+    const expected = '<?xml version="1.0"?>'
+
+    expect(stripBom(value)).toBe(expected)
+  })
+
+  it('should return string unchanged when no BOM present', () => {
+    const value = '<?xml version="1.0"?>'
+
+    expect(stripBom(value)).toBe(value)
+  })
+
+  it('should return empty string unchanged', () => {
+    const value = ''
+
+    expect(stripBom(value)).toBe(value)
+  })
+
+  it('should not strip BOM-like character from middle of string', () => {
+    const value = 'prefix\uFEFFsuffix'
+
+    expect(stripBom(value)).toBe(value)
+  })
+
+  it('should only strip first character when it is BOM', () => {
+    const value = '\uFEFF\uFEFFdouble'
+    const expected = '\uFEFFdouble'
+
+    expect(stripBom(value)).toBe(expected)
   })
 })

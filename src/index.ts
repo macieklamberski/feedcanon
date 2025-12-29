@@ -11,7 +11,7 @@ import type {
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import { applyPlatformHandlers, normalizeUrl, resolveUrl } from './utils.js'
+import { applyPlatformHandlers, normalizeUrl, resolveUrl, stripBom } from './utils.js'
 
 // Overload 1: Default FeedsmithFeed, parser optional.
 export function findCanonical<
@@ -119,8 +119,9 @@ export async function findCanonical(
       return false
     }
 
-    // Tier 1: Exact body match.
-    if (initialResponseBody === comparedResponseBody) {
+    // Tier 1: Exact body match. Strip BOM for consistent comparison since same
+    // feed can be served with or without BOM depending on server configuration.
+    if (stripBom(initialResponseBody) === stripBom(comparedResponseBody)) {
       return true
     }
 
