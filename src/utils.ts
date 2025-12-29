@@ -171,6 +171,25 @@ const decodeAndNormalizeEncoding = (value: string): string => {
   })
 }
 
+// Strip `ref` query param only when its value matches the URL's hostname.
+// Ghost blogs add `?ref=domain.com` for self-referential tracking which is
+// safe to strip, but `ref` with other values may be functional.
+const stripSelfRefParam = (parsed: URL): void => {
+  const ref = parsed.searchParams.get('ref')
+
+  if (!ref) {
+    return
+  }
+
+  // Check if ref value matches URL hostname (with or without www).
+  const refHost = ref.replace(/^www\./, '').toLowerCase()
+  const urlHost = parsed.hostname.replace(/^www\./, '').toLowerCase()
+
+  if (refHost === urlHost) {
+    parsed.searchParams.delete('ref')
+  }
+}
+
 export const normalizeUrl = (
   url: string,
   options: NormalizeOptions = defaultNormalizeOptions,
@@ -243,6 +262,11 @@ export const normalizeUrl = (
       for (const param of options.stripQueryParams) {
         parsed.searchParams.delete(param)
       }
+    }
+
+    // Strip self-referential ref param (e.g., ?ref=example.com on example.com).
+    if (options.stripSelfRefParam) {
+      stripSelfRefParam(parsed)
     }
 
     // Sort query parameters.

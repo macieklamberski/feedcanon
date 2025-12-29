@@ -1010,6 +1010,53 @@ describe('normalizeUrl', () => {
     })
   })
 
+  describe('self-referential ref param stripping', () => {
+    it('should strip ref when value matches hostname', () => {
+      const value = 'https://example.com/feed?ref=example.com'
+      const options = { stripSelfRefParam: true }
+      const expected = 'https://example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip ref when value matches hostname with www', () => {
+      const value = 'https://www.example.com/feed?ref=example.com'
+      const options = { stripSelfRefParam: true }
+      const expected = 'https://www.example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip ref when URL has www but value does not', () => {
+      const value = 'https://example.com/feed?ref=www.example.com'
+      const options = { stripSelfRefParam: true }
+      const expected = 'https://example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve ref when value differs from hostname', () => {
+      const value = 'https://example.com/feed?ref=other.com'
+      const options = { stripSelfRefParam: true }
+
+      expect(normalizeUrl(value, options)).toBe(value)
+    })
+
+    it('should preserve ref when option is disabled', () => {
+      const value = 'https://example.com/feed?ref=example.com'
+      const options = { stripSelfRefParam: false }
+
+      expect(normalizeUrl(value, options)).toBe(value)
+    })
+
+    it('should strip self-referential ref by default', () => {
+      const value = 'https://example.com/feed?ref=example.com'
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+  })
+
   describe('empty query removal', () => {
     it('should remove empty query string by default', () => {
       const value = 'https://example.com/feed?'

@@ -54,7 +54,12 @@ export async function findCanonical(
   // Strip tracking params from URL using normalizeUrl with minimal options.
   const stripParams = (url: string): string => {
     return stripQueryParams?.length
-      ? normalizeUrl(url, { stripQueryParams, sortQueryParams: true, stripEmptyQuery: true })
+      ? normalizeUrl(url, {
+          stripQueryParams,
+          stripSelfRefParam: true,
+          sortQueryParams: true,
+          stripEmptyQuery: true,
+        })
       : url
   }
 
