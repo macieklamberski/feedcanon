@@ -26,6 +26,38 @@ const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
+// Fix common malformations in HTTP/HTTPS protocols. Handles:
+// - Excess slashes: http:////example.com → http://example.com
+// - Leading slash: /http://example.com → http://example.com
+// - Typos in protocol: htp://, htps://, hhttps:// → http:// or https://
+// - Missing colon: http//example.com → http://example.com
+// - Multiple colons: http:::// → http://
+// - Wrong separators: http=//, http.\\ → http://
+// - Leading junk after protocol: http://./example.com → http://example.com
+export const fixMalformedProtocol = (url: string): string => {
+  let fixed = url
+
+  // Strip leading slash before protocol: /http://example.com → http://example.com
+  if (/^\/https?:\/\//i.test(fixed)) {
+    fixed = fixed.slice(1)
+  }
+
+  // Fix typos in protocol (htp, htps, hhttps, httpss, etc.) only when followed by ://
+  // Uses presence of 's' to determine if https was intended
+  fixed = fixed.replace(/^[htps]{2,7}(?=:\/\/)/i, (match) => (/s/i.test(match) ? 'https' : 'http'))
+
+  // Fix wrong separators after protocol (http=, http., http\, etc.)
+  fixed = fixed.replace(/^(https?)[:=./\\]+(?!\/)/i, '$1://')
+
+  // Fix multiple colons and slashes: http:::/// → http://
+  fixed = fixed.replace(/^(https?):+\/+/i, '$1://')
+
+  // Remove leading dots/commas after protocol: http://./example.com → http://example.com
+  fixed = fixed.replace(/^(https?:\/\/)[.,]+/i, '$1')
+
+  return fixed
+}
+
 // Convert known feed-related protocols to HTTPS. Examples:
 // - feed://example.com/rss.xml → https://example.com/rss.xml
 // - feed:https://example.com/rss.xml → https://example.com/rss.xml
@@ -137,7 +169,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   // Step 2: Convert feed-related protocols.
   resolvedUrl = resolveFeedProtocol(resolvedUrl)
 
-  // Step 3: Resolve relative URLs if base is provided.
+  // Step 3: Fix malformed HTTP/HTTPS protocols.
+  resolvedUrl = fixMalformedProtocol(resolvedUrl)
+
+  // Step 4: Resolve relative URLs if base is provided.
   if (base) {
     try {
       resolvedUrl = new URL(resolvedUrl, base).href
@@ -146,10 +181,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
     }
   }
 
-  // Step 4: Add protocol if missing (handles both // and bare domains).
+  // Step 5: Add protocol if missing (handles both // and bare domains).
   resolvedUrl = addMissingProtocol(resolvedUrl)
 
-  // Step 5: Validate using native URL constructor.
+  // Step 6: Validate using native URL constructor.
   try {
     const parsed = new URL(resolvedUrl)
 

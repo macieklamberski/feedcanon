@@ -4,6 +4,7 @@ import type { NormalizeOptions, PlatformHandler } from './types.js'
 import {
   addMissingProtocol,
   applyPlatformHandlers,
+  fixMalformedProtocol,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
@@ -161,6 +162,87 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol('feed:http://example.com/feed', 'https')).toBe(
       'http://example.com/feed',
     )
+  })
+})
+
+describe('fixMalformedProtocol', () => {
+  it('should strip leading slash before protocol', () => {
+    const values = [
+      { value: '/http://example.com', expected: 'http://example.com' },
+      { value: '/https://example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix protocol typos', () => {
+    const values = [
+      { value: 'htp://example.com', expected: 'http://example.com' },
+      { value: 'htps://example.com', expected: 'https://example.com' },
+      { value: 'hhttps://example.com', expected: 'https://example.com' },
+      { value: 'httpss://example.com', expected: 'https://example.com' },
+      { value: 'ttp://example.com', expected: 'http://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix wrong separators after protocol', () => {
+    const values = [
+      { value: 'http=//example.com', expected: 'http://example.com' },
+      { value: 'http.//example.com', expected: 'http://example.com' },
+      { value: 'http\\//example.com', expected: 'http://example.com' },
+      { value: 'https=//example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix multiple colons and slashes', () => {
+    const values = [
+      { value: 'http:://example.com', expected: 'http://example.com' },
+      { value: 'http:///example.com', expected: 'http://example.com' },
+      { value: 'http:////example.com', expected: 'http://example.com' },
+      { value: 'https:::///example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should remove leading junk after protocol', () => {
+    const values = [
+      { value: 'http://./example.com', expected: 'http://example.com' },
+      { value: 'http://,example.com', expected: 'http://example.com' },
+      { value: 'https://...example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should preserve valid URLs unchanged', () => {
+    const values = [
+      'http://example.com',
+      'https://example.com',
+      'http://example.com/path/to/feed',
+      'https://example.com/feed?format=rss',
+      'http://example.com:8080/feed',
+      'ftp://example.com/file',
+      '/path/to/feed',
+    ]
+
+    for (const value of values) {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    }
   })
 })
 
