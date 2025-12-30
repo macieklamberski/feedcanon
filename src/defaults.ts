@@ -283,25 +283,46 @@ export const defaultParser: ParserAdapter<FeedsmithFeed> = {
     return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
   },
   getSignature: (parsed) => {
-    // Neutralize self URL before generating signature to ensure feeds
-    // that differ only in self URL are considered semantically identical.
+    // Neutralize dynamic fields before generating signature to ensure feeds
+    // that differ only in self URL or timestamps are considered semantically identical.
+
     if (parsed.format === 'json') {
-      const original = parsed.feed.feed_url
+      const originalSelfUrl = parsed.feed.feed_url
       parsed.feed.feed_url = undefined
       const signature = JSON.stringify(parsed.feed)
-      parsed.feed.feed_url = original
+      parsed.feed.feed_url = originalSelfUrl
+
       return signature
     }
 
-    const link = findSelfLink(parsed)
-    if (!link) {
-      return JSON.stringify(parsed.feed)
+    let signature: string
+    let originalBuildDate: string | undefined
+
+    if (parsed.format === 'rss') {
+      originalBuildDate = parsed.feed.lastBuildDate
+      parsed.feed.lastBuildDate = undefined
+    } else if (parsed.format === 'atom') {
+      originalBuildDate = parsed.feed.updated
+      parsed.feed.updated = undefined
     }
 
-    const original = link.href
-    link.href = undefined
-    const signature = JSON.stringify(parsed.feed)
-    link.href = original
+    const link = findSelfLink(parsed)
+
+    if (!link) {
+      signature = JSON.stringify(parsed.feed)
+    } else {
+      const originalSelfUrl = link.href
+      link.href = undefined
+      signature = JSON.stringify(parsed.feed)
+      link.href = originalSelfUrl
+    }
+
+    if (parsed.format === 'rss') {
+      parsed.feed.lastBuildDate = originalBuildDate
+    } else if (parsed.format === 'atom') {
+      parsed.feed.updated = originalBuildDate
+    }
+
     return signature
   },
 }
