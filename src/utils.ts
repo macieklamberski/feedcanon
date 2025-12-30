@@ -34,6 +34,10 @@ const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 // - Multiple colons: http:::// → http://
 // - Wrong separators: http=//, http.\\ → http://
 // - Leading junk after protocol: http://./example.com → http://example.com
+// - Placeholder syntax: http(s):// → https://
+// - Double protocol: http:http://, https:https:// → dedupe
+// - Misplaced www: https:www.// → https://www.
+// - Missing www dot: https://www/ → https://www.
 export const fixMalformedProtocol = (url: string): string => {
   let fixed = url
 
@@ -41,6 +45,20 @@ export const fixMalformedProtocol = (url: string): string => {
   if (/^\/https?:\/\//i.test(fixed)) {
     fixed = fixed.slice(1)
   }
+
+  // Fix placeholder syntax: http(s):// → https://
+  fixed = fixed.replace(/^http\(s\):\/\//i, 'https://')
+
+  // Fix colon within protocol letters: http:s//, ht:tps//, htt:p// → http:// or https://
+  fixed = fixed.replace(/^[htps:]{3,7}\/\//i, (match) => {
+    return /s/i.test(match) ? 'https://' : 'http://'
+  })
+
+  // Fix double protocol prefix: http:http://, https:https:// → keep inner
+  fixed = fixed.replace(/^https?:+(https?):\/\//i, '$1://')
+
+  // Fix misplaced www after protocol: https:www.// → https://www.
+  fixed = fixed.replace(/^(https?):www\.\/\//i, '$1://www.')
 
   // Fix typos in protocol (htp, htps, hhttps, httpss, etc.) only when followed by ://
   // Uses presence of 's' to determine if https was intended
@@ -54,6 +72,18 @@ export const fixMalformedProtocol = (url: string): string => {
 
   // Remove leading dots/commas after protocol: http://./example.com → http://example.com
   fixed = fixed.replace(/^(https?:\/\/)[.,]+/i, '$1')
+
+  // Fix missing dot after www: https://www/example.com → https://www.example.com
+  fixed = fixed.replace(/^(https?:\/\/)www\//i, '$1www.')
+
+  // Fix nested double protocols: http://https//domain → https://, http://ttp://domain → http://
+  // Only matches when inner protocol-like string is followed by : or / (not . which indicates hostname)
+  fixed = fixed.replace(/^[htps]{2,7}:\/\/([htps]{2,7})[:/]+/i, (_match, inner) => {
+    return /s/i.test(inner) ? 'https://' : 'http://'
+  })
+
+  // Fix stray colon after protocol slashes: http://:/path → http://path
+  fixed = fixed.replace(/^(https?:\/\/):\//i, '$1')
 
   return fixed
 }

@@ -229,6 +229,100 @@ describe('fixMalformedProtocol', () => {
     }
   })
 
+  it('should fix placeholder syntax', () => {
+    const values = [
+      { value: 'http(s)://example.com', expected: 'https://example.com' },
+      { value: 'HTTP(S)://example.com/feed', expected: 'https://example.com/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix colon within protocol letters', () => {
+    const values = [
+      { value: 'http:s//example.com', expected: 'https://example.com' },
+      { value: 'https:s//example.com', expected: 'https://example.com' },
+      { value: 'ht:tps//example.com', expected: 'https://example.com' },
+      { value: 'htt:p//example.com', expected: 'http://example.com' },
+      { value: 'h:ttp//example.com', expected: 'http://example.com' },
+      { value: 'ht:tp//example.com', expected: 'http://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix double protocol prefix', () => {
+    const values = [
+      { value: 'http:http://example.com', expected: 'http://example.com' },
+      { value: 'https:https://example.com', expected: 'https://example.com' },
+      { value: 'http:https://example.com', expected: 'https://example.com' },
+      { value: 'https:http://example.com', expected: 'http://example.com' },
+      { value: 'http::http://example.com', expected: 'http://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix misplaced www after protocol', () => {
+    const values = [
+      { value: 'http:www.//example.com', expected: 'http://www.example.com' },
+      { value: 'https:www.//example.com', expected: 'https://www.example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix missing dot after www', () => {
+    const values = [
+      { value: 'http://www/example.com', expected: 'http://www.example.com' },
+      { value: 'https://www/example.com/feed', expected: 'https://www.example.com/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix nested double protocols', () => {
+    const values = [
+      { value: 'http://https//example.com', expected: 'https://example.com' },
+      { value: 'http://https/example.com', expected: 'https://example.com' },
+      { value: 'https://https//example.com', expected: 'https://example.com' },
+      { value: 'http://http/example.com', expected: 'http://example.com' },
+      { value: 'http://http//example.com', expected: 'http://example.com' },
+      { value: 'http://ttp://example.com', expected: 'http://example.com' },
+      { value: 'http://ttps://example.com', expected: 'https://example.com' },
+      { value: 'htp://ttps://example.com', expected: 'https://example.com' },
+      { value: 'htps://ttp://example.com', expected: 'http://example.com' },
+      { value: 'hs://hp://example.com', expected: 'http://example.com' },
+      { value: 'httpss://htps://example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix stray colon after protocol slashes', () => {
+    const values = [
+      { value: 'http://:/example.com', expected: 'http://example.com' },
+      { value: 'https://:/example.com', expected: 'https://example.com' },
+      { value: 'http://:/path/to/feed', expected: 'http://path/to/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
   it('should preserve valid URLs unchanged', () => {
     const values = [
       'http://example.com',
