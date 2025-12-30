@@ -286,36 +286,36 @@ export const defaultParser: ParserAdapter<FeedsmithFeed> = {
     // Neutralize dynamic fields before generating signature to ensure feeds
     // that differ only in self URL or timestamps are considered semantically identical.
 
-    // Neutralize lastBuildDate - many feeds regenerate this on every fetch.
-    let origLastBuildDate: string | undefined
-    if (parsed.format === 'rss') {
-      origLastBuildDate = parsed.feed.lastBuildDate
-      parsed.feed.lastBuildDate = undefined
+    if (parsed.format === 'json') {
+      const originalSelfUrl = parsed.feed.feed_url
+      parsed.feed.feed_url = undefined
+      const signature = JSON.stringify(parsed.feed)
+      parsed.feed.feed_url = originalSelfUrl
+
+      return signature
     }
 
     let signature: string
+    let originalLastBuildDate: string | undefined
 
-    // Neutralize self URL.
-    if (parsed.format === 'json') {
-      const original = parsed.feed.feed_url
-      parsed.feed.feed_url = undefined
-      signature = JSON.stringify(parsed.feed)
-      parsed.feed.feed_url = original
-    } else {
-      const link = findSelfLink(parsed)
-      if (!link) {
-        signature = JSON.stringify(parsed.feed)
-      } else {
-        const original = link.href
-        link.href = undefined
-        signature = JSON.stringify(parsed.feed)
-        link.href = original
-      }
+    if (parsed.format === 'rss') {
+      originalLastBuildDate = parsed.feed.lastBuildDate
+      parsed.feed.lastBuildDate = undefined
     }
 
-    // Restore lastBuildDate.
+    const link = findSelfLink(parsed)
+
+    if (!link) {
+      signature = JSON.stringify(parsed.feed)
+    } else {
+      const originalSelfUrl = link.href
+      link.href = undefined
+      signature = JSON.stringify(parsed.feed)
+      link.href = originalSelfUrl
+    }
+
     if (parsed.format === 'rss') {
-      parsed.feed.lastBuildDate = origLastBuildDate
+      parsed.feed.lastBuildDate = originalLastBuildDate
     }
 
     return signature
