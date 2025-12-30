@@ -280,6 +280,11 @@ export const normalizeUrl = (
     // Build result URL.
     let result = parsed.href
 
+    // Strip root slash: URL.href always includes "/" for root paths.
+    if (options.stripRootSlash && result === `${parsed.origin}/`) {
+      result = parsed.origin
+    }
+
     // Strip protocol for comparison.
     if (options.stripProtocol) {
       result = result.replace(/^https?:\/\//, '')

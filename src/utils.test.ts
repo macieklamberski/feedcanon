@@ -910,9 +910,45 @@ describe('normalizeUrl', () => {
   })
 
   describe('single slash (root path) handling', () => {
-    it('should keep root slash', () => {
+    it('should strip root slash by default', () => {
       const value = 'https://example.com/'
+      const expected = 'example.com'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should strip root slash from URL without trailing slash', () => {
+      const value = 'https://example.com'
+      const expected = 'example.com'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should preserve root slash when stripRootSlash is false', () => {
+      const value = 'https://example.com/'
+      const options = { ...defaultNormalizeOptions, stripRootSlash: false }
       const expected = 'example.com/'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve path when stripping root slash', () => {
+      const value = 'https://example.com/path'
+      const expected = 'example.com/path'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should preserve slash before query string', () => {
+      const value = 'https://example.com/?a=1'
+      const expected = 'example.com/?a=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should strip root slash with port number', () => {
+      const value = 'https://example.com:8080/'
+      const expected = 'example.com:8080'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -1172,7 +1208,7 @@ describe('normalizeUrl', () => {
   describe('edge cases', () => {
     it('should handle URL without path', () => {
       const value = 'https://example.com'
-      const expected = 'example.com/'
+      const expected = 'example.com'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -1243,7 +1279,7 @@ describe('normalizeUrl', () => {
 
     it('should handle URL with only hash', () => {
       const value = 'https://example.com/#section'
-      const expected = 'example.com/'
+      const expected = 'example.com'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
