@@ -8,7 +8,7 @@ export const feedburnerHandler: PlatformHandler = {
   },
 
   normalize: (url) => {
-    const normalized = new URL(url.href)
+    const normalized = new URL(url)
 
     // Normalize domain to feeds.feedburner.com.
     normalized.hostname = 'feeds.feedburner.com'

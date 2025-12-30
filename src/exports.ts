@@ -1,21 +1,28 @@
-export { canonicalize } from './canonicalize.js'
-export { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
+export {
+  defaultFetch,
+  defaultParser,
+  defaultPlatforms,
+  defaultStrippedParams,
+  defaultTiers,
+} from './defaults.js'
+export { findCanonical } from './index.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
-  CanonicalizeOptions,
   ExistsFn,
-  FeedData,
+  FeedsmithFeed,
   FetchFn,
   FetchFnOptions,
   FetchFnResponse,
-  HashFn,
+  FindCanonicalOptions,
   NormalizeOptions,
+  OnExistsFn,
+  OnFetchFn,
+  OnMatchFn,
   ParserAdapter,
   PlatformHandler,
 } from './types.js'
 export {
   addMissingProtocol,
-  isSimilarUrl,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,

@@ -1,7 +1,20 @@
-import { createHash } from 'node:crypto'
 import { domainToASCII } from 'node:url'
+import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { FetchFn, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler } from './types.js'
+
+const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
+
+const getStrippedParamsSet = (params: Array<string>): Set<string> => {
+  let cached = strippedParamsCache.get(params)
+
+  if (!cached) {
+    cached = new Set(params.map((param) => param.toLowerCase()))
+    strippedParamsCache.set(params, cached)
+  }
+
+  return cached
+}
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
@@ -73,7 +86,7 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
       // Valid web hostnames must have at least one of:
       // Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
       if (
-        hostname.indexOf('.') !== -1 ||
+        hostname.includes('.') ||
         hostname === 'localhost' ||
         ipv4Pattern.test(hostname) ||
         ipv6Pattern.test(hostname.replace(/^\[|\]$/g, ''))
@@ -115,26 +128,30 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
 // Resolves a URL by converting feed protocols, resolving relative URLs,
 // and ensuring it's a valid HTTP(S) URL.
 export const resolveUrl = (url: string, base?: string): string | undefined => {
-  let processed = url
+  let resolvedUrl: string | undefined
 
-  // Step 1: Convert feed-related protocols.
-  processed = resolveFeedProtocol(processed)
+  // Step 1: Decode HTML entities to recover the intended URL.
+  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &).
+  resolvedUrl = url.includes('&') ? decodeHTML(url) : url
 
-  // Step 2: Resolve relative URLs if base is provided.
+  // Step 2: Convert feed-related protocols.
+  resolvedUrl = resolveFeedProtocol(resolvedUrl)
+
+  // Step 3: Resolve relative URLs if base is provided.
   if (base) {
     try {
-      processed = new URL(processed, base).href
+      resolvedUrl = new URL(resolvedUrl, base).href
     } catch {
       return
     }
   }
 
-  // Step 3: Add protocol if missing (handles both // and bare domains).
-  processed = addMissingProtocol(processed)
+  // Step 4: Add protocol if missing (handles both // and bare domains).
+  resolvedUrl = addMissingProtocol(resolvedUrl)
 
-  // Step 4: Normalize using native URL constructor.
+  // Step 5: Validate using native URL constructor.
   try {
-    const parsed = new URL(processed)
+    const parsed = new URL(resolvedUrl)
 
     // Reject non-HTTP(S) protocols.
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -147,9 +164,13 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   }
 }
 
-const decodeAndNormalizeEncoding = (str: string): string => {
+const decodeAndNormalizeEncoding = (value: string): string => {
+  if (!value.includes('%')) {
+    return value
+  }
+
   // Decodes unnecessarily percent-encoded characters and normalizes encoding to uppercase.
-  return str.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
+  return value.replace(/%([0-9A-Fa-f]{2})/g, (_match, hex) => {
     const charCode = Number.parseInt(hex, 16)
     const char = String.fromCharCode(charCode)
 
@@ -163,7 +184,10 @@ const decodeAndNormalizeEncoding = (str: string): string => {
   })
 }
 
-export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
+export const normalizeUrl = (
+  url: string,
+  options: NormalizeOptions = defaultNormalizeOptions,
+): string => {
   try {
     const parsed = new URL(url)
 
@@ -181,11 +205,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       }
     }
 
-    // Lowercase hostname.
-    if (options.lowercaseHostname) {
-      parsed.hostname = parsed.hostname.toLowerCase()
-    }
-
     // Strip authentication.
     if (options.stripAuthentication) {
       parsed.username = ''
@@ -197,23 +216,8 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       parsed.hostname = parsed.hostname.slice(4)
     }
 
-    // Strip default ports.
-    if (options.stripDefaultPorts) {
-      if (
-        (parsed.protocol === 'https:' && parsed.port === '443') ||
-        (parsed.protocol === 'http:' && parsed.port === '80')
-      ) {
-        parsed.port = ''
-      }
-    }
-
     // Strip hash/fragment.
     if (options.stripHash) {
-      parsed.hash = ''
-    }
-
-    // Strip text fragments (Chrome's #:~:text= feature).
-    if (options.stripTextFragment && parsed.hash.startsWith('#:~:')) {
       parsed.hash = ''
     }
 
@@ -242,9 +246,23 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 
     parsed.pathname = pathname
 
-    // Remove tracking/specified parameters.
-    if (options.stripQueryParams) {
-      for (const param of options.stripQueryParams) {
+    // Strip entire query string.
+    if (options.stripQuery) {
+      parsed.search = ''
+    }
+
+    // Remove tracking/specified parameters (case-insensitive).
+    if (options.stripQueryParams && parsed.search) {
+      const strippedSet = getStrippedParamsSet(options.stripQueryParams)
+      const paramsToDelete: Array<string> = []
+
+      for (const [key] of parsed.searchParams) {
+        if (strippedSet.has(key.toLowerCase())) {
+          paramsToDelete.push(key)
+        }
+      }
+
+      for (const param of paramsToDelete) {
         parsed.searchParams.delete(param)
       }
     }
@@ -255,7 +273,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     }
 
     // Remove empty query string.
-    if (options.stripEmptyQuery && parsed.search === '?') {
+    if (options.stripEmptyQuery && parsed.href.endsWith('?')) {
       parsed.search = ''
     }
 
@@ -270,28 +288,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     return result
   } catch {
     return url
-  }
-}
-
-export const isSimilarUrl = (
-  url1: string,
-  url2: string,
-  options = defaultNormalizeOptions,
-): boolean => {
-  return normalizeUrl(url1, options) === normalizeUrl(url2, options)
-}
-
-export const defaultFetchFn: FetchFn = async (url, options) => {
-  const response = await fetch(url, {
-    method: options?.method ?? 'GET',
-    headers: options?.headers,
-  })
-
-  return {
-    headers: response.headers,
-    body: await response.text(),
-    url: response.url,
-    status: response.status,
   }
 }
 
@@ -310,8 +306,4 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   } catch {
     return url
   }
-}
-
-export const createMd5Hash = (content: string): string => {
-  return createHash('md5').update(content).digest('hex')
 }

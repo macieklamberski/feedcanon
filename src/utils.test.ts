@@ -1,12 +1,9 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler } from './types.js'
 import {
   addMissingProtocol,
   applyPlatformHandlers,
-  createMd5Hash,
-  defaultFetchFn,
-  isSimilarUrl,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
@@ -327,10 +324,60 @@ describe('addMissingProtocol', () => {
         'data:text/html,<h1>Test</h1>',
       )
     })
+
+    it('should return URLs with leading whitespace unchanged', () => {
+      expect(addMissingProtocol(' example.com')).toBe(' example.com')
+      expect(addMissingProtocol('\texample.com')).toBe('\texample.com')
+      expect(addMissingProtocol('\nexample.com')).toBe('\nexample.com')
+    })
   })
 })
 
 describe('resolveUrl', () => {
+  describe('HTML entity decoding', () => {
+    it('should decode &amp; to &', () => {
+      const value = 'https://example.com/feed?a=1&amp;b=2'
+      const expected = 'https://example.com/feed?a=1&b=2'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should decode numeric entities', () => {
+      const value = 'https://example.com/feed&#x3F;query=1'
+      const expected = 'https://example.com/feed?query=1'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should decode named entities', () => {
+      const value = 'https://example.com/feed?q=a&lt;b'
+      const expected = 'https://example.com/feed?q=a%3Cb'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should decode entities in path', () => {
+      const value = 'https://example.com/path&amp;name/feed'
+      const expected = 'https://example.com/path&name/feed'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should handle multiple encoded ampersands', () => {
+      const value = 'https://example.com/feed?a=1&amp;b=2&amp;c=3'
+      const expected = 'https://example.com/feed?a=1&b=2&c=3'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should decode accented character entities', () => {
+      const value = 'https://example.com/caf&eacute;'
+      const expected = 'https://example.com/caf%C3%A9'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+  })
+
   describe('standard HTTP/HTTPS URLs', () => {
     it('should return https URL unchanged', () => {
       const value = 'https://example.com/feed.xml'
@@ -394,6 +441,13 @@ describe('resolveUrl', () => {
     it('should unwrap feed:https:// to https://', () => {
       const value = 'feed:https://example.com/rss.xml'
       const expected = 'https://example.com/rss.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+
+    it('should convert rss:// to https://', () => {
+      const value = 'rss://example.com/feed.xml'
+      const expected = 'https://example.com/feed.xml'
 
       expect(resolveUrl(value)).toBe(expected)
     })
@@ -592,6 +646,13 @@ describe('resolveUrl', () => {
       const value = 'https://example.com//feed//rss.xml'
 
       expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should apply entity decoding and protocol conversion together', () => {
+      const value = 'feed:https://example.com/feed?x=1&amp;y=2'
+      const expected = 'https://example.com/feed?x=1&y=2'
+
+      expect(resolveUrl(value)).toBe(expected)
     })
   })
 
@@ -898,24 +959,6 @@ describe('normalizeUrl', () => {
     })
   })
 
-  describe('text fragment stripping', () => {
-    it('should strip text fragments by default when stripHash is false', () => {
-      const value = 'https://example.com/feed#:~:text=hello'
-      const options = { ...defaultNormalizeOptions, stripHash: false }
-      const expected = 'example.com/feed'
-
-      expect(normalizeUrl(value, options)).toBe(expected)
-    })
-
-    it('should preserve text fragments when stripTextFragment is false', () => {
-      const value = 'https://example.com/feed#:~:text=hello'
-      const options = { ...defaultNormalizeOptions, stripHash: false, stripTextFragment: false }
-      const expected = 'example.com/feed#:~:text=hello'
-
-      expect(normalizeUrl(value, options)).toBe(expected)
-    })
-  })
-
   describe('query parameter sorting', () => {
     it('should sort query parameters alphabetically by default', () => {
       const value = 'https://example.com/feed?z=3&a=1&m=2'
@@ -948,6 +991,47 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
+
+    it('should strip uppercase tracking parameters', () => {
+      const value = 'https://example.com/feed?UTM_SOURCE=twitter&FBCLID=abc&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source', 'fbclid'] }
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip mixed case tracking parameters', () => {
+      const value = 'https://example.com/feed?Utm_Source=twitter&FbClId=abc&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source', 'fbclid'] }
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip params case-insensitively with multiple variants', () => {
+      const value = 'https://example.com/feed?CUSTOM=1&Custom=2&custom=3&keep=4'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['custom'] }
+      const expected = 'example.com/feed?keep=4'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+  })
+
+  describe('query string stripping', () => {
+    it('should strip entire query string when stripQuery is true', () => {
+      const value = 'https://example.com/feed?a=1&b=2&c=3'
+      const options = { ...defaultNormalizeOptions, stripQuery: true }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve query string by default', () => {
+      const value = 'https://example.com/feed?id=123'
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
   })
 
   describe('empty query removal', () => {
@@ -956,6 +1040,22 @@ describe('normalizeUrl', () => {
       const expected = 'example.com/feed'
 
       expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should remove empty query string when sortQueryParams is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve empty query string when stripEmptyQuery is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false, stripEmptyQuery: false }
+      const expected = 'example.com/feed?'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
@@ -1054,17 +1154,14 @@ describe('normalizeUrl', () => {
         stripProtocol: false,
         stripAuthentication: false,
         stripWww: false,
-        stripDefaultPorts: false,
         stripTrailingSlash: false,
         stripRootSlash: false,
         collapseSlashes: false,
         stripHash: false,
-        stripTextFragment: false,
         sortQueryParams: false,
         stripQueryParams: [],
         stripEmptyQuery: false,
         normalizeUnicode: false,
-        lowercaseHostname: false,
       }
       const expected = 'https://www.example.com:8080/feed/'
 
@@ -1206,450 +1303,6 @@ describe('normalizeUrl', () => {
   })
 })
 
-describe('isSimilarUrl', () => {
-  describe('identical URLs', () => {
-    it('should return true for identical URLs', () => {
-      const value1 = 'https://example.com/feed'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-  })
-
-  describe('protocol differences', () => {
-    it('should return true for http vs https', () => {
-      const value1 = 'http://example.com/feed'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for protocol difference when stripProtocol is false', () => {
-      const value1 = 'http://example.com/feed'
-      const value2 = 'https://example.com/feed'
-      const options = { ...defaultNormalizeOptions, stripProtocol: false }
-
-      expect(isSimilarUrl(value1, value2, options)).toBe(false)
-    })
-  })
-
-  describe('www differences', () => {
-    it('should return true for www vs non-www', () => {
-      const value1 = 'https://www.example.com/feed'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for www difference when stripWww is false', () => {
-      const value1 = 'https://www.example.com/feed'
-      const value2 = 'https://example.com/feed'
-      const options = { ...defaultNormalizeOptions, stripWww: false }
-
-      expect(isSimilarUrl(value1, value2, options)).toBe(false)
-    })
-  })
-
-  describe('trailing slash differences', () => {
-    it('should return true for trailing slash vs no trailing slash', () => {
-      const value1 = 'https://example.com/feed/'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for trailing slash difference when stripTrailingSlash is false', () => {
-      const value1 = 'https://example.com/feed/'
-      const value2 = 'https://example.com/feed'
-      const options = {
-        ...defaultNormalizeOptions,
-        stripTrailingSlash: false,
-        stripRootSlash: false,
-      }
-
-      expect(isSimilarUrl(value1, value2, options)).toBe(false)
-    })
-  })
-
-  describe('query parameter differences', () => {
-    it('should return true for different query order', () => {
-      const value1 = 'https://example.com/feed?a=1&b=2'
-      const value2 = 'https://example.com/feed?b=2&a=1'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return true when one has tracking params', () => {
-      const value1 = 'https://example.com/feed?utm_source=twitter'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for different non-tracking params', () => {
-      const value1 = 'https://example.com/feed?page=1'
-      const value2 = 'https://example.com/feed?page=2'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-  })
-
-  describe('hash differences', () => {
-    it('should return true for different hash fragments', () => {
-      const value1 = 'https://example.com/feed#section1'
-      const value2 = 'https://example.com/feed#section2'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return true for hash vs no hash', () => {
-      const value1 = 'https://example.com/feed#section'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-  })
-
-  describe('case differences', () => {
-    it('should return true for hostname case differences', () => {
-      const value1 = 'https://EXAMPLE.COM/feed'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for path case differences', () => {
-      const value1 = 'https://example.com/FEED'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-  })
-
-  describe('port differences', () => {
-    it('should return true for default port vs no port', () => {
-      const value1 = 'https://example.com:443/feed'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for different non-default ports', () => {
-      const value1 = 'https://example.com:8080/feed'
-      const value2 = 'https://example.com:9090/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-  })
-
-  describe('path differences', () => {
-    it('should return false for different paths', () => {
-      const value1 = 'https://example.com/feed'
-      const value2 = 'https://example.com/rss'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should return true for multiple slashes vs single slash', () => {
-      const value1 = 'https://example.com/path//to///feed'
-      const value2 = 'https://example.com/path/to/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-  })
-
-  describe('host differences', () => {
-    it('should return false for different hosts', () => {
-      const value1 = 'https://example.com/feed'
-      const value2 = 'https://other.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should return false for different subdomains', () => {
-      const value1 = 'https://blog.example.com/feed'
-      const value2 = 'https://news.example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-  })
-
-  describe('complex comparisons', () => {
-    it('should return true for URLs with multiple normalizable differences', () => {
-      const value1 = 'http://www.EXAMPLE.COM:80/path//to/feed/?utm_source=test#section'
-      const value2 = 'https://example.com/path/to/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should handle real-world feed URL variations', () => {
-      const value1 = 'https://www.blog.example.com/feed.xml?utm_source=feedly'
-      const value2 = 'http://blog.example.com/feed.xml'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-  })
-
-  describe('invalid inputs', () => {
-    it('should return false for invalid first URL', () => {
-      const value1 = 'not a url'
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should return false for invalid second URL', () => {
-      const value1 = 'https://example.com/feed'
-      const value2 = 'not a url'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should return false for both invalid URLs', () => {
-      const value1 = 'not a url'
-      const value2 = 'also not a url'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should return true for identical invalid strings', () => {
-      const value1 = 'not a url'
-      const value2 = 'not a url'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return false for empty strings vs valid URL', () => {
-      const value1 = ''
-      const value2 = 'https://example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-  })
-
-  describe('encoding and IDN comparisons', () => {
-    it('should return true for IDN vs punycode', () => {
-      const value1 = 'https://münchen.de/feed'
-      const value2 = 'https://xn--mnchen-3ya.de/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return true for different percent encoding of same char', () => {
-      const value1 = 'https://example.com/path-to-feed'
-      const value2 = 'https://example.com/path%2Dto%2Dfeed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return true for mixed case hex encoding', () => {
-      const value1 = 'https://example.com/path%2fto'
-      const value2 = 'https://example.com/path%2Fto'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return true for www IDN comparison', () => {
-      const value1 = 'https://www.münchen.de/feed'
-      const value2 = 'https://xn--mnchen-3ya.de/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should return true for emoji domain vs punycode', () => {
-      const value1 = 'https://🍕.example.com/feed'
-      const value2 = 'https://xn--vi8h.example.com/feed'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-  })
-
-  describe('real-world feed URL comparisons', () => {
-    it('should match YouTube feed with different tracking params', () => {
-      const value1 = 'https://www.youtube.com/feeds/videos.xml?channel_id=UC123'
-      const value2 = 'https://youtube.com/feeds/videos.xml?channel_id=UC123&utm_source=feedly'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should match Reddit feed variations', () => {
-      const value1 = 'https://www.reddit.com/r/javascript/.rss'
-      const value2 = 'http://reddit.com/r/javascript/.rss/'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-
-    it('should not match different YouTube channels', () => {
-      const value1 = 'https://www.youtube.com/feeds/videos.xml?channel_id=UC123'
-      const value2 = 'https://www.youtube.com/feeds/videos.xml?channel_id=UC456'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should not match feed with different auth', () => {
-      const value1 = 'https://user:pass@example.com/feed.xml'
-      const value2 = 'https://example.com/feed.xml'
-
-      expect(isSimilarUrl(value1, value2)).toBe(false)
-    })
-
-    it('should match feed with same auth', () => {
-      const value1 = 'https://user:pass@example.com/feed.xml'
-      const value2 = 'https://user:pass@example.com/feed.xml'
-
-      expect(isSimilarUrl(value1, value2)).toBe(true)
-    })
-  })
-})
-
-describe('defaultFetchFn', () => {
-  // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
-  const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
-    implementation: T,
-  ) => {
-    return implementation as unknown as typeof fetch
-  }
-
-  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
-
-  const createMockResponse = (partial: Partial<MockResponse>): Response => {
-    return {
-      headers: partial.headers ?? new Headers(),
-      text: partial.text ?? (async () => ''),
-      url: partial.url ?? '',
-      status: partial.status ?? 200,
-    } as Response
-  }
-
-  const fetchSpy = spyOn(globalThis, 'fetch')
-
-  afterEach(() => {
-    fetchSpy.mockReset()
-  })
-
-  it('should call native fetch with correct URL', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async (url: string) => {
-        return createMockResponse({
-          url,
-          text: async () => 'response body',
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.url).toBe('https://example.com/feed.xml')
-  })
-
-  it('should default to GET method when not specified', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(capturedOptions?.method).toBe('GET')
-  })
-
-  it('should use specified method from options', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetchFn('https://example.com/feed.xml', { method: 'HEAD' })
-
-    expect(capturedOptions?.method).toBe('HEAD')
-  })
-
-  it('should pass headers to fetch', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetchFn('https://example.com/feed.xml', {
-      headers: { 'X-Custom': 'value' },
-    })
-
-    expect(capturedOptions?.headers).toEqual({ 'X-Custom': 'value' })
-  })
-
-  it('should return response with correct structure', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          headers: new Headers({ 'content-type': 'application/rss+xml' }),
-          text: async () => 'feed content',
-          url: 'https://example.com/feed.xml',
-          status: 200,
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-    const expected: FetchFnResponse = {
-      headers: new Headers({ 'content-type': 'application/rss+xml' }),
-      body: 'feed content',
-      url: 'https://example.com/feed.xml',
-      status: 200,
-    }
-
-    expect(result.headers.get('content-type')).toBe(expected.headers.get('content-type'))
-    expect(result.body).toBe(expected.body)
-    expect(result.url).toBe(expected.url)
-    expect(result.status).toBe(expected.status)
-  })
-
-  it('should preserve response URL for redirect handling', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          url: 'https://redirect.example.com/feed.xml',
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.url).toBe('https://redirect.example.com/feed.xml')
-  })
-
-  it('should convert response body to text', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          text: async () => '<rss>feed content</rss>',
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.body).toBe('<rss>feed content</rss>')
-  })
-
-  it('should pass through status', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          status: 404,
-        })
-      }),
-    )
-    const result = await defaultFetchFn('https://example.com/feed.xml')
-
-    expect(result.status).toBe(404)
-  })
-})
-
 describe('applyPlatformHandlers', () => {
   const createHandler = (matchHostname: string, newHostname: string): PlatformHandler => {
     return {
@@ -1710,27 +1363,5 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
-  })
-})
-
-describe('createMd5Hash', () => {
-  it('should return MD5 hash of content', () => {
-    const value = 'hello world'
-    const expected = '5eb63bbbe01eeed093cb22bb8f5acdc3'
-
-    expect(createMd5Hash(value)).toBe(expected)
-  })
-
-  it('should return different hashes for different content', () => {
-    const value1 = 'content1'
-    const value2 = 'content2'
-
-    expect(createMd5Hash(value1)).not.toBe(createMd5Hash(value2))
-  })
-
-  it('should return same hash for identical content', () => {
-    const value = 'same content'
-
-    expect(createMd5Hash(value)).toBe(createMd5Hash(value))
   })
 })
