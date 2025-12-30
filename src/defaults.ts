@@ -105,7 +105,6 @@ export const defaultStrippedParams = [
   'hsa_tgt', // Target audience.
   'hsa_ver', // Tracking version.
   'hsCtaTracking', // CTA click tracking.
-  'hsctatracking', // CTA click tracking (lowercase variant).
   '_hsenc', // Encrypted tracking identifier.
   '_hsmi', // Email message ID.
   '__hstc', // Cross-domain visitor tracking cookie.
