@@ -99,5 +99,3 @@ const url = await findCanonical('http://www.example.com/feed/', {
 //   'https://example.com/feed',
 // ]
 ```
-
-See [Using Callbacks](https://feedcanon.dev/guides/callbacks) for the full guide.
