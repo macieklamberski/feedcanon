@@ -296,11 +296,14 @@ export const defaultParser: ParserAdapter<FeedsmithFeed> = {
     }
 
     let signature: string
-    let originalLastBuildDate: string | undefined
+    let originalBuildDate: string | undefined
 
     if (parsed.format === 'rss') {
-      originalLastBuildDate = parsed.feed.lastBuildDate
+      originalBuildDate = parsed.feed.lastBuildDate
       parsed.feed.lastBuildDate = undefined
+    } else if (parsed.format === 'atom') {
+      originalBuildDate = parsed.feed.updated
+      parsed.feed.updated = undefined
     }
 
     const link = findSelfLink(parsed)
@@ -315,7 +318,9 @@ export const defaultParser: ParserAdapter<FeedsmithFeed> = {
     }
 
     if (parsed.format === 'rss') {
-      parsed.feed.lastBuildDate = originalLastBuildDate
+      parsed.feed.lastBuildDate = originalBuildDate
+    } else if (parsed.format === 'atom') {
+      parsed.feed.updated = originalBuildDate
     }
 
     return signature

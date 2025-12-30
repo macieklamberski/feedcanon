@@ -526,5 +526,47 @@ describe('defaultParser', () => {
         expect(parsed.feed.lastBuildDate).toBe(expected)
       }
     })
+
+    it('should neutralize updated in Atom feed signature', async () => {
+      const value1 = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <updated>2024-12-30T10:00:00Z</updated>
+        </feed>`
+      const value2 = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <updated>2024-12-30T11:00:00Z</updated>
+        </feed>`
+      const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
+      const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = defaultParser.getSignature(parsed1)
+      const signature2 = defaultParser.getSignature(parsed2)
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore updated after generating Atom signature', async () => {
+      const expected = '2024-12-30T10:00:00Z'
+      const value = `<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <updated>${expected}</updated>
+        </feed>`
+      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+
+      expect(parsed).toBeDefined()
+      expect(parsed.format).toBe('atom')
+
+      if (parsed.format === 'atom') {
+        defaultParser.getSignature(parsed)
+
+        expect(parsed.feed.updated).toBe(expected)
+      }
+    })
   })
 })
