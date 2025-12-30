@@ -310,7 +310,7 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
 
 // Strip UTF-8 BOM (U+FEFF) from start of string of feeds (typically Windows-generated). Stripping
 // BOM allows exact body comparison to succeed when same feed is served with/without BOM, avoiding
-// the need for parsing feeeds to compare signatures.
+// the need for parsing feeds to compare signatures.
 export const stripBom = (value: string): string => {
   return value.charCodeAt(0) === 0xfeff ? value.slice(1) : value
 }
