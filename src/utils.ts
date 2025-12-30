@@ -3,6 +3,19 @@ import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { NormalizeOptions, PlatformHandler } from './types.js'
 
+const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
+
+const getStrippedParamsSet = (params: Array<string>): Set<string> => {
+  let cached = strippedParamsCache.get(params)
+
+  if (!cached) {
+    cached = new Set(params.map((param) => param.toLowerCase()))
+    strippedParamsCache.set(params, cached)
+  }
+
+  return cached
+}
+
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
 // IPv6 addresses have 2-7 colons with hex segments. This is intentionally
@@ -257,9 +270,18 @@ export const normalizeUrl = (
       parsed.search = ''
     }
 
-    // Remove tracking/specified parameters.
+    // Remove tracking/specified parameters (case-insensitive).
     if (options.stripQueryParams && parsed.search) {
-      for (const param of options.stripQueryParams) {
+      const strippedSet = getStrippedParamsSet(options.stripQueryParams)
+      const paramsToDelete: Array<string> = []
+
+      for (const [key] of parsed.searchParams) {
+        if (strippedSet.has(key.toLowerCase())) {
+          paramsToDelete.push(key)
+        }
+      }
+
+      for (const param of paramsToDelete) {
         parsed.searchParams.delete(param)
       }
     }

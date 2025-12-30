@@ -991,6 +991,30 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
+
+    it('should strip uppercase tracking parameters', () => {
+      const value = 'https://example.com/feed?UTM_SOURCE=twitter&FBCLID=abc&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source', 'fbclid'] }
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip mixed case tracking parameters', () => {
+      const value = 'https://example.com/feed?Utm_Source=twitter&FbClId=abc&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source', 'fbclid'] }
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip params case-insensitively with multiple variants', () => {
+      const value = 'https://example.com/feed?CUSTOM=1&Custom=2&custom=3&keep=4'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['custom'] }
+      const expected = 'example.com/feed?keep=4'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
   })
 
   describe('query string stripping', () => {
