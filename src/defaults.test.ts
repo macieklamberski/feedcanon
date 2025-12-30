@@ -153,12 +153,14 @@ describe('defaultFetch', () => {
 describe('defaultParser', () => {
   describe('parse', () => {
     it('should parse valid RSS feed', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test Feed</title>
           </channel>
-        </rss>`
+        </rss>
+      `
       const result = await defaultParser.parse(value)
 
       expect(result).toBeDefined()
@@ -166,10 +168,12 @@ describe('defaultParser', () => {
     })
 
     it('should parse valid Atom feed', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test Feed</title>
-        </feed>`
+        </feed>
+      `
       const result = await defaultParser.parse(value)
 
       expect(result).toBeDefined()
@@ -228,11 +232,13 @@ describe('defaultParser', () => {
     })
 
     it('should return self URL from Atom feed', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <link rel="self" href="https://example.com/feed.atom"/>
-        </feed>`
+        </feed>
+      `
       const expected = 'https://example.com/feed.atom'
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
@@ -241,11 +247,13 @@ describe('defaultParser', () => {
     })
 
     it('should return undefined for Atom feed without self link', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <link rel="alternate" href="https://example.com"/>
-        </feed>`
+        </feed>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -253,13 +261,15 @@ describe('defaultParser', () => {
     })
 
     it('should return self URL from RSS feed with atom:link', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
           <channel>
             <title>Test</title>
             <atom:link rel="self" href="https://example.com/feed.rss"/>
           </channel>
-        </rss>`
+        </rss>
+      `
       const expected = 'https://example.com/feed.rss'
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
@@ -268,12 +278,14 @@ describe('defaultParser', () => {
     })
 
     it('should return undefined for RSS feed without self link', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
           </channel>
-        </rss>`
+        </rss>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -356,10 +368,12 @@ describe('defaultParser', () => {
     })
 
     it('should return signature for Atom feed without self link', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
-        </feed>`
+        </feed>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -371,16 +385,20 @@ describe('defaultParser', () => {
     })
 
     it('should neutralize self link in Atom feed signature', async () => {
-      const value1 = `<?xml version="1.0"?>
+      const value1 = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <link rel="self" href="https://example.com/feed1.atom"/>
-        </feed>`
-      const value2 = `<?xml version="1.0"?>
+        </feed>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <link rel="self" href="https://example.com/feed2.atom"/>
-        </feed>`
+        </feed>
+      `
       const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
       const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
 
@@ -395,11 +413,13 @@ describe('defaultParser', () => {
 
     it('should restore self link href after generating Atom signature', async () => {
       const expected = 'https://example.com/feed.atom'
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <link rel="self" href="${expected}"/>
-        </feed>`
+        </feed>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -414,20 +434,24 @@ describe('defaultParser', () => {
     })
 
     it('should neutralize self link in RSS feed signature', async () => {
-      const value1 = `<?xml version="1.0"?>
+      const value1 = `
+        <?xml version="1.0"?>
         <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
           <channel>
             <title>Test</title>
             <atom:link rel="self" href="https://example.com/feed1.rss"/>
           </channel>
-        </rss>`
-      const value2 = `<?xml version="1.0"?>
+        </rss>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
         <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
           <channel>
             <title>Test</title>
             <atom:link rel="self" href="https://example.com/feed2.rss"/>
           </channel>
-        </rss>`
+        </rss>
+      `
       const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
       const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
 
@@ -442,13 +466,15 @@ describe('defaultParser', () => {
 
     it('should restore self link href after generating RSS signature', async () => {
       const expected = 'https://example.com/feed.rss'
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
           <channel>
             <title>Test</title>
             <atom:link rel="self" href="${expected}"/>
           </channel>
-        </rss>`
+        </rss>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -463,12 +489,14 @@ describe('defaultParser', () => {
     })
 
     it('should return signature for RSS feed without self link', async () => {
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
           </channel>
-        </rss>`
+        </rss>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -480,20 +508,24 @@ describe('defaultParser', () => {
     })
 
     it('should neutralize lastBuildDate in RSS feed signature', async () => {
-      const value1 = `<?xml version="1.0"?>
+      const value1 = `
+        <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
             <lastBuildDate>Mon, 30 Dec 2024 10:00:00 GMT</lastBuildDate>
           </channel>
-        </rss>`
-      const value2 = `<?xml version="1.0"?>
+        </rss>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
             <lastBuildDate>Mon, 30 Dec 2024 11:00:00 GMT</lastBuildDate>
           </channel>
-        </rss>`
+        </rss>
+      `
       const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
       const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
 
@@ -508,13 +540,15 @@ describe('defaultParser', () => {
 
     it('should restore lastBuildDate after generating RSS signature', async () => {
       const expected = 'Mon, 30 Dec 2024 10:00:00 GMT'
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
             <lastBuildDate>${expected}</lastBuildDate>
           </channel>
-        </rss>`
+        </rss>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
@@ -528,16 +562,20 @@ describe('defaultParser', () => {
     })
 
     it('should neutralize updated in Atom feed signature', async () => {
-      const value1 = `<?xml version="1.0"?>
+      const value1 = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <updated>2024-12-30T10:00:00Z</updated>
-        </feed>`
-      const value2 = `<?xml version="1.0"?>
+        </feed>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <updated>2024-12-30T11:00:00Z</updated>
-        </feed>`
+        </feed>
+      `
       const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
       const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
 
@@ -552,11 +590,13 @@ describe('defaultParser', () => {
 
     it('should restore updated after generating Atom signature', async () => {
       const expected = '2024-12-30T10:00:00Z'
-      const value = `<?xml version="1.0"?>
+      const value = `
+        <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <updated>${expected}</updated>
-        </feed>`
+        </feed>
+      `
       const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
 
       expect(parsed).toBeDefined()
