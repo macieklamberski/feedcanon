@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 import { defaultFetch, defaultParser } from './defaults.js'
-import type { FeedsmithFeed, FetchFnResponse } from './types.js'
+import type { DefaultParserResult, FetchFnResponse } from './types.js'
 
 describe('defaultFetch', () => {
   // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
@@ -214,7 +214,7 @@ describe('defaultParser', () => {
         feed_url: 'https://example.com/feed.json',
       })
       const expected = 'https://example.com/feed.json'
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
@@ -225,7 +225,7 @@ describe('defaultParser', () => {
         version: 'https://jsonfeed.org/version/1.1',
         title: 'Test',
       })
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
@@ -240,7 +240,7 @@ describe('defaultParser', () => {
         </feed>
       `
       const expected = 'https://example.com/feed.atom'
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
@@ -254,7 +254,7 @@ describe('defaultParser', () => {
           <link rel="alternate" href="https://example.com"/>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
@@ -271,7 +271,7 @@ describe('defaultParser', () => {
         </rss>
       `
       const expected = 'https://example.com/feed.rss'
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
@@ -286,7 +286,7 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
@@ -313,7 +313,7 @@ describe('defaultParser', () => {
         title: 'Test',
         items: [{ id: '1', content_text: 'Hello' }],
       })
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
 
@@ -336,8 +336,8 @@ describe('defaultParser', () => {
         feed_url: 'https://example.com/feed2.json',
         items: [{ id: '1' }],
       })
-      const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
-      const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
 
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
@@ -355,7 +355,7 @@ describe('defaultParser', () => {
         title: 'Test',
         feed_url: expected,
       })
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(parsed.format).toBe('json')
@@ -374,7 +374,7 @@ describe('defaultParser', () => {
           <title>Test</title>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
 
@@ -399,8 +399,8 @@ describe('defaultParser', () => {
           <link rel="self" href="https://example.com/feed2.atom"/>
         </feed>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
-      const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
 
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
@@ -420,7 +420,7 @@ describe('defaultParser', () => {
           <link rel="self" href="${expected}"/>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(parsed.format).toBe('atom')
@@ -452,8 +452,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
-      const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
 
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
@@ -475,7 +475,7 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(parsed.format).toBe('rss')
@@ -497,7 +497,7 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
 
@@ -526,8 +526,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
-      const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
 
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
@@ -549,7 +549,7 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(parsed.format).toBe('rss')
@@ -576,8 +576,8 @@ describe('defaultParser', () => {
           <updated>2024-12-30T11:00:00Z</updated>
         </feed>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as FeedsmithFeed
-      const parsed2 = (await defaultParser.parse(value2)) as FeedsmithFeed
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
 
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
@@ -597,7 +597,7 @@ describe('defaultParser', () => {
           <updated>${expected}</updated>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as FeedsmithFeed
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
 
       expect(parsed).toBeDefined()
       expect(parsed.format).toBe('atom')

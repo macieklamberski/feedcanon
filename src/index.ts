@@ -6,20 +6,20 @@ import {
   defaultTiers,
 } from './defaults.js'
 import type {
-  FeedsmithFeed,
+  DefaultParserResult,
   FetchFnResponse,
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
 import { applyPlatformHandlers, normalizeUrl, resolveUrl } from './utils.js'
 
-// Overload 1: Default FeedsmithFeed, parser optional.
+// Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
   TResponse extends FetchFnResponse = FetchFnResponse,
   TExisting = unknown,
 >(
   inputUrl: string,
-  options?: Omit<FindCanonicalOptions<FeedsmithFeed, TResponse, TExisting>, 'parser'>,
+  options?: Omit<FindCanonicalOptions<DefaultParserResult, TResponse, TExisting>, 'parser'>,
 ): Promise<string | undefined>
 
 // Overload 2: Custom TFeed, parser required.

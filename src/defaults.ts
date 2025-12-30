@@ -1,7 +1,7 @@
 import { parseFeed } from 'feedsmith'
 import { feedburnerHandler } from './platforms/feedburner.js'
 import type {
-  FeedsmithFeed,
+  DefaultParserResult,
   FetchFn,
   NormalizeOptions,
   ParserAdapter,
@@ -263,7 +263,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
-const findSelfLink = (parsed: FeedsmithFeed) => {
+const findSelfLink = (parsed: DefaultParserResult) => {
   switch (parsed.format) {
     case 'atom':
       return parsed.feed.links?.find((link) => link.rel === 'self')
@@ -273,7 +273,7 @@ const findSelfLink = (parsed: FeedsmithFeed) => {
   }
 }
 
-export const defaultParser: ParserAdapter<FeedsmithFeed> = {
+export const defaultParser: ParserAdapter<DefaultParserResult> = {
   parse: (body) => {
     try {
       return parseFeed(body)
