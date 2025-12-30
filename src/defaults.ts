@@ -263,6 +263,16 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
+const findSelfLink = (parsed: FeedsmithFeed) => {
+  switch (parsed.format) {
+    case 'atom':
+      return parsed.feed.links?.find((link) => link.rel === 'self')
+    case 'rss':
+    case 'rdf':
+      return parsed.feed.atom?.links?.find((link) => link.rel === 'self')
+  }
+}
+
 export const defaultParser: ParserAdapter<FeedsmithFeed> = {
   parse: (body) => {
     try {
@@ -270,18 +280,29 @@ export const defaultParser: ParserAdapter<FeedsmithFeed> = {
     } catch {}
   },
   getSelfUrl: (parsed) => {
-    switch (parsed.format) {
-      case 'atom':
-        return parsed.feed.links?.find((link) => link.rel === 'self')?.href
-      case 'rss':
-      case 'rdf':
-        return parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
-      case 'json':
-        return parsed.feed.feed_url
-    }
+    return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
   },
   getSignature: (parsed) => {
-    return parsed.feed
+    // Neutralize self URL before generating signature to ensure feeds
+    // that differ only in self URL are considered semantically identical.
+    if (parsed.format === 'json') {
+      const original = parsed.feed.feed_url
+      parsed.feed.feed_url = undefined
+      const signature = JSON.stringify(parsed.feed)
+      parsed.feed.feed_url = original
+      return signature
+    }
+
+    const link = findSelfLink(parsed)
+    if (!link) {
+      return JSON.stringify(parsed.feed)
+    }
+
+    const original = link.href
+    link.href = undefined
+    const signature = JSON.stringify(parsed.feed)
+    link.href = original
+    return signature
   },
 }
 
