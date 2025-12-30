@@ -5,7 +5,7 @@ export type FeedsmithFeed = ReturnType<typeof import('feedsmith').parseFeed>
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
-  parse: (body: string) => T | undefined
+  parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
   getSignature: (parsed: T) => string
 }
@@ -27,9 +27,9 @@ export type NormalizeOptions = {
   stripHash?: boolean // strip #fragment
   sortQueryParams?: boolean // sort query params alphabetically
   stripQueryParams?: Array<string> // query params to strip
+  stripQuery?: boolean // strip entire query string
   stripEmptyQuery?: boolean // /feed? → /feed
   normalizeEncoding?: boolean // normalize %XX encoding
-  lowercaseHostname?: boolean // lowercase hostname
   normalizeUnicode?: boolean // NFC normalization
   convertToPunycode?: boolean // IDNA/Punycode conversion
 }

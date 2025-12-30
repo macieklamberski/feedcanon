@@ -1,8 +1,20 @@
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
-import { parseFeed } from 'feedsmith'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { FeedsmithFeed, FetchFn, ParserAdapter, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler } from './types.js'
+
+const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
+
+const getStrippedParamsSet = (params: Array<string>): Set<string> => {
+  let cached = strippedParamsCache.get(params)
+
+  if (!cached) {
+    cached = new Set(params.map((param) => param.toLowerCase()))
+    strippedParamsCache.set(params, cached)
+  }
+
+  return cached
+}
 
 const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
@@ -172,7 +184,10 @@ const decodeAndNormalizeEncoding = (value: string): string => {
   })
 }
 
-export const normalizeUrl = (url: string, options = defaultNormalizeOptions): string => {
+export const normalizeUrl = (
+  url: string,
+  options: NormalizeOptions = defaultNormalizeOptions,
+): string => {
   try {
     const parsed = new URL(url)
 
@@ -188,11 +203,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
       if (ascii) {
         parsed.hostname = ascii
       }
-    }
-
-    // Lowercase hostname.
-    if (options.lowercaseHostname) {
-      parsed.hostname = parsed.hostname.toLowerCase()
     }
 
     // Strip authentication.
@@ -236,9 +246,23 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
 
     parsed.pathname = pathname
 
-    // Remove tracking/specified parameters.
+    // Strip entire query string.
+    if (options.stripQuery) {
+      parsed.search = ''
+    }
+
+    // Remove tracking/specified parameters (case-insensitive).
     if (options.stripQueryParams && parsed.search) {
-      for (const param of options.stripQueryParams) {
+      const strippedSet = getStrippedParamsSet(options.stripQueryParams)
+      const paramsToDelete: Array<string> = []
+
+      for (const [key] of parsed.searchParams) {
+        if (strippedSet.has(key.toLowerCase())) {
+          paramsToDelete.push(key)
+        }
+      }
+
+      for (const param of paramsToDelete) {
         parsed.searchParams.delete(param)
       }
     }
@@ -249,7 +273,7 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     }
 
     // Remove empty query string.
-    if (options.stripEmptyQuery && parsed.search === '?') {
+    if (options.stripEmptyQuery && parsed.href.endsWith('?')) {
       parsed.search = ''
     }
 
@@ -264,20 +288,6 @@ export const normalizeUrl = (url: string, options = defaultNormalizeOptions): st
     return result
   } catch {
     return url
-  }
-}
-
-export const nativeFetch: FetchFn = async (url, options) => {
-  const response = await fetch(url, {
-    method: options?.method ?? 'GET',
-    headers: options?.headers,
-  })
-
-  return {
-    headers: response.headers,
-    body: await response.text(),
-    url: response.url,
-    status: response.status,
   }
 }
 
@@ -296,60 +306,4 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
   } catch {
     return url
   }
-}
-
-const findSelfLink = (parsed: FeedsmithFeed) => {
-  switch (parsed.format) {
-    case 'atom':
-      return parsed.feed.links?.find((link) => link.rel === 'self')
-    case 'rss':
-    case 'rdf':
-      return parsed.feed.atom?.links?.find((link) => link.rel === 'self')
-  }
-}
-
-export const feedsmithParser: ParserAdapter<FeedsmithFeed> = {
-  parse: (body) => {
-    try {
-      return parseFeed(body)
-    } catch {}
-  },
-  getSelfUrl: (parsed) => {
-    return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
-  },
-  getSignature: (parsed) => {
-    // Neutralize dynamic timestamp fields that change on each request.
-    // Many feeds regenerate lastBuildDate on every fetch, breaking content comparison.
-    let origLastBuildDate: string | undefined
-    if (parsed.format === 'rss') {
-      origLastBuildDate = parsed.feed.lastBuildDate
-      parsed.feed.lastBuildDate = undefined
-    }
-
-    let signature: string
-
-    if (parsed.format === 'json') {
-      const original = parsed.feed.feed_url
-      parsed.feed.feed_url = undefined
-      signature = JSON.stringify(parsed.feed)
-      parsed.feed.feed_url = original
-    } else {
-      const link = findSelfLink(parsed)
-      if (!link) {
-        signature = JSON.stringify(parsed.feed)
-      } else {
-        const original = link.href
-        link.href = undefined
-        signature = JSON.stringify(parsed.feed)
-        link.href = original
-      }
-    }
-
-    // Restore original timestamp.
-    if (parsed.format === 'rss') {
-      parsed.feed.lastBuildDate = origLastBuildDate
-    }
-
-    return signature
-  },
 }
