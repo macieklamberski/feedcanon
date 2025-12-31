@@ -15,7 +15,7 @@ describe('findCanonical', () => {
     return {
       parse: (body) => body,
       getSelfUrl: () => selfUrl,
-      getSignature: (parsed) => ({ content: parsed }),
+      getSignature: (parsed) => parsed,
     }
   }
 
@@ -736,7 +736,7 @@ describe('findCanonical', () => {
         parser: {
           parse: () => undefined,
           getSelfUrl: () => undefined,
-          getSignature: () => ({}),
+          getSignature: () => 'Test',
         },
       })
 
@@ -966,7 +966,7 @@ describe('findCanonical', () => {
           return body
         },
         getSelfUrl: () => undefined,
-        getSignature: (parsed) => ({ content: parsed }),
+        getSignature: (parsed) => parsed,
       }
       const options = toOptions({
         fetchFn: createMockFetch({
@@ -991,7 +991,7 @@ describe('findCanonical', () => {
           return { id: 'same-feed' }
         },
         getSelfUrl: () => undefined,
-        getSignature: (parsed) => parsed,
+        getSignature: (parsed) => JSON.stringify(parsed),
       }
       const options = toOptions({
         fetchFn: createMockFetch({
@@ -1813,7 +1813,6 @@ describe('findCanonical', () => {
       const expected = 'https://example.com/rss.xml'
       const body1 = '<feed><updated>2024-01-01T00:00:00Z</updated><title>Test</title></feed>'
       const body2 = '<feed><updated>2024-01-02T00:00:00Z</updated><title>Test</title></feed>'
-      const signature = { title: 'Test' }
       const options = toOptions({
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: body1 },
@@ -1822,7 +1821,7 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => 'https://example.com/rss.xml',
-          getSignature: () => signature,
+          getSignature: () => 'Test',
         },
       })
 
@@ -1841,7 +1840,6 @@ describe('findCanonical', () => {
       const expected = 'https://example.com/feed'
       const body1 = '<feed><cachebuster>123</cachebuster><title>Test</title></feed>'
       const body2 = '<feed><cachebuster>456</cachebuster><title>Test</title></feed>'
-      const signature = { title: 'Test' }
       const options = toOptions({
         fetchFn: createMockFetch({
           'https://www.example.com/feed/': { body: body1 },
@@ -1850,7 +1848,7 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => undefined,
-          getSignature: () => signature,
+          getSignature: () => 'Test',
         },
       })
 
@@ -1876,7 +1874,7 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => 'https://example.com/other',
-          getSignature: (feed) => ({ title: feed?.includes('Feed A') ? 'A' : 'B' }),
+          getSignature: (feed) => (feed?.includes('Feed A') ? 'A' : 'B'),
         },
       })
 
@@ -2192,7 +2190,7 @@ describe('findCanonical', () => {
             return body
           },
           getSelfUrl: () => undefined,
-          getSignature: (feed) => ({ content: feed }),
+          getSignature: (feed) => feed,
         },
         tiers: [
           { stripWww: true, stripTrailingSlash: true },
@@ -2228,6 +2226,41 @@ describe('findCanonical', () => {
       })
 
       expect(await findCanonical(value, options)).toBeUndefined()
+    })
+  })
+
+  describe('self URL signature neutralization', () => {
+    // Case 81: Self URL mirrors request URL
+    //
+    // Input: https://example.com/feed/
+    // Variant: https://example.com/feed (no trailing slash)
+    // Both return same content but with self URLs matching their request URLs.
+    // Result: https://example.com/feed (cleaner variant)
+    //
+    // When two feeds are identical except for self URL mirroring the request URL,
+    // the signature comparison should neutralize self URLs and match them.
+    it('case 81: should match feeds when only self URL differs', async () => {
+      const value = 'https://example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const options = toOptions({
+        fetchFn: async (url: string) => ({
+          status: 200,
+          url,
+          body: `self:${url}`,
+          headers: new Headers(),
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: (body) => body.replace('self:', ''),
+          getSignature: (body) => {
+            // Neutralize self URL by replacing it with placeholder.
+            const selfUrl = body.replace('self:', '')
+            return JSON.stringify({ body: body.replaceAll(selfUrl, '__SELF_URL__') })
+          },
+        },
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
   })
 
@@ -2338,7 +2371,7 @@ describe('findCanonical', () => {
         parser: {
           parse: () => undefined,
           getSelfUrl: () => undefined,
-          getSignature: () => ({}),
+          getSignature: () => 'Test',
         },
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: 'not a valid feed' },

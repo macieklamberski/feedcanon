@@ -27,10 +27,11 @@ https://feeds.feedburner.com/kottke/ ──┘
 ### How It Works
 
 1. Fetch the input URL and parse the feed to establish reference content.
-2. Extract the feed's declared self URL and validate it serves identical content.
-3. Generate URL variants ordered from cleanest to least clean.
-4. Test variants in order—the first one serving identical content wins.
-5. Upgrade HTTP to HTTPS if both serve identical content.
+2. Extract the feed's declared self URL (if present).
+3. Validate the self URL by fetching and comparing content.
+4. Generate URL variants ordered from cleanest to least clean.
+5. Test variants in order—the first one serving identical content wins.
+6. Upgrade HTTP to HTTPS if both serve identical content.
 
 See [How It Works](/how-it-works) for detailed explanation of each step.
 

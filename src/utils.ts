@@ -26,6 +26,58 @@ const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
+// Pre-compiled patterns for fixMalformedProtocol.
+// Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
+const validUrlPattern = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
+
+// Doubled/nested protocol pattern - captures the INNER protocol which takes precedence.
+// Matches: http:http://, https:https://, http://https//, htp://ttps://, etc.
+const doubledProtocolPattern =
+  /^\/?[htps]{2,7}[:\s=.\\/]+([htps]{2,7})[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+
+// Single malformed protocol pattern - for typos, wrong separators, etc.
+// Must start with h (or /h) to be HTTP-like. Allows colons within letters (http:s//).
+const singleMalformedPattern = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+
+// Fix common malformations in HTTP/HTTPS protocols. Handles:
+// - Excess slashes: http:////example.com → http://example.com
+// - Leading slash: /http://example.com → http://example.com
+// - Typos in protocol: htp://, htps://, hhttps:// → http:// or https://
+// - Missing colon: http//example.com → http://example.com
+// - Multiple colons: http:::// → http://
+// - Wrong separators: http=//, http.\\ → http://
+// - Leading junk after protocol: http://./example.com → http://example.com
+// - Placeholder syntax: http(s):// → https://
+// - Double protocol: http:http://, https:https:// → dedupe
+// - Misplaced www: https:www.// → https://www.
+// - Missing www dot: https://www/ → https://www.
+export const fixMalformedProtocol = (url: string): string => {
+  // Fast path: valid URL without doubled protocol.
+  if (validUrlPattern.test(url) && !doubledProtocolPattern.test(url)) {
+    return url
+  }
+
+  const doubledMatch = doubledProtocolPattern.exec(url)
+  if (doubledMatch) {
+    const inner = doubledMatch[1]
+    const www = doubledMatch[2]
+    const rest = url.slice(doubledMatch[0].length)
+    const protocol = /s/i.test(inner) ? 'https://' : 'http://'
+    return protocol + (www ? 'www.' : '') + rest
+  }
+
+  const singleMatch = singleMalformedPattern.exec(url)
+  if (singleMatch) {
+    const fullMatch = singleMatch[0]
+    const www = singleMatch[1]
+    const rest = url.slice(fullMatch.length)
+    const protocol = /s/i.test(fullMatch) ? 'https://' : 'http://'
+    return protocol + (www ? 'www.' : '') + rest
+  }
+
+  return url
+}
+
 // Convert known feed-related protocols to HTTPS. Examples:
 // - feed://example.com/rss.xml → https://example.com/rss.xml
 // - feed:https://example.com/rss.xml → https://example.com/rss.xml
@@ -137,7 +189,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   // Step 2: Convert feed-related protocols.
   resolvedUrl = resolveFeedProtocol(resolvedUrl)
 
-  // Step 3: Resolve relative URLs if base is provided.
+  // Step 3: Fix malformed HTTP/HTTPS protocols.
+  resolvedUrl = fixMalformedProtocol(resolvedUrl)
+
+  // Step 4: Resolve relative URLs if base is provided.
   if (base) {
     try {
       resolvedUrl = new URL(resolvedUrl, base).href
@@ -146,10 +201,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
     }
   }
 
-  // Step 4: Add protocol if missing (handles both // and bare domains).
+  // Step 5: Add protocol if missing (handles both // and bare domains).
   resolvedUrl = addMissingProtocol(resolvedUrl)
 
-  // Step 5: Validate using native URL constructor.
+  // Step 6: Validate using native URL constructor.
   try {
     const parsed = new URL(resolvedUrl)
 
@@ -303,6 +358,11 @@ export const normalizeUrl = (
 
     // Build result URL.
     let result = parsed.href
+
+    // Strip root slash: URL.href always includes "/" for root paths.
+    if (options.stripRootSlash && result === `${parsed.origin}/`) {
+      result = parsed.origin
+    }
 
     // Strip protocol for comparison.
     if (options.stripProtocol) {

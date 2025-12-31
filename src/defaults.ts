@@ -1,7 +1,7 @@
 import { parseFeed } from 'feedsmith'
 import { feedburnerHandler } from './platforms/feedburner.js'
 import type {
-  FeedsmithFeed,
+  DefaultParserResult,
   FetchFn,
   NormalizeOptions,
   ParserAdapter,
@@ -264,25 +264,67 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
-export const defaultParser: ParserAdapter<FeedsmithFeed> = {
+const findSelfLink = (parsed: DefaultParserResult) => {
+  switch (parsed.format) {
+    case 'atom':
+      return parsed.feed.links?.find((link) => link.rel === 'self')
+    case 'rss':
+    case 'rdf':
+      return parsed.feed.atom?.links?.find((link) => link.rel === 'self')
+  }
+}
+
+export const defaultParser: ParserAdapter<DefaultParserResult> = {
   parse: (body) => {
     try {
       return parseFeed(body)
     } catch {}
   },
   getSelfUrl: (parsed) => {
-    switch (parsed.format) {
-      case 'atom':
-        return parsed.feed.links?.find((link) => link.rel === 'self')?.href
-      case 'rss':
-      case 'rdf':
-        return parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
-      case 'json':
-        return parsed.feed.feed_url
-    }
+    return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
   },
   getSignature: (parsed) => {
-    return parsed.feed
+    // Neutralize dynamic fields before generating signature to ensure feeds
+    // that differ only in self URL or timestamps are considered semantically identical.
+
+    if (parsed.format === 'json') {
+      const originalSelfUrl = parsed.feed.feed_url
+      parsed.feed.feed_url = undefined
+      const signature = JSON.stringify(parsed.feed)
+      parsed.feed.feed_url = originalSelfUrl
+
+      return signature
+    }
+
+    let signature: string
+    let originalBuildDate: string | undefined
+
+    if (parsed.format === 'rss') {
+      originalBuildDate = parsed.feed.lastBuildDate
+      parsed.feed.lastBuildDate = undefined
+    } else if (parsed.format === 'atom') {
+      originalBuildDate = parsed.feed.updated
+      parsed.feed.updated = undefined
+    }
+
+    const link = findSelfLink(parsed)
+
+    if (!link) {
+      signature = JSON.stringify(parsed.feed)
+    } else {
+      const originalSelfUrl = link.href
+      link.href = undefined
+      signature = JSON.stringify(parsed.feed)
+      link.href = originalSelfUrl
+    }
+
+    if (parsed.format === 'rss') {
+      parsed.feed.lastBuildDate = originalBuildDate
+    } else if (parsed.format === 'atom') {
+      parsed.feed.updated = originalBuildDate
+    }
+
+    return signature
   },
 }
 

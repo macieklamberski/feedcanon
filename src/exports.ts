@@ -8,8 +8,8 @@ export {
 export { findCanonical } from './index.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
 export type {
+  DefaultParserResult,
   ExistsFn,
-  FeedsmithFeed,
   FetchFn,
   FetchFnOptions,
   FetchFnResponse,
@@ -23,6 +23,7 @@ export type {
 } from './types.js'
 export {
   addMissingProtocol,
+  fixMalformedProtocol,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,

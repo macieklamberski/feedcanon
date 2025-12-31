@@ -1,13 +1,13 @@
 // Default feed type from feedsmith parser. Uses inline typeof import() because
 // tsdown strips `import type` in .d.ts files, breaking type resolution. Can be
 // simplified once feedsmith exports a ParsedFeed type directly.
-export type FeedsmithFeed = ReturnType<typeof import('feedsmith').parseFeed>
+export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFeed>
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
   parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
-  getSignature: (parsed: T) => object
+  getSignature: (parsed: T) => string
 }
 
 // Platform handler for URL normalization (e.g., FeedBurner domain aliasing).
@@ -55,7 +55,7 @@ export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 
 // Options for findCanonical function.
 export type FindCanonicalOptions<
-  TFeed = FeedsmithFeed,
+  TFeed = DefaultParserResult,
   TResponse extends FetchFnResponse = FetchFnResponse,
   TExisting = unknown,
 > = {
