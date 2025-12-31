@@ -26,6 +26,18 @@ const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
+// Pre-compiled patterns for fixMalformedProtocol.
+const malformedProtocolPattern = /^\/?[htps:()]{2,10}\/+/i
+const validProtocolPattern = /^https?:\/\//i
+const postProtocolJunkPattern = /^(https?:\/\/)[.,:]+/i
+const separatorsPattern = /^(https?)[:=.\\]+\/+/i
+const validWithContentPattern = /^https?:\/\/[^/]/i
+const fastPathPattern = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
+const wwwFixPattern = /^(https?)[:/]*www[./]+/i
+const validWwwPattern = /^https?:\/\/www\./i
+const doubledProtocolPattern = /^[htps]{2,7}[:/]+([htps]{2,7})[:/]+/i
+const hasSPattern = /s/i
+
 // Fix common malformations in HTTP/HTTPS protocols. Handles:
 // - Excess slashes: http:////example.com → http://example.com
 // - Leading slash: /http://example.com → http://example.com
@@ -39,86 +51,37 @@ const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 // - Misplaced www: https:www.// → https://www.
 // - Missing www dot: https://www/ → https://www.
 export const fixMalformedProtocol = (url: string): string => {
+  // Fast path: valid protocol + valid hostname start + no doubled protocol.
+  if (fastPathPattern.test(url) && !doubledProtocolPattern.test(url)) {
+    return url
+  }
+
   let fixed = url
 
-  // Strip leading slash before protocol: /http://example.com → http://example.com
-  if (/^\/https?:\/\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] leading slash:', url)
-    fixed = fixed.slice(1)
+  // Fix malformed protocol: typos (htp), colons in name (http:s), placeholder (http(s)), or leading slash
+  if (!validProtocolPattern.test(fixed)) {
+    fixed = fixed.replace(malformedProtocolPattern, (match) => {
+      return hasSPattern.test(match) ? 'https://' : 'http://'
+    })
   }
 
-  // Fix placeholder syntax: http(s):// → https://
-  if (/^http\(s\):\/\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] placeholder syntax:', url)
-    fixed = fixed.replace(/^http\(s\):\/\//i, 'https://')
+  // Remove junk after protocol: dots, commas, stray colons
+  fixed = fixed.replace(postProtocolJunkPattern, '$1')
+
+  // Fix wrong separators and normalize colons/slashes: http=// http.// http:/// → http://
+  if (!validWithContentPattern.test(fixed)) {
+    fixed = fixed.replace(separatorsPattern, '$1://')
   }
 
-  // Fix colon within protocol letters: http:s//, ht:tps//, htt:p// → http:// or https://
-  if (/^[htps:]{3,7}\/\//i.test(fixed) && !/^https?:\/\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] colon in protocol:', url)
-    fixed = fixed.replace(/^[htps:]{3,7}\/\//i, (match) =>
-      /s/i.test(match) ? 'https://' : 'http://',
-    )
+  // Fix www issues: misplaced (https:www.//) or missing dot (https://www/)
+  if (!validWwwPattern.test(fixed)) {
+    fixed = fixed.replace(wwwFixPattern, '$1://www.')
   }
 
-  // Fix double protocol prefix: http:http://, https:https:// → keep inner
-  if (/^https?:+(https?):\/\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] double protocol:', url)
-    fixed = fixed.replace(/^https?:+(https?):\/\//i, '$1://')
-  }
-
-  // Fix misplaced www after protocol: https:www.// → https://www.
-  if (/^(https?):www\.\/\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] misplaced www:', url)
-    fixed = fixed.replace(/^(https?):www\.\/\//i, '$1://www.')
-  }
-
-  // Fix typos in protocol (htp, htps, hhttps, httpss, etc.) only when followed by ://
-  if (/^[htps]{2,7}:\/\//i.test(fixed) && !/^https?:\/\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] protocol typo:', url)
-    fixed = fixed.replace(/^[htps]{2,7}(?=:\/\/)/i, (match) =>
-      /s/i.test(match) ? 'https' : 'http',
-    )
-  }
-
-  // Fix wrong separators after protocol (http=, http., http\, etc.)
-  if (/^(https?)[=.\\]+/i.test(fixed)) {
-    console.log('[fixMalformedProtocol] wrong separator:', url)
-    fixed = fixed.replace(/^(https?)[=.\\]+/i, '$1://')
-  }
-
-  // Remove leading dots/commas after protocol: http://./example.com → http://example.com
-  // Must run before "multiple colons/slashes" check to avoid treating comma as path separator
-  if (/^(https?:\/\/)[.,]+/i.test(fixed)) {
-    console.log('[fixMalformedProtocol] leading dots/commas:', url)
-    fixed = fixed.replace(/^(https?:\/\/)[.,]+/i, '$1')
-  }
-
-  // Fix multiple colons and slashes: http:::/// → http://
-  if (/^(https?):+\/+/i.test(fixed) && !/^https?:\/\/[^/]/i.test(fixed)) {
-    console.log('[fixMalformedProtocol] multiple colons/slashes:', url)
-    fixed = fixed.replace(/^(https?):+\/+/i, '$1://')
-  }
-
-  // Fix missing dot after www: https://www/example.com → https://www.example.com
-  if (/^(https?:\/\/)www\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] missing www dot:', url)
-    fixed = fixed.replace(/^(https?:\/\/)www\//i, '$1www.')
-  }
-
-  // Fix nested double protocols: http://https//domain → https://, http://ttp://domain → http://
-  if (/^[htps]{2,7}:\/\/([htps]{2,7})[:/]+/i.test(fixed)) {
-    console.log('[fixMalformedProtocol] nested protocol:', url)
-    fixed = fixed.replace(/^[htps]{2,7}:\/\/([htps]{2,7})[:/]+/i, (_match, inner) =>
-      /s/i.test(inner) ? 'https://' : 'http://',
-    )
-  }
-
-  // Fix stray colon after protocol slashes: http://:/path → http://path
-  if (/^(https?:\/\/):\//i.test(fixed)) {
-    console.log('[fixMalformedProtocol] stray colon:', url)
-    fixed = fixed.replace(/^(https?:\/\/):\//i, '$1')
-  }
+  // Fix doubled/nested protocols: http:http://, http://https// → use inner protocol
+  fixed = fixed.replace(doubledProtocolPattern, (_match, inner) => {
+    return hasSPattern.test(inner) ? 'https://' : 'http://'
+  })
 
   return fixed
 }
