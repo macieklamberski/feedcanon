@@ -323,6 +323,62 @@ describe('fixMalformedProtocol', () => {
     }
   })
 
+  it('should preserve port numbers when fixing protocol typos', () => {
+    const values = [
+      { value: 'htp://example.com:8080', expected: 'http://example.com:8080' },
+      { value: 'htps://example.com:443/feed', expected: 'https://example.com:443/feed' },
+      { value: 'hhttps://example.com:3000', expected: 'https://example.com:3000' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should preserve query strings when fixing protocol typos', () => {
+    const values = [
+      { value: 'htp://example.com?a=1', expected: 'http://example.com?a=1' },
+      {
+        value: 'htps://example.com/feed?format=rss&id=123',
+        expected: 'https://example.com/feed?format=rss&id=123',
+      },
+      {
+        value: 'hhttps://example.com?foo=bar#anchor',
+        expected: 'https://example.com?foo=bar#anchor',
+      },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should not modify protocol-like strings in path', () => {
+    const values = [
+      'http://example.com/path/http://file',
+      'https://example.com/redirect?url=http://other.com',
+      'http://example.com/api/https://callback',
+    ]
+
+    for (const value of values) {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    }
+  })
+
+  it('should preserve non-HTTP protocols unchanged', () => {
+    const values = [
+      'ftp://example.com/file',
+      'mailto:user@example.com',
+      'file:///path/to/file',
+      'data:text/plain;base64,SGVsbG8=',
+      'tel:+1234567890',
+    ]
+
+    for (const value of values) {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    }
+  })
+
   it('should preserve valid URLs unchanged', () => {
     const values = [
       'http://example.com',
