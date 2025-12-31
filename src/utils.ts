@@ -27,16 +27,17 @@ const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
 // Pre-compiled patterns for fixMalformedProtocol.
-const malformedProtocolPattern = /^\/?[htps:()]{2,10}\/+/i
-const validProtocolPattern = /^https?:\/\//i
-const postProtocolJunkPattern = /^(https?:\/\/)[.,:]+/i
-const separatorsPattern = /^(https?)[:=.\\]+\/+/i
-const validWithContentPattern = /^https?:\/\/[^/]/i
-const fastPathPattern = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
-const wwwFixPattern = /^(https?)[:/]*www[./]+/i
-const validWwwPattern = /^https?:\/\/www\./i
-const doubledProtocolPattern = /^[htps]{2,7}[:/]+([htps]{2,7})[:/]+/i
-const hasSPattern = /s/i
+// Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
+const validUrlPattern = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
+
+// Doubled/nested protocol pattern - captures the INNER protocol which takes precedence.
+// Matches: http:http://, https:https://, http://https//, htp://ttps://, etc.
+const doubledProtocolPattern =
+  /^\/?[htps]{2,7}[:\s=.\\/]+([htps]{2,7})[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+
+// Single malformed protocol pattern - for typos, wrong separators, etc.
+// Must start with h (or /h) to be HTTP-like. Allows colons within letters (http:s//).
+const singleMalformedPattern = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/]*(www[./]+)?/i
 
 // Fix common malformations in HTTP/HTTPS protocols. Handles:
 // - Excess slashes: http:////example.com → http://example.com
@@ -51,39 +52,30 @@ const hasSPattern = /s/i
 // - Misplaced www: https:www.// → https://www.
 // - Missing www dot: https://www/ → https://www.
 export const fixMalformedProtocol = (url: string): string => {
-  // Fast path: valid protocol + valid hostname start + no doubled protocol.
-  if (fastPathPattern.test(url) && !doubledProtocolPattern.test(url)) {
+  // Fast path: valid URL without doubled protocol.
+  if (validUrlPattern.test(url) && !doubledProtocolPattern.test(url)) {
     return url
   }
 
-  let fixed = url
-
-  // Fix malformed protocol: typos (htp), colons in name (http:s), placeholder (http(s)), or leading slash
-  if (!validProtocolPattern.test(fixed)) {
-    fixed = fixed.replace(malformedProtocolPattern, (match) => {
-      return hasSPattern.test(match) ? 'https://' : 'http://'
-    })
+  const doubledMatch = doubledProtocolPattern.exec(url)
+  if (doubledMatch) {
+    const inner = doubledMatch[1]
+    const www = doubledMatch[2]
+    const rest = url.slice(doubledMatch[0].length)
+    const protocol = /s/i.test(inner) ? 'https://' : 'http://'
+    return protocol + (www ? 'www.' : '') + rest
   }
 
-  // Remove junk after protocol: dots, commas, stray colons
-  fixed = fixed.replace(postProtocolJunkPattern, '$1')
-
-  // Fix wrong separators and normalize colons/slashes: http=// http.// http:/// → http://
-  if (!validWithContentPattern.test(fixed)) {
-    fixed = fixed.replace(separatorsPattern, '$1://')
+  const singleMatch = singleMalformedPattern.exec(url)
+  if (singleMatch) {
+    const fullMatch = singleMatch[0]
+    const www = singleMatch[1]
+    const rest = url.slice(fullMatch.length)
+    const protocol = /s/i.test(fullMatch) ? 'https://' : 'http://'
+    return protocol + (www ? 'www.' : '') + rest
   }
 
-  // Fix www issues: misplaced (https:www.//) or missing dot (https://www/)
-  if (!validWwwPattern.test(fixed)) {
-    fixed = fixed.replace(wwwFixPattern, '$1://www.')
-  }
-
-  // Fix doubled/nested protocols: http:http://, http://https// → use inner protocol
-  fixed = fixed.replace(doubledProtocolPattern, (_match, inner) => {
-    return hasSPattern.test(inner) ? 'https://' : 'http://'
-  })
-
-  return fixed
+  return url
 }
 
 // Convert known feed-related protocols to HTTPS. Examples:

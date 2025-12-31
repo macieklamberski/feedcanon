@@ -204,12 +204,27 @@ describe('fixMalformedProtocol', () => {
     }
   })
 
+  it('should fix single slash after protocol', () => {
+    const values = [
+      { value: 'http:/example.com', expected: 'http://example.com' },
+      { value: 'https:/example.com', expected: 'https://example.com' },
+      { value: 'http:/www.example.com', expected: 'http://www.example.com' },
+      { value: 'https:/example.com/feed', expected: 'https://example.com/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
   it('should fix multiple colons and slashes', () => {
     const values = [
       { value: 'http:://example.com', expected: 'http://example.com' },
       { value: 'http:///example.com', expected: 'http://example.com' },
       { value: 'http:////example.com', expected: 'http://example.com' },
       { value: 'https:::///example.com', expected: 'https://example.com' },
+      { value: 'http://///example.com', expected: 'http://example.com' },
+      { value: 'https://////www.example.com', expected: 'https://www.example.com' },
     ]
 
     for (const { value, expected } of values) {
