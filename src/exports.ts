@@ -23,6 +23,7 @@ export type {
 } from './types.js'
 export {
   addMissingProtocol,
+  fixMalformedProtocol,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
