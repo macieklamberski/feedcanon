@@ -36,6 +36,8 @@ The 9 URLs below all work and return identical content. None redirect to each ot
 
 ### How It Works
 
+This is a simplified flow. For complete details, see [How It Works](https://feedcanon.dev/how-it-works) in the docs.
+
 1. Fetch the input URL and parse the feed to establish reference content.
 2. Extract the feed's declared self URL (if present).
 3. Validate the self URL by fetching and comparing content.
