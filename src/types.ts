@@ -16,6 +16,12 @@ export type PlatformHandler = {
   normalize: (url: URL) => URL
 }
 
+// URL Probe for generating and validating alternate URL candidates.
+export type Probe = {
+  match: (url: URL) => boolean
+  getCandidates: (url: URL) => Array<URL>
+}
+
 // URL normalization options.
 export type NormalizeOptions = {
   stripProtocol?: boolean // strip protocol (http ↔ https treated same)
@@ -63,6 +69,7 @@ export type FindCanonicalOptions<
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
   tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
   platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
+  probes?: Array<Probe> // URL probes (e.g., WordPress query param → path).
   stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler, Probe } from './types.js'
 import {
   addMissingProtocol,
   applyPlatformHandlers,
+  applyProbes,
   fixMalformedProtocol,
   normalizeUrl,
   resolveFeedProtocol,
@@ -1646,5 +1647,129 @@ describe('applyPlatformHandlers', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+})
+
+describe('applyProbes', () => {
+  const createProbe = (matchQuery: string, candidatePath: string): Probe => {
+    return {
+      match: (url) => {
+        return url.searchParams.has(matchQuery)
+      },
+      getCandidates: (url) => {
+        const candidate = new URL(url.href)
+        candidate.pathname = candidatePath
+        candidate.searchParams.delete(matchQuery)
+        return [candidate]
+      },
+    }
+  }
+
+  it('should return first working candidate', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async (url: string) => {
+      if (url === 'https://example.com/feed') {
+        return url
+      }
+    }
+    const expected = 'https://example.com/feed'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should return original URL when no candidate works', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async () => {
+      return undefined
+    }
+    const expected = 'https://example.com/?feed=rss2'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should return original URL when no probe matches', async () => {
+    const value = 'https://example.com/feed'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async () => {
+      throw new Error('Should not be called')
+    }
+    const expected = 'https://example.com/feed'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should return original URL when probes array is empty', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes: Array<Probe> = []
+    const testCandidate = async () => {
+      throw new Error('Should not be called')
+    }
+    const expected = 'https://example.com/?feed=rss2'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should return original string for invalid URL', async () => {
+    const value = 'not a valid url'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async () => {
+      throw new Error('Should not be called')
+    }
+    const expected = 'not a valid url'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should try candidates in order and use first working one', async () => {
+    const value = 'https://example.com/?feed=atom'
+    const probes: Array<Probe> = [
+      {
+        match: (url) => url.searchParams.has('feed'),
+        getCandidates: (url) => {
+          const first = new URL(url.href)
+          first.pathname = '/feed/atom'
+          first.searchParams.delete('feed')
+
+          const second = new URL(url.href)
+          second.pathname = '/feed'
+          second.searchParams.delete('feed')
+
+          return [first, second]
+        },
+      },
+    ]
+    const testCandidate = async (url: string) => {
+      if (url === 'https://example.com/feed') {
+        return url
+      }
+    }
+    const expected = 'https://example.com/feed'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should only try first matching probe', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    let secondProbeCalled = false
+    const probes: Array<Probe> = [
+      {
+        match: (url) => url.searchParams.has('feed'),
+        getCandidates: () => [],
+      },
+      {
+        match: (url) => url.searchParams.has('feed'),
+        getCandidates: () => {
+          secondProbeCalled = true
+          return []
+        },
+      },
+    ]
+    const testCandidate = async () => undefined
+    const expected = 'https://example.com/?feed=rss2'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(secondProbeCalled).toBe(false)
   })
 })

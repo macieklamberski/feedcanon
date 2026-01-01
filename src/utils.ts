@@ -1,7 +1,7 @@
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, PlatformHandler, Probe } from './types.js'
 
 const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
 
@@ -363,6 +363,39 @@ export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHand
     }
 
     return parsed.href
+  } catch {
+    return url
+  }
+}
+
+// Apply URL probes, testing each candidate via callback.
+// Returns first working candidate URL, or original if none work.
+export const applyProbes = async (
+  url: string,
+  probes: Array<Probe>,
+  testCandidate: (url: string) => Promise<string | undefined>,
+): Promise<string> => {
+  try {
+    const parsed = new URL(url)
+
+    for (const probe of probes) {
+      if (!probe.match(parsed)) {
+        continue
+      }
+
+      for (const candidate of probe.getCandidates(parsed)) {
+        const result = await testCandidate(candidate.href)
+
+        if (result) {
+          return result
+        }
+      }
+
+      // First matching probe wins.
+      break
+    }
+
+    return url
   } catch {
     return url
   }

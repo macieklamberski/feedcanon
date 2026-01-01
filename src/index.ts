@@ -11,7 +11,7 @@ import type {
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import { applyPlatformHandlers, normalizeUrl, resolveUrl } from './utils.js'
+import { applyPlatformHandlers, applyProbes, normalizeUrl, resolveUrl } from './utils.js'
 
 // Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
@@ -45,6 +45,7 @@ export async function findCanonical(
     existsFn,
     tiers = defaultTiers,
     platforms = defaultPlatforms,
+    probes,
     stripQueryParams = defaultStrippedParams,
     onFetch,
     onMatch,
@@ -59,13 +60,13 @@ export async function findCanonical(
   }
 
   // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
-  const resolveAndApplyPlatformHandlers = (url: string, baseUrl?: string): string | undefined => {
+  const resolveAndApplyPlatforms = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
     return resolved ? applyPlatformHandlers(resolved, platforms) : undefined
   }
 
   // Phase 1: Initial fetch.
-  const initialRequestUrl = resolveAndApplyPlatformHandlers(inputUrl)
+  const initialRequestUrl = resolveAndApplyPlatforms(inputUrl)
   if (!initialRequestUrl) return
 
   let initialResponse: FetchFnResponse
@@ -82,7 +83,7 @@ export async function findCanonical(
     return
   }
 
-  const initialResponseUrlRaw = resolveAndApplyPlatformHandlers(initialResponse.url)
+  const initialResponseUrlRaw = resolveAndApplyPlatforms(initialResponse.url)
   if (!initialResponseUrlRaw) return
   const initialResponseUrl = stripParams(initialResponseUrlRaw)
 
@@ -105,7 +106,7 @@ export async function findCanonical(
   const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
 
   if (selfRequestUrlRaw) {
-    selfRequestUrl = resolveAndApplyPlatformHandlers(selfRequestUrlRaw, initialResponseUrl)
+    selfRequestUrl = resolveAndApplyPlatforms(selfRequestUrlRaw, initialResponseUrl)
     selfRequestUrl = selfRequestUrl ? stripParams(selfRequestUrl) : undefined
   }
 
@@ -171,18 +172,31 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        variantSourceUrl = resolveAndApplyPlatformHandlers(response.url) ?? initialResponseUrl
+        variantSourceUrl = resolveAndApplyPlatforms(response.url) ?? initialResponseUrl
         variantSourceUrl = stripParams(variantSourceUrl)
         break
       }
     }
   }
 
+  // Phase 3.5: Apply URL probes.
+  // Test alternate URL forms (e.g., WordPress query param -> path conversion).
+  if (probes?.length) {
+    variantSourceUrl = await applyProbes(variantSourceUrl, probes, async (candidateUrl) => {
+      const response = await fetchAndCompare(candidateUrl)
+
+      if (response) {
+        onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
+        return stripParams(resolveAndApplyPlatforms(response.url) ?? candidateUrl)
+      }
+    })
+  }
+
   // Phase 4: Generate Variants.
   // Include variantSource for existsFn check, but skip fetch/compare (already verified).
   const variantUrls = new Set(
     tiers
-      .map((tier) => resolveAndApplyPlatformHandlers(normalizeUrl(variantSourceUrl, tier)))
+      .map((tier) => resolveAndApplyPlatforms(normalizeUrl(variantSourceUrl, tier)))
       .filter((variantUrl): variantUrl is string => !!variantUrl),
   )
   variantUrls.add(variantSourceUrl)
@@ -214,7 +228,7 @@ export async function findCanonical(
 
     const variantResponse = await fetchAndCompare(variantUrl)
     if (variantResponse) {
-      let variantResponseUrl = resolveAndApplyPlatformHandlers(variantResponse.url)
+      let variantResponseUrl = resolveAndApplyPlatforms(variantResponse.url)
       if (variantResponseUrl) {
         variantResponseUrl = stripParams(variantResponseUrl)
       }

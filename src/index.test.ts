@@ -1093,12 +1093,163 @@ describe('findCanonical', () => {
     })
   })
 
+  describe('URL probe edge cases', () => {
+    // Case 36: WordPress query param to path conversion.
+    //
+    // When a WordPress feed is accessed via query param (?feed=rss2) and a probe
+    // generates path-based candidates (/feed), the first working candidate is used.
+    it('case 36: should use probe candidate when it returns equivalent content', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body },
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+        probes: [
+          {
+            match: (url) => url.searchParams.has('feed'),
+            getCandidates: (url) => {
+              const candidate = new URL(url)
+              candidate.pathname = '/feed'
+              candidate.searchParams.delete('feed')
+              return [candidate]
+            },
+          },
+        ],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 37: Probe candidate fails, original URL kept.
+    //
+    // When all probe candidates fail (404, different content), the original URL
+    // is preserved as canonical.
+    it('case 37: should keep original URL when probe candidates fail', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/?feed=rss2'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body },
+          'https://example.com/feed': { status: 404 },
+        }),
+        parser: createMockParser(undefined),
+        probes: [
+          {
+            match: (url) => url.searchParams.has('feed'),
+            getCandidates: (url) => {
+              const candidate = new URL(url)
+              candidate.pathname = '/feed'
+              candidate.searchParams.delete('feed')
+              return [candidate]
+            },
+          },
+        ],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 38: Probe candidate returns different content.
+    //
+    // When a probe candidate returns different feed content (detected via signature
+    // comparison), it is rejected and the original URL is kept.
+    it('case 38: should reject probe candidate with different content', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/?feed=rss2'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body: '<feed>original</feed>' },
+          'https://example.com/feed': { body: '<feed>different</feed>' },
+        }),
+        parser: createMockParser(undefined),
+        probes: [
+          {
+            match: (url) => url.searchParams.has('feed'),
+            getCandidates: (url) => {
+              const candidate = new URL(url)
+              candidate.pathname = '/feed'
+              candidate.searchParams.delete('feed')
+              return [candidate]
+            },
+          },
+        ],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 39: Multiple probe candidates tried in order.
+    //
+    // Candidates are tested sequentially. First working candidate is used.
+    it('case 39: should try probe candidates in order', async () => {
+      const value = 'https://example.com/?feed=atom'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=atom': { body },
+          'https://example.com/feed/atom': { status: 404 },
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+        probes: [
+          {
+            match: (url) => url.searchParams.has('feed'),
+            getCandidates: (url) => {
+              const first = new URL(url)
+              first.pathname = '/feed/atom'
+              first.searchParams.delete('feed')
+
+              const second = new URL(url)
+              second.pathname = '/feed'
+              second.searchParams.delete('feed')
+
+              return [first, second]
+            },
+          },
+        ],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Case 40: Probe not matching.
+    //
+    // Probes that don't match the URL are skipped.
+    it('case 40: should skip probes that do not match', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+        probes: [
+          {
+            match: (url) => url.searchParams.has('feed'),
+            getCandidates: () => {
+              throw new Error('Should not be called')
+            },
+          },
+        ],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+  })
+
   describe('URL parsing edge cases', () => {
-    // Case 36: IDN/Punycode mismatch
+    // Case 41: IDN/Punycode mismatch
     //
     // When input URL uses Unicode hostname and self URL uses Punycode (or vice versa),
     // they should be recognized as equivalent after normalization.
-    it('case 36: should handle IDN/Punycode mismatch between input and self URL', async () => {
+    it('case 41: should handle IDN/Punycode mismatch between input and self URL', async () => {
       const value = 'https://xn--mnchen-3ya.example.com/feed'
       const expected = 'https://xn--mnchen-3ya.example.com/feed'
       const body = '<feed></feed>'
