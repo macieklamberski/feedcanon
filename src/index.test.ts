@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { findCanonical } from './index.js'
-import type {
-  FetchFnResponse,
-  FindCanonicalOptions,
-  ParserAdapter,
-  PlatformHandler,
-} from './types.js'
+import type { FetchFnResponse, FindCanonicalOptions, ParserAdapter, Rewrite } from './types.js'
 
 describe('findCanonical', () => {
   // Helper that provides type context for options, enabling proper callback typing.
@@ -1042,9 +1037,9 @@ describe('findCanonical', () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
-      const throwingHandler: PlatformHandler = {
+      const throwingRewrite: Rewrite = {
         match: () => {
-          throw new Error('Handler error')
+          throw new Error('Rewrite error')
         },
         normalize: (url) => url,
       }
@@ -1052,7 +1047,7 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://example.com/feed': { body },
         }),
-        platforms: [throwingHandler],
+        rewrites: [throwingRewrite],
         parser: createMockParser(undefined),
       })
 
@@ -1067,14 +1062,14 @@ describe('findCanonical', () => {
       const value = 'https://multi.example.com/feed'
       const expected = 'https://first.example.com/feed'
       const body = '<feed></feed>'
-      const firstHandler: PlatformHandler = {
+      const firstRewrite: Rewrite = {
         match: (url) => url.hostname === 'multi.example.com',
         normalize: (url) => {
           url.hostname = 'first.example.com'
           return url
         },
       }
-      const secondHandler: PlatformHandler = {
+      const secondRewrite: Rewrite = {
         match: (url) => url.hostname === 'multi.example.com',
         normalize: (url) => {
           url.hostname = 'second.example.com'
@@ -1086,7 +1081,7 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://first.example.com/feed': { body },
         }),
-        platforms: [firstHandler, secondHandler],
+        rewrites: [firstRewrite, secondRewrite],
       })
 
       expect(await findCanonical(value, options)).toBe(expected)
@@ -2360,7 +2355,7 @@ describe('findCanonical', () => {
     // after platform handler processing, return undefined.
     it('case 80: should return undefined when response URL is invalid after platform handler', async () => {
       const value = 'https://example.com/feed'
-      const badHandler: PlatformHandler = {
+      const badRewrite: Rewrite = {
         match: () => true,
         normalize: () => {
           // Return a URL object that will fail when converted to href
@@ -2373,7 +2368,7 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: '<feed/>' },
         }),
-        platforms: [badHandler],
+        rewrites: [badRewrite],
       })
 
       expect(await findCanonical(value, options)).toBeUndefined()
