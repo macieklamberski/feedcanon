@@ -699,5 +699,207 @@ describe('defaultParser', () => {
       expect(signature).not.toContain('https://example.com')
       expect(signature).toContain('/post/1')
     })
+
+    it('should not match similar domain names with different prefix', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://notexample.com/post/1</link>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('https://notexample.com/post/1')
+    })
+
+    it('should not match domain that continues after feed domain', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://example.com.evil.com/post/1</link>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('https://example.com.evil.com/post/1')
+    })
+
+    it('should not match subdomains of feed domain', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://api.example.com/post/1</link>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('https://api.example.com/post/1')
+    })
+
+    it('should not normalize URLs with ports', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://example.com:8080/post/1</link>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('https://example.com:8080/post/1')
+    })
+
+    it('should not normalize bare domain without trailing slash', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <description>Visit https://example.com for more</description>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('https://example.com')
+    })
+
+    it('should normalize same-domain URLs in query parameters', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://tracker.com/click?url=https://example.com/post</link>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('https://tracker.com/click?url=/post')
+      expect(signature).not.toContain('https://example.com/post')
+    })
+
+    it('should handle mixed same-domain and external URLs', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://example.com/post/1</link>
+              <description>Check https://external.com/page and https://example.com/about/</description>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(signature).toContain('/post/1')
+      expect(signature).toContain('https://external.com/page')
+      expect(signature).toContain('/about/')
+      expect(signature).not.toContain('https://example.com/')
+    })
+
+    it('should handle feed from subdomain without affecting parent domain URLs', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <title>Post</title>
+              <link>https://blog.example.com/post/1</link>
+              <description>See also https://example.com/main</description>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'https://blog.example.com/feed.rss')
+
+      expect(signature).toContain('/post/1')
+      expect(signature).toContain('https://example.com/main')
+    })
+
+    it('should return original signature for invalid URL', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature = defaultParser.getSignature(parsed, 'not-a-valid-url')
+      const expected = JSON.stringify(parsed.feed)
+
+      expect(signature).toBe(expected)
+    })
   })
 })
