@@ -384,7 +384,7 @@ export const applyProbes = async (
       }
 
       for (const candidate of probe.getCandidates(parsed)) {
-        const result = await testCandidate(candidate.href)
+        const result = await testCandidate(candidate)
 
         if (result) {
           return result

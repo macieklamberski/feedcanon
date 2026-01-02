@@ -53,7 +53,26 @@ The comparison uses a two-tier matching strategy:
 
 If the self URL fails (e.g., wrong protocol), Feedcanon tries the alternate protocol (`https://` ↔ `http://`).
 
-### 4. Variant Generation
+### 4. URL Probes (Optional)
+
+If probes are configured, Feedcanon tests alternate URL forms:
+
+1. Check if any probe matches the current URL
+2. Generate candidate URLs from the matching probe
+3. Test each candidate sequentially via fetch + content comparison
+4. If a candidate returns equivalent content, use it as the new base
+
+This is useful for converting query parameter URLs to cleaner path-based forms:
+
+```
+https://example.com/?feed=rss2
+  ↓ WordPress probe generates candidate
+https://example.com/feed
+  ↓ Fetch and compare → matches ✓
+Use /feed as base for variant generation
+```
+
+### 5. Variant Generation
 
 Using the validated base URL, Feedcanon generates URL variants by applying normalization tiers. Variants are ordered from cleanest (most normalized) to least clean.
 
@@ -67,7 +86,7 @@ https://www.example.com/feed
 https://www.example.com/feed?utm_source=twitter
 ```
 
-### 5. Variant Testing
+### 6. Variant Testing
 
 Each variant is tested in order:
 
@@ -79,7 +98,7 @@ Each variant is tested in order:
 
 This ensures the cleanest working URL is selected.
 
-### 6. HTTPS Upgrade
+### 7. HTTPS Upgrade
 
 If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 
@@ -115,11 +134,30 @@ Input: https://feedproxy.google.com/example?utm_source=rss
 Phase 1: Fetch → normalized to feeds.feedburner.com/example?utm_source=rss
 Phase 2: Extract self URL → https://feeds.feedburner.com/example
 Phase 3: Validate self URL → matches ✓
-Phase 4: Generate variants:
+Phase 4: URL probes → no probes configured, skip
+Phase 5: Generate variants:
   - https://feeds.feedburner.com/example (cleanest)
   - https://feeds.feedburner.com/example?utm_source=rss
-Phase 5: Test variants → https://feeds.feedburner.com/example works ✓
-Phase 6: HTTPS upgrade → already HTTPS ✓
+Phase 6: Test variants → https://feeds.feedburner.com/example works ✓
+Phase 7: HTTPS upgrade → already HTTPS ✓
 
 Result: https://feeds.feedburner.com/example
+```
+
+With WordPress probe enabled:
+
+```
+Input: https://example.com/?feed=rss2
+
+Phase 1: Fetch → https://example.com/?feed=rss2
+Phase 2: Extract self URL → https://example.com/?feed=rss2
+Phase 3: Validate self URL → same as input, skip
+Phase 4: URL probes → WordPress probe matches
+  - Candidate: https://example.com/feed → matches ✓
+  - Use /feed as base
+Phase 5: Generate variants from https://example.com/feed
+Phase 6: Test variants → https://example.com/feed works ✓
+Phase 7: HTTPS upgrade → already HTTPS ✓
+
+Result: https://example.com/feed
 ```
