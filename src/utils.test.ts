@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { FetchFnResponse, NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, Rewrite } from './types.js'
 import {
   addMissingProtocol,
-  applyPlatformHandlers,
-  nativeFetch,
+  applyRewrites,
+  fixMalformedProtocol,
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
@@ -162,6 +162,252 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol('feed:http://example.com/feed', 'https')).toBe(
       'http://example.com/feed',
     )
+  })
+})
+
+describe('fixMalformedProtocol', () => {
+  it('should strip leading slash before protocol', () => {
+    const values = [
+      { value: '/http://example.com', expected: 'http://example.com' },
+      { value: '/https://example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix protocol typos', () => {
+    const values = [
+      { value: 'htp://example.com', expected: 'http://example.com' },
+      { value: 'htps://example.com', expected: 'https://example.com' },
+      { value: 'hhttps://example.com', expected: 'https://example.com' },
+      { value: 'httpss://example.com', expected: 'https://example.com' },
+      { value: 'ttp://example.com', expected: 'http://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix wrong separators after protocol', () => {
+    const values = [
+      { value: 'http=//example.com', expected: 'http://example.com' },
+      { value: 'http.//example.com', expected: 'http://example.com' },
+      { value: 'http\\//example.com', expected: 'http://example.com' },
+      { value: 'https=//example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix single slash after protocol', () => {
+    const values = [
+      { value: 'http:/example.com', expected: 'http://example.com' },
+      { value: 'https:/example.com', expected: 'https://example.com' },
+      { value: 'http:/www.example.com', expected: 'http://www.example.com' },
+      { value: 'https:/example.com/feed', expected: 'https://example.com/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix multiple colons and slashes', () => {
+    const values = [
+      { value: 'http:://example.com', expected: 'http://example.com' },
+      { value: 'http:///example.com', expected: 'http://example.com' },
+      { value: 'http:////example.com', expected: 'http://example.com' },
+      { value: 'https:::///example.com', expected: 'https://example.com' },
+      { value: 'http://///example.com', expected: 'http://example.com' },
+      { value: 'https://////www.example.com', expected: 'https://www.example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should remove leading junk after protocol', () => {
+    const values = [
+      { value: 'http://./example.com', expected: 'http://example.com' },
+      { value: 'http://,example.com', expected: 'http://example.com' },
+      { value: 'https://...example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix placeholder syntax', () => {
+    const values = [
+      { value: 'http(s)://example.com', expected: 'https://example.com' },
+      { value: 'HTTP(S)://example.com/feed', expected: 'https://example.com/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix colon within protocol letters', () => {
+    const values = [
+      { value: 'http:s//example.com', expected: 'https://example.com' },
+      { value: 'https:s//example.com', expected: 'https://example.com' },
+      { value: 'ht:tps//example.com', expected: 'https://example.com' },
+      { value: 'htt:p//example.com', expected: 'http://example.com' },
+      { value: 'h:ttp//example.com', expected: 'http://example.com' },
+      { value: 'ht:tp//example.com', expected: 'http://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix double protocol prefix', () => {
+    const values = [
+      { value: 'http:http://example.com', expected: 'http://example.com' },
+      { value: 'https:https://example.com', expected: 'https://example.com' },
+      { value: 'http:https://example.com', expected: 'https://example.com' },
+      { value: 'https:http://example.com', expected: 'http://example.com' },
+      { value: 'http::http://example.com', expected: 'http://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix misplaced www after protocol', () => {
+    const values = [
+      { value: 'http:www.//example.com', expected: 'http://www.example.com' },
+      { value: 'https:www.//example.com', expected: 'https://www.example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix missing dot after www', () => {
+    const values = [
+      { value: 'http://www/example.com', expected: 'http://www.example.com' },
+      { value: 'https://www/example.com/feed', expected: 'https://www.example.com/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix nested double protocols', () => {
+    const values = [
+      { value: 'http://https//example.com', expected: 'https://example.com' },
+      { value: 'http://https/example.com', expected: 'https://example.com' },
+      { value: 'https://https//example.com', expected: 'https://example.com' },
+      { value: 'http://http/example.com', expected: 'http://example.com' },
+      { value: 'http://http//example.com', expected: 'http://example.com' },
+      { value: 'http://ttp://example.com', expected: 'http://example.com' },
+      { value: 'http://ttps://example.com', expected: 'https://example.com' },
+      { value: 'htp://ttps://example.com', expected: 'https://example.com' },
+      { value: 'htps://ttp://example.com', expected: 'http://example.com' },
+      { value: 'hs://hp://example.com', expected: 'http://example.com' },
+      { value: 'httpss://htps://example.com', expected: 'https://example.com' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should fix stray colon after protocol slashes', () => {
+    const values = [
+      { value: 'http://:/example.com', expected: 'http://example.com' },
+      { value: 'https://:/example.com', expected: 'https://example.com' },
+      { value: 'http://:/path/to/feed', expected: 'http://path/to/feed' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should preserve port numbers when fixing protocol typos', () => {
+    const values = [
+      { value: 'htp://example.com:8080', expected: 'http://example.com:8080' },
+      { value: 'htps://example.com:443/feed', expected: 'https://example.com:443/feed' },
+      { value: 'hhttps://example.com:3000', expected: 'https://example.com:3000' },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should preserve query strings when fixing protocol typos', () => {
+    const values = [
+      { value: 'htp://example.com?a=1', expected: 'http://example.com?a=1' },
+      {
+        value: 'htps://example.com/feed?format=rss&id=123',
+        expected: 'https://example.com/feed?format=rss&id=123',
+      },
+      {
+        value: 'hhttps://example.com?foo=bar#anchor',
+        expected: 'https://example.com?foo=bar#anchor',
+      },
+    ]
+
+    for (const { value, expected } of values) {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    }
+  })
+
+  it('should not modify protocol-like strings in path', () => {
+    const values = [
+      'http://example.com/path/http://file',
+      'https://example.com/redirect?url=http://other.com',
+      'http://example.com/api/https://callback',
+    ]
+
+    for (const value of values) {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    }
+  })
+
+  it('should preserve non-HTTP protocols unchanged', () => {
+    const values = [
+      'ftp://example.com/file',
+      'mailto:user@example.com',
+      'file:///path/to/file',
+      'data:text/plain;base64,SGVsbG8=',
+      'tel:+1234567890',
+    ]
+
+    for (const value of values) {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    }
+  })
+
+  it('should preserve valid URLs unchanged', () => {
+    const values = [
+      'http://example.com',
+      'https://example.com',
+      'http://example.com/path/to/feed',
+      'https://example.com/feed?format=rss',
+      'http://example.com:8080/feed',
+      'ftp://example.com/file',
+      '/path/to/feed',
+    ]
+
+    for (const value of values) {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    }
   })
 })
 
@@ -324,6 +570,12 @@ describe('addMissingProtocol', () => {
       expect(addMissingProtocol('data:text/html,<h1>Test</h1>')).toBe(
         'data:text/html,<h1>Test</h1>',
       )
+    })
+
+    it('should return URLs with leading whitespace unchanged', () => {
+      expect(addMissingProtocol(' example.com')).toBe(' example.com')
+      expect(addMissingProtocol('\texample.com')).toBe('\texample.com')
+      expect(addMissingProtocol('\nexample.com')).toBe('\nexample.com')
     })
   })
 })
@@ -905,9 +1157,45 @@ describe('normalizeUrl', () => {
   })
 
   describe('single slash (root path) handling', () => {
-    it('should keep root slash', () => {
+    it('should strip root slash by default', () => {
       const value = 'https://example.com/'
+      const expected = 'example.com'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should strip root slash from URL without trailing slash', () => {
+      const value = 'https://example.com'
+      const expected = 'example.com'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should preserve root slash when stripRootSlash is false', () => {
+      const value = 'https://example.com/'
+      const options = { ...defaultNormalizeOptions, stripRootSlash: false }
       const expected = 'example.com/'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve path when stripping root slash', () => {
+      const value = 'https://example.com/path'
+      const expected = 'example.com/path'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should preserve slash before query string', () => {
+      const value = 'https://example.com/?a=1'
+      const expected = 'example.com/?a=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should strip root slash with port number', () => {
+      const value = 'https://example.com:8080/'
+      const expected = 'example.com:8080'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -986,6 +1274,47 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
+
+    it('should strip uppercase tracking parameters', () => {
+      const value = 'https://example.com/feed?UTM_SOURCE=twitter&FBCLID=abc&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source', 'fbclid'] }
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip mixed case tracking parameters', () => {
+      const value = 'https://example.com/feed?Utm_Source=twitter&FbClId=abc&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source', 'fbclid'] }
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip params case-insensitively with multiple variants', () => {
+      const value = 'https://example.com/feed?CUSTOM=1&Custom=2&custom=3&keep=4'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['custom'] }
+      const expected = 'example.com/feed?keep=4'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+  })
+
+  describe('query string stripping', () => {
+    it('should strip entire query string when stripQuery is true', () => {
+      const value = 'https://example.com/feed?a=1&b=2&c=3'
+      const options = { ...defaultNormalizeOptions, stripQuery: true }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve query string by default', () => {
+      const value = 'https://example.com/feed?id=123'
+      const expected = 'example.com/feed?id=123'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
   })
 
   describe('empty query removal', () => {
@@ -994,6 +1323,22 @@ describe('normalizeUrl', () => {
       const expected = 'example.com/feed'
 
       expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should remove empty query string when sortQueryParams is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve empty query string when stripEmptyQuery is false', () => {
+      const value = 'https://example.com/feed?'
+      const options = { ...defaultNormalizeOptions, sortQueryParams: false, stripEmptyQuery: false }
+      const expected = 'example.com/feed?'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 
@@ -1100,7 +1445,6 @@ describe('normalizeUrl', () => {
         stripQueryParams: [],
         stripEmptyQuery: false,
         normalizeUnicode: false,
-        lowercaseHostname: false,
       }
       const expected = 'https://www.example.com:8080/feed/'
 
@@ -1111,7 +1455,7 @@ describe('normalizeUrl', () => {
   describe('edge cases', () => {
     it('should handle URL without path', () => {
       const value = 'https://example.com'
-      const expected = 'example.com/'
+      const expected = 'example.com'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -1182,7 +1526,7 @@ describe('normalizeUrl', () => {
 
     it('should handle URL with only hash', () => {
       const value = 'https://example.com/#section'
-      const expected = 'example.com/'
+      const expected = 'example.com'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -1242,156 +1586,8 @@ describe('normalizeUrl', () => {
   })
 })
 
-describe('nativeFetch', () => {
-  // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
-  const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
-    implementation: T,
-  ) => {
-    return implementation as unknown as typeof fetch
-  }
-
-  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
-
-  const createMockResponse = (partial: Partial<MockResponse>): Response => {
-    return {
-      headers: partial.headers ?? new Headers(),
-      text: partial.text ?? (async () => ''),
-      url: partial.url ?? '',
-      status: partial.status ?? 200,
-    } as Response
-  }
-
-  const fetchSpy = spyOn(globalThis, 'fetch')
-
-  afterEach(() => {
-    fetchSpy.mockReset()
-  })
-
-  it('should call native fetch with correct URL', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async (url: string) => {
-        return createMockResponse({
-          url,
-          text: async () => 'response body',
-        })
-      }),
-    )
-    const result = await nativeFetch('https://example.com/feed.xml')
-
-    expect(result.url).toBe('https://example.com/feed.xml')
-  })
-
-  it('should default to GET method when not specified', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await nativeFetch('https://example.com/feed.xml')
-
-    expect(capturedOptions?.method).toBe('GET')
-  })
-
-  it('should use specified method from options', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await nativeFetch('https://example.com/feed.xml', { method: 'HEAD' })
-
-    expect(capturedOptions?.method).toBe('HEAD')
-  })
-
-  it('should pass headers to fetch', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await nativeFetch('https://example.com/feed.xml', {
-      headers: { 'X-Custom': 'value' },
-    })
-
-    expect(capturedOptions?.headers).toEqual({ 'X-Custom': 'value' })
-  })
-
-  it('should return response with correct structure', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          headers: new Headers({ 'content-type': 'application/rss+xml' }),
-          text: async () => 'feed content',
-          url: 'https://example.com/feed.xml',
-          status: 200,
-        })
-      }),
-    )
-    const result = await nativeFetch('https://example.com/feed.xml')
-    const expected: FetchFnResponse = {
-      headers: new Headers({ 'content-type': 'application/rss+xml' }),
-      body: 'feed content',
-      url: 'https://example.com/feed.xml',
-      status: 200,
-    }
-
-    expect(result.headers.get('content-type')).toBe(expected.headers.get('content-type'))
-    expect(result.body).toBe(expected.body)
-    expect(result.url).toBe(expected.url)
-    expect(result.status).toBe(expected.status)
-  })
-
-  it('should preserve response URL for redirect handling', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          url: 'https://redirect.example.com/feed.xml',
-        })
-      }),
-    )
-    const result = await nativeFetch('https://example.com/feed.xml')
-
-    expect(result.url).toBe('https://redirect.example.com/feed.xml')
-  })
-
-  it('should convert response body to text', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          text: async () => '<rss>feed content</rss>',
-        })
-      }),
-    )
-    const result = await nativeFetch('https://example.com/feed.xml')
-
-    expect(result.body).toBe('<rss>feed content</rss>')
-  })
-
-  it('should pass through status', async () => {
-    fetchSpy.mockImplementation(
-      createFetchMock(async () => {
-        return createMockResponse({
-          status: 404,
-        })
-      }),
-    )
-    const result = await nativeFetch('https://example.com/feed.xml')
-
-    expect(result.status).toBe(404)
-  })
-})
-
-describe('applyPlatformHandlers', () => {
-  const createHandler = (matchHostname: string, newHostname: string): PlatformHandler => {
+describe('applyRewrites', () => {
+  const createRewrite = (matchHostname: string, newHostname: string): Rewrite => {
     return {
       match: (url) => {
         return url.hostname === matchHostname
@@ -1404,40 +1600,40 @@ describe('applyPlatformHandlers', () => {
     }
   }
 
-  it('should apply matching handler', () => {
+  it('should apply matching rewrite', () => {
     const value = 'https://old.example.com/feed'
-    const handlers = [createHandler('old.example.com', 'new.example.com')]
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites = [createRewrite('old.example.com', 'new.example.com')]
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://new.example.com/feed'
 
     expect(result).toBe(expected)
   })
 
-  it('should apply first matching handler when multiple match', () => {
+  it('should apply first matching rewrite when multiple match', () => {
     const value = 'https://multi.example.com/feed'
-    const handlers = [
-      createHandler('multi.example.com', 'first.example.com'),
-      createHandler('multi.example.com', 'second.example.com'),
+    const rewrites = [
+      createRewrite('multi.example.com', 'first.example.com'),
+      createRewrite('multi.example.com', 'second.example.com'),
     ]
-    const result = applyPlatformHandlers(value, handlers)
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://first.example.com/feed'
 
     expect(result).toBe(expected)
   })
 
-  it('should return original URL when no handler matches', () => {
+  it('should return original URL when no rewrite matches', () => {
     const value = 'https://example.com/feed'
-    const handlers = [createHandler('other.example.com', 'new.example.com')]
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites = [createRewrite('other.example.com', 'new.example.com')]
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://example.com/feed'
 
     expect(result).toBe(expected)
   })
 
-  it('should return original URL when handlers array is empty', () => {
+  it('should return original URL when rewrites array is empty', () => {
     const value = 'https://example.com/feed'
-    const handlers: Array<PlatformHandler> = []
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites: Array<Rewrite> = []
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://example.com/feed'
 
     expect(result).toBe(expected)
@@ -1445,8 +1641,8 @@ describe('applyPlatformHandlers', () => {
 
   it('should return original string for invalid URL', () => {
     const value = 'not a valid url'
-    const handlers = [createHandler('example.com', 'new.example.com')]
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites = [createRewrite('example.com', 'new.example.com')]
+    const result = applyRewrites(value, rewrites)
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)

@@ -1,17 +1,17 @@
 // Default feed type from feedsmith parser. Uses inline typeof import() because
 // tsdown strips `import type` in .d.ts files, breaking type resolution. Can be
 // simplified once feedsmith exports a ParsedFeed type directly.
-export type FeedsmithFeed = ReturnType<typeof import('feedsmith').parseFeed>
+export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFeed>
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
-  parse: (body: string) => T | undefined
+  parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
-  getSignature: (parsed: T) => object
+  getSignature: (parsed: T) => string
 }
 
-// Platform handler for URL normalization (e.g., FeedBurner domain aliasing).
-export type PlatformHandler = {
+// URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
+export type Rewrite = {
   match: (url: URL) => boolean
   normalize: (url: URL) => URL
 }
@@ -27,9 +27,9 @@ export type NormalizeOptions = {
   stripHash?: boolean // strip #fragment
   sortQueryParams?: boolean // sort query params alphabetically
   stripQueryParams?: Array<string> // query params to strip
+  stripQuery?: boolean // strip entire query string
   stripEmptyQuery?: boolean // /feed? → /feed
   normalizeEncoding?: boolean // normalize %XX encoding
-  lowercaseHostname?: boolean // lowercase hostname
   normalizeUnicode?: boolean // NFC normalization
   convertToPunycode?: boolean // IDNA/Punycode conversion
 }
@@ -54,7 +54,7 @@ export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 
 // Options for findCanonical function.
 export type FindCanonicalOptions<
-  TFeed = FeedsmithFeed,
+  TFeed = DefaultParserResult,
   TResponse extends FetchFnResponse = FetchFnResponse,
   TExisting = unknown,
 > = {
@@ -62,7 +62,7 @@ export type FindCanonicalOptions<
   fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
   tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
-  platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
+  rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner).
   stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.

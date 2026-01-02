@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { findCanonical } from './index.js'
-import type {
-  FetchFnResponse,
-  FindCanonicalOptions,
-  ParserAdapter,
-  PlatformHandler,
-} from './types.js'
+import type { FetchFnResponse, FindCanonicalOptions, ParserAdapter, Rewrite } from './types.js'
 
 describe('findCanonical', () => {
   // Helper that provides type context for options, enabling proper callback typing.
@@ -15,7 +10,7 @@ describe('findCanonical', () => {
     return {
       parse: (body) => body,
       getSelfUrl: () => selfUrl,
-      getSignature: (parsed) => ({ content: parsed }),
+      getSignature: (parsed) => parsed,
     }
   }
 
@@ -43,7 +38,7 @@ describe('findCanonical', () => {
     // Result: https://feeds.feedburner.com/TechCrunch
     //
     // FeedBurner URLs use various aliases (feedproxy.google.com, feeds2.feedburner.com).
-    // The platform handler normalizes all FeedBurner aliases to the canonical
+    // The rewrite normalizes all FeedBurner aliases to the canonical
     // feeds.feedburner.com domain and strips FeedBurner-specific query params.
     it('case 1: should normalize FeedBurner aliases to canonical domain', async () => {
       const value = 'https://feedproxy.google.com/TechCrunch?format=xml'
@@ -504,7 +499,7 @@ describe('findCanonical', () => {
     // Input: http://feedproxy.google.com/MyBlog
     // Result: undefined (fetch failed)
     //
-    // When a platform handler transforms the input URL but the canonical domain
+    // When a rewrite transforms the input URL but the canonical domain
     // is dead (service shutdown), the algorithm returns undefined since the feed
     // cannot be fetched.
     it('case 20: should return undefined when platform canonical is dead', async () => {
@@ -597,9 +592,9 @@ describe('findCanonical', () => {
     // Redirects: → https://feedproxy.google.com/ExampleBlog
     // Result: https://feeds.feedburner.com/ExampleBlog
     //
-    // When the input URL redirects to a FeedBurner alias, the platform handler
+    // When the input URL redirects to a FeedBurner alias, the rewrite
     // should normalize the response URL to the canonical FeedBurner domain.
-    it('case 24: should apply platform handler when response redirects to FeedBurner', async () => {
+    it('case 24: should apply rewrite when response redirects to FeedBurner', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://feeds.feedburner.com/ExampleBlog'
       const body = '<feed></feed>'
@@ -620,9 +615,9 @@ describe('findCanonical', () => {
     // Self URL: https://feedproxy.google.com/ExampleBlog
     // Result: https://feeds.feedburner.com/ExampleBlog
     //
-    // When a feed declares a FeedBurner alias as its self URL, the platform handler
+    // When a feed declares a FeedBurner alias as its self URL, the rewrite
     // should normalize it to the canonical domain before validation.
-    it('case 25: should apply platform handler to FeedBurner self URL', async () => {
+    it('case 25: should apply rewrite to FeedBurner self URL', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://feeds.feedburner.com/ExampleBlog'
       const body = '<feed></feed>'
@@ -685,6 +680,38 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
+    // Case 27b: Variant normalized from self URL matches initialResponseUrl
+    //
+    // Input: http://www.example.com/feed/ (redirects to https://example.com/feed)
+    // Initial Response URL: https://example.com/feed
+    // Self URL: https://www.example.com/feed/ (valid, becomes variantSourceUrl)
+    // Result: https://example.com/feed
+    //
+    // When the input URL redirects and the self URL is valid but different from
+    // initialResponseUrl, variants are generated from the self URL. If a normalized
+    // variant matches initialResponseUrl, we use it directly without refetching.
+    it('case 27b: should use initialResponseUrl when normalized variant matches it', async () => {
+      const value = 'http://www.example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: async (url: string) => {
+          if (url === 'http://www.example.com/feed/') {
+            // Input redirects to clean URL.
+            return { status: 200, url: 'https://example.com/feed', body, headers: new Headers() }
+          }
+          if (url === 'https://www.example.com/feed/') {
+            // Self URL works.
+            return { status: 200, url, body, headers: new Headers() }
+          }
+          throw new Error(`Unexpected fetch: ${url}`)
+        },
+        parser: createMockParser('https://www.example.com/feed/'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     // Case 28: Parser returns undefined
     //
     // Input: https://example.com/feed
@@ -704,7 +731,7 @@ describe('findCanonical', () => {
         parser: {
           parse: () => undefined,
           getSelfUrl: () => undefined,
-          getSignature: () => ({}),
+          getSignature: () => 'Test',
         },
       })
 
@@ -812,10 +839,10 @@ describe('findCanonical', () => {
     // Self URL: https://old.example.com/rss → redirects to https://feedproxy.google.com/ExampleBlog
     // Result: https://feeds.feedburner.com/ExampleBlog
     //
-    // When selfUrl response redirects to a FeedBurner alias, the platform handler
+    // When selfUrl response redirects to a FeedBurner alias, the rewrite
     // should normalize the redirect destination for variant generation. This handles
     // feeds that have migrated to FeedBurner.
-    it('case 33: should apply platform handler to self URL redirect destination', async () => {
+    it('case 33: should apply rewrite to self URL redirect destination', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://feeds.feedburner.com/ExampleBlog'
       const body = '<feed></feed>'
@@ -921,6 +948,58 @@ describe('findCanonical', () => {
 
       expect(await findCanonical(value, options)).toBe(expected)
     })
+
+    it('should await async parser on initial parse', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      let parseCompleted = false
+      const asyncParser: ParserAdapter<string> = {
+        parse: async (body) => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+          parseCompleted = true
+          return body
+        },
+        getSelfUrl: () => undefined,
+        getSignature: (parsed) => parsed,
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: asyncParser,
+      })
+
+      const result = await findCanonical(value, options)
+      expect(parseCompleted).toBe(true)
+      expect(result).toBe(expected)
+    })
+
+    it('should await async parser during signature comparison', async () => {
+      const value = 'https://www.example.com/feed'
+      const expected = 'https://example.com/feed'
+      let comparisonParseCount = 0
+      const asyncParser: ParserAdapter<{ id: string }> = {
+        parse: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+          comparisonParseCount++
+          return { id: 'same-feed' }
+        },
+        getSelfUrl: () => undefined,
+        getSignature: (parsed) => JSON.stringify(parsed),
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed': { body: '<feed>a</feed>' },
+          'https://example.com/feed': { body: '<feed>b</feed>' },
+        }),
+        parser: asyncParser,
+      })
+
+      const result = await findCanonical(value, options)
+      expect(comparisonParseCount).toBeGreaterThan(1) // Initial + comparison
+      expect(result).toBe(expected)
+    })
   })
 
   describe('when fetch fails', () => {
@@ -949,18 +1028,18 @@ describe('findCanonical', () => {
     })
   })
 
-  describe('platform handler edge cases', () => {
+  describe('rewrite edge cases', () => {
     // Case 34: Platform handler throws exception
     //
-    // When a platform handler throws an exception during match() or normalize(),
+    // When a rewrite throws an exception during match() or normalize(),
     // the algorithm should continue gracefully using the original URL.
-    it('case 34: should continue gracefully when platform handler throws', async () => {
+    it('case 34: should continue gracefully when rewrite throws', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.com/feed'
       const body = '<feed></feed>'
-      const throwingHandler: PlatformHandler = {
+      const throwingRewrite: Rewrite = {
         match: () => {
-          throw new Error('Handler error')
+          throw new Error('Rewrite error')
         },
         normalize: (url) => url,
       }
@@ -968,29 +1047,29 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://example.com/feed': { body },
         }),
-        platforms: [throwingHandler],
+        rewrites: [throwingRewrite],
         parser: createMockParser(undefined),
       })
 
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    // Case 35: Multiple platform handlers match
+    // Case 35: Multiple rewrites match
     //
-    // When multiple platform handlers could match a URL, only the first matching
-    // handler should be applied (handlers are checked in order, first match wins).
-    it('case 35: should apply only first matching platform handler', async () => {
+    // When multiple rewrites could match a URL, only the first matching
+    // rewrite should be applied (rewrites are checked in order, first match wins).
+    it('case 35: should apply only first matching rewrite', async () => {
       const value = 'https://multi.example.com/feed'
       const expected = 'https://first.example.com/feed'
       const body = '<feed></feed>'
-      const firstHandler: PlatformHandler = {
+      const firstRewrite: Rewrite = {
         match: (url) => url.hostname === 'multi.example.com',
         normalize: (url) => {
           url.hostname = 'first.example.com'
           return url
         },
       }
-      const secondHandler: PlatformHandler = {
+      const secondRewrite: Rewrite = {
         match: (url) => url.hostname === 'multi.example.com',
         normalize: (url) => {
           url.hostname = 'second.example.com'
@@ -1002,7 +1081,7 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://first.example.com/feed': { body },
         }),
-        platforms: [firstHandler, secondHandler],
+        rewrites: [firstRewrite, secondRewrite],
       })
 
       expect(await findCanonical(value, options)).toBe(expected)
@@ -1170,6 +1249,44 @@ describe('findCanonical', () => {
           'https://example.com/feed.xml': { body },
         }),
         parser: createMockParser('../../feed.xml'),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Uppercase hostname in input URL
+    //
+    // Hostnames are case-insensitive per URL spec. The URL constructor
+    // automatically lowercases hostnames, so uppercase input hostnames
+    // should be normalized to lowercase in the result.
+    it('should lowercase uppercase hostname in input URL', async () => {
+      const value = 'https://EXAMPLE.COM/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    // Uppercase hostname in self URL
+    //
+    // Self URLs with uppercase hostnames should also be lowercased.
+    // The URL constructor normalizes hostnames regardless of source.
+    it('should lowercase uppercase hostname in self URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.com/canonical/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+          'https://example.com/canonical/feed': { body },
+        }),
+        parser: createMockParser('https://EXAMPLE.COM/canonical/feed'),
       })
 
       expect(await findCanonical(value, options)).toBe(expected)
@@ -1632,15 +1749,15 @@ describe('findCanonical', () => {
     })
   })
 
-  describe('platform handler edge cases', () => {
+  describe('rewrite edge cases', () => {
     // Case 61: Platform handler normalizes variants
     //
     // Input: https://feeds2.feedburner.com/Example?format=xml
-    // Variant: https://feeds.feedburner.com/Example (normalized by platform handler)
+    // Variant: https://feeds.feedburner.com/Example (normalized by rewrite)
     //
-    // When variant generation produces URLs that match platform handlers,
+    // When variant generation produces URLs that match rewrites,
     // those handlers should normalize the variants before testing.
-    it('case 61: should apply platform handler to generated variants', async () => {
+    it('case 61: should apply rewrite to generated variants', async () => {
       const value = 'https://feeds2.feedburner.com/Example?format=xml'
       const expected = 'https://feeds.feedburner.com/Example'
       const body = '<feed></feed>'
@@ -1691,7 +1808,6 @@ describe('findCanonical', () => {
       const expected = 'https://example.com/rss.xml'
       const body1 = '<feed><updated>2024-01-01T00:00:00Z</updated><title>Test</title></feed>'
       const body2 = '<feed><updated>2024-01-02T00:00:00Z</updated><title>Test</title></feed>'
-      const signature = { title: 'Test' }
       const options = toOptions({
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: body1 },
@@ -1700,7 +1816,7 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => 'https://example.com/rss.xml',
-          getSignature: () => signature,
+          getSignature: () => 'Test',
         },
       })
 
@@ -1719,7 +1835,6 @@ describe('findCanonical', () => {
       const expected = 'https://example.com/feed'
       const body1 = '<feed><cachebuster>123</cachebuster><title>Test</title></feed>'
       const body2 = '<feed><cachebuster>456</cachebuster><title>Test</title></feed>'
-      const signature = { title: 'Test' }
       const options = toOptions({
         fetchFn: createMockFetch({
           'https://www.example.com/feed/': { body: body1 },
@@ -1728,7 +1843,7 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => undefined,
-          getSignature: () => signature,
+          getSignature: () => 'Test',
         },
       })
 
@@ -1754,7 +1869,7 @@ describe('findCanonical', () => {
         parser: {
           parse: (body) => body,
           getSelfUrl: () => 'https://example.com/other',
-          getSignature: (feed) => ({ title: feed?.includes('Feed A') ? 'A' : 'B' }),
+          getSignature: (feed) => (feed?.includes('Feed A') ? 'A' : 'B'),
         },
       })
 
@@ -2070,7 +2185,7 @@ describe('findCanonical', () => {
             return body
           },
           getSelfUrl: () => undefined,
-          getSignature: (feed) => ({ content: feed }),
+          getSignature: (feed) => feed,
         },
         tiers: [
           { stripWww: true, stripTrailingSlash: true },
@@ -2082,14 +2197,14 @@ describe('findCanonical', () => {
     })
   })
 
-  describe('platform handler edge cases (continued)', () => {
-    // Case 80: Response URL invalid after platform handler
+  describe('rewrite edge cases (continued)', () => {
+    // Case 80: Response URL invalid after rewrite
     //
     // When initial fetch succeeds but the response URL becomes invalid
-    // after platform handler processing, return undefined.
-    it('case 80: should return undefined when response URL is invalid after platform handler', async () => {
+    // after rewrite processing, return undefined.
+    it('case 80: should return undefined when response URL is invalid after rewrite', async () => {
       const value = 'https://example.com/feed'
-      const badHandler: PlatformHandler = {
+      const badRewrite: Rewrite = {
         match: () => true,
         normalize: () => {
           // Return a URL object that will fail when converted to href
@@ -2102,10 +2217,45 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: '<feed/>' },
         }),
-        platforms: [badHandler],
+        rewrites: [badRewrite],
       })
 
       expect(await findCanonical(value, options)).toBeUndefined()
+    })
+  })
+
+  describe('self URL signature neutralization', () => {
+    // Case 81: Self URL mirrors request URL
+    //
+    // Input: https://example.com/feed/
+    // Variant: https://example.com/feed (no trailing slash)
+    // Both return same content but with self URLs matching their request URLs.
+    // Result: https://example.com/feed (cleaner variant)
+    //
+    // When two feeds are identical except for self URL mirroring the request URL,
+    // the signature comparison should neutralize self URLs and match them.
+    it('case 81: should match feeds when only self URL differs', async () => {
+      const value = 'https://example.com/feed/'
+      const expected = 'https://example.com/feed'
+      const options = toOptions({
+        fetchFn: async (url: string) => ({
+          status: 200,
+          url,
+          body: `self:${url}`,
+          headers: new Headers(),
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: (body) => body.replace('self:', ''),
+          getSignature: (body) => {
+            // Neutralize self URL by replacing it with placeholder.
+            const selfUrl = body.replace('self:', '')
+            return JSON.stringify({ body: body.replaceAll(selfUrl, '__SELF_URL__') })
+          },
+        },
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
   })
 
@@ -2216,7 +2366,7 @@ describe('findCanonical', () => {
         parser: {
           parse: () => undefined,
           getSelfUrl: () => undefined,
-          getSignature: () => ({}),
+          getSignature: () => 'Test',
         },
         fetchFn: createMockFetch({
           'https://example.com/feed': { body: 'not a valid feed' },

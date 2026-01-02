@@ -1,8 +1,8 @@
-import type { PlatformHandler } from '../types.js'
+import type { Rewrite } from '../types.js'
 
 const hosts = ['blogger.com', 'www.blogger.com']
 
-export const bloggerHandler: PlatformHandler = {
+export const bloggerRewrite: Rewrite = {
   match: (url) => {
     return hosts.includes(url.hostname)
   },

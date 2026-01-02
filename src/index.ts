@@ -1,25 +1,25 @@
-import { defaultPlatforms, defaultStrippedParams, defaultTiers } from './defaults.js'
+import {
+  defaultFetch,
+  defaultParser,
+  defaultRewrites,
+  defaultStrippedParams,
+  defaultTiers,
+} from './defaults.js'
 import type {
-  FeedsmithFeed,
+  DefaultParserResult,
   FetchFnResponse,
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import {
-  applyPlatformHandlers,
-  feedsmithParser,
-  nativeFetch,
-  normalizeUrl,
-  resolveUrl,
-} from './utils.js'
+import { applyRewrites, normalizeUrl, resolveUrl } from './utils.js'
 
-// Overload 1: Default FeedsmithFeed, parser optional.
+// Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
   TResponse extends FetchFnResponse = FetchFnResponse,
   TExisting = unknown,
 >(
   inputUrl: string,
-  options?: Omit<FindCanonicalOptions<FeedsmithFeed, TResponse, TExisting>, 'parser'>,
+  options?: Omit<FindCanonicalOptions<DefaultParserResult, TResponse, TExisting>, 'parser'>,
 ): Promise<string | undefined>
 
 // Overload 2: Custom TFeed, parser required.
@@ -40,11 +40,11 @@ export async function findCanonical(
   options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
 ): Promise<string | undefined> {
   const {
-    parser = feedsmithParser,
-    fetchFn = nativeFetch,
+    parser = defaultParser,
+    fetchFn = defaultFetch,
     existsFn,
     tiers = defaultTiers,
-    platforms = defaultPlatforms,
+    rewrites = defaultRewrites,
     stripQueryParams = defaultStrippedParams,
     onFetch,
     onMatch,
@@ -58,14 +58,14 @@ export async function findCanonical(
       : url
   }
 
-  // Prepare a URL by resolving protocols, relative paths, and applying platform handlers.
-  const resolveAndApplyPlatformHandlers = (url: string, baseUrl?: string): string | undefined => {
+  // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
+  const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
-    return resolved ? applyPlatformHandlers(resolved, platforms) : undefined
+    return resolved ? applyRewrites(resolved, rewrites) : undefined
   }
 
   // Phase 1: Initial fetch.
-  const initialRequestUrl = resolveAndApplyPlatformHandlers(inputUrl)
+  const initialRequestUrl = resolveAndApplyRewrites(inputUrl)
   if (!initialRequestUrl) return
 
   let initialResponse: FetchFnResponse
@@ -82,7 +82,7 @@ export async function findCanonical(
     return
   }
 
-  const initialResponseUrlRaw = resolveAndApplyPlatformHandlers(initialResponse.url)
+  const initialResponseUrlRaw = resolveAndApplyRewrites(initialResponse.url)
   if (!initialResponseUrlRaw) return
   const initialResponseUrl = stripParams(initialResponseUrlRaw)
 
@@ -94,7 +94,7 @@ export async function findCanonical(
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
 
-  const initialResponseFeed = parser.parse(initialResponseBody)
+  const initialResponseFeed = await parser.parse(initialResponseBody)
   if (!initialResponseFeed) return
 
   // All onMatch calls receive initialResponseFeed because matched URLs return content
@@ -105,14 +105,16 @@ export async function findCanonical(
   const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
 
   if (selfRequestUrlRaw) {
-    selfRequestUrl = resolveAndApplyPlatformHandlers(selfRequestUrlRaw, initialResponseUrl)
+    selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)
     selfRequestUrl = selfRequestUrl ? stripParams(selfRequestUrl) : undefined
   }
 
   // Compare initial response against another response using 2-tier matching:
   // 1. Exact body match (fastest)
   // 2. Signature match (semantic equality via parser)
-  const compareWithInitialResponse = (comparedResponseBody: string | undefined): boolean => {
+  const compareWithInitialResponse = async (
+    comparedResponseBody: string | undefined,
+  ): Promise<boolean> => {
     if (!comparedResponseBody) {
       return false
     }
@@ -123,11 +125,11 @@ export async function findCanonical(
     }
 
     // Tier 2: Signature match via parser.
-    const comparedResponseFeed = parser.parse(comparedResponseBody)
+    const comparedResponseFeed = await parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {
-      initialResponseSignature ||= JSON.stringify(parser.getSignature(initialResponseFeed))
-      const comparedResponseSignature = JSON.stringify(parser.getSignature(comparedResponseFeed))
+      initialResponseSignature ||= parser.getSignature(initialResponseFeed)
+      const comparedResponseSignature = parser.getSignature(comparedResponseFeed)
 
       return initialResponseSignature === comparedResponseSignature
     }
@@ -145,7 +147,7 @@ export async function findCanonical(
     }
     onFetch?.({ url, response })
     if (response.status < 200 || response.status >= 300) return
-    if (!compareWithInitialResponse(response.body)) return
+    if (!(await compareWithInitialResponse(response.body))) return
     return response
   }
 
@@ -169,7 +171,7 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        variantSourceUrl = resolveAndApplyPlatformHandlers(response.url) ?? initialResponseUrl
+        variantSourceUrl = resolveAndApplyRewrites(response.url) ?? initialResponseUrl
         variantSourceUrl = stripParams(variantSourceUrl)
         break
       }
@@ -180,7 +182,7 @@ export async function findCanonical(
   // Include variantSource for existsFn check, but skip fetch/compare (already verified).
   const variantUrls = new Set(
     tiers
-      .map((tier) => resolveAndApplyPlatformHandlers(normalizeUrl(variantSourceUrl, tier)))
+      .map((tier) => resolveAndApplyRewrites(normalizeUrl(variantSourceUrl, tier)))
       .filter((variantUrl): variantUrl is string => !!variantUrl),
   )
   variantUrls.add(variantSourceUrl)
@@ -212,7 +214,7 @@ export async function findCanonical(
 
     const variantResponse = await fetchAndCompare(variantUrl)
     if (variantResponse) {
-      let variantResponseUrl = resolveAndApplyPlatformHandlers(variantResponse.url)
+      let variantResponseUrl = resolveAndApplyRewrites(variantResponse.url)
       if (variantResponseUrl) {
         variantResponseUrl = stripParams(variantResponseUrl)
       }
