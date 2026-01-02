@@ -1,6 +1,6 @@
 ---
-prev: Feed Parsing
-next: Platform Aliases
+prev: URL Probes
+next: findCanonical
 ---
 
 # URL Variants

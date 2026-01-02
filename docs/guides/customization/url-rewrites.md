@@ -1,22 +1,28 @@
 ---
-prev: URL Variants
+prev: Feed Parsing
 next: URL Probes
 ---
 
-# Platform Aliases
+# URL Rewrites
 
-Platform handlers normalize URLs before any other processing. They're useful for:
+Rewrites normalize URLs before any other processing.
+
+## When to Use
+
+Rewrites are useful for:
 
 - Consolidating domain aliases to a single canonical domain
 - Normalizing platform-specific URL patterns
 - Handling URL redirects at the domain level
 
+Unlike probes which generate candidates to test, rewrites transform URLs directly before fetching.
+
 ## Interface
 
-Each platform handler has two methods:
+Each rewrite has two methods:
 
 ```typescript
-type PlatformHandler = {
+type Rewrite = {
   match: (url: URL) => boolean
   normalize: (url: URL) => URL
 }
@@ -24,7 +30,7 @@ type PlatformHandler = {
 
 ### match
 
-Return `true` if this handler should process the URL:
+Return `true` if this rewrite should process the URL:
 
 ```typescript
 match: (url) => url.hostname === 'feeds.example.com'
@@ -62,11 +68,11 @@ Normalizes various FeedBurner domain aliases:
 
 ```typescript
 import { findCanonical } from 'feedcanon'
-import { defaultPlatforms } from 'feedcanon/defaults'
+import { defaultRewrites } from 'feedcanon/defaults'
 
 const url = await findCanonical('https://old.example.com/feed', {
-  platforms: [
-    ...defaultPlatforms,
+  rewrites: [
+    ...defaultRewrites,
     {
       match: (url) => url.hostname === 'old.example.com',
       normalize: (url) => {
@@ -78,14 +84,14 @@ const url = await findCanonical('https://old.example.com/feed', {
 })
 ```
 
-### Remove Platforms
+### Remove Rewrites
 
-Disable the default platform handlers by setting empty array:
+Disable the default rewrites by setting empty array:
 
 ```typescript
 import { findCanonical } from 'feedcanon'
 
 const url = await findCanonical('https://feedproxy.google.com/example', {
-  platforms: [], // No platform normalization
+  rewrites: [], // No URL rewriting
 })
 ```

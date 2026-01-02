@@ -1,6 +1,6 @@
 ---
-prev: Platform Aliases
-next: findCanonical
+prev: URL Rewrites
+next: URL Variants
 ---
 
 # URL Probes
@@ -15,7 +15,7 @@ Probes are useful for:
 - Testing platform-specific URL patterns
 - Finding cleaner URL forms that serve identical content
 
-Unlike platform handlers which transform URLs before fetching, probes generate candidates that are tested against the original response.
+Unlike rewrites which transform URLs before fetching, probes generate candidates that are tested against the original response.
 
 ## Interface
 
