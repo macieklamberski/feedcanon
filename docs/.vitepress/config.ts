@@ -6,6 +6,16 @@ export default defineConfig({
     'Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest form.',
   lastUpdated: true,
   cleanUrls: true,
+  head: [
+    [
+      'script',
+      {
+        async: '',
+        src: 'https://stats.lamberski.com/script.js',
+        'data-website-id': 'b2baac98-7d57-4277-9aa3-98d7b96b5425',
+      },
+    ],
+  ],
   themeConfig: {
     outline: {
       level: [2, 3],
