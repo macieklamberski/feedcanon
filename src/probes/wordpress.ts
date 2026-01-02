@@ -1,11 +1,13 @@
 import type { Probe } from '../types.js'
 
-const feedParams = ['atom', 'rss2', 'rss', 'rdf']
+const feedTypes = ['atom', 'rss2', 'rss', 'rdf']
 
 export const wordpressProbe: Probe = {
   match: (url) => {
-    const feed = url.searchParams.get('feed')
-    return !!feed && feedParams.includes(feed.toLowerCase())
+    const feed = url.searchParams.get('feed')?.toLowerCase()
+    if (!feed) return false
+    const type = feed.startsWith('comments-') ? feed.slice(9) : feed
+    return feedTypes.includes(type)
   },
 
   getCandidates: (url) => {
@@ -16,9 +18,12 @@ export const wordpressProbe: Probe = {
     }
 
     const candidates: Array<URL> = []
+    const isComment = feed.startsWith('comments-')
+    const type = isComment ? feed.slice(9) : feed
 
-    // Path already contains /feed segment - param is redundant, just strip it.
-    if (/\/feed(\/|$)/.test(url.pathname)) {
+    // Path already contains feed segment - param is redundant, just strip it.
+    const pathPattern = isComment ? /\/comments\/feed(\/|$)/ : /\/feed(\/|$)/
+    if (pathPattern.test(url.pathname)) {
       const withoutSlash = new URL(url)
       withoutSlash.pathname = url.pathname.replace(/\/$/, '')
       withoutSlash.searchParams.delete('feed')
@@ -32,9 +37,10 @@ export const wordpressProbe: Probe = {
       return candidates
     }
 
-    // Normal case: convert ?feed=X to path-based /feed or /feed/atom.
+    // Convert ?feed=X to path-based URL.
     const basePath = url.pathname.replace(/\/$/, '')
-    const feedPath = feed === 'atom' ? '/feed/atom' : '/feed'
+    const feedSegment = type === 'atom' ? '/feed/atom' : '/feed'
+    const feedPath = isComment ? `/comments${feedSegment}` : feedSegment
 
     const primary = new URL(url)
     primary.pathname = basePath + feedPath

@@ -50,6 +50,24 @@ describe('wordpressProbe', () => {
 
       expect(wordpressProbe.match(value)).toBe(false)
     })
+
+    it('should match URL with feed=comments-rss2 query param', () => {
+      const value = new URL('https://example.com/?feed=comments-rss2')
+
+      expect(wordpressProbe.match(value)).toBe(true)
+    })
+
+    it('should match URL with feed=comments-atom query param', () => {
+      const value = new URL('https://example.com/?feed=comments-atom')
+
+      expect(wordpressProbe.match(value)).toBe(true)
+    })
+
+    it('should not match URL with unknown comments feed value', () => {
+      const value = new URL('https://example.com/?feed=comments-json')
+
+      expect(wordpressProbe.match(value)).toBe(false)
+    })
   })
 
   describe('getCandidates', () => {
@@ -107,7 +125,7 @@ describe('wordpressProbe', () => {
       const candidates = wordpressProbe.getCandidates(value)
       const expected = ['https://example.com/blog/feed', 'https://example.com/blog/feed/']
 
-      expect(candidates.map((c) => c.href)).toEqual(expected)
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
     })
 
     it('should return empty array when feed param is missing', () => {
@@ -122,7 +140,7 @@ describe('wordpressProbe', () => {
       const candidates = wordpressProbe.getCandidates(value)
       const expected = ['https://example.com/blog/feed', 'https://example.com/blog/feed/']
 
-      expect(candidates.map((c) => c.href)).toEqual(expected)
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
     })
 
     it('should strip param when path already ends with /feed', () => {
@@ -130,7 +148,7 @@ describe('wordpressProbe', () => {
       const candidates = wordpressProbe.getCandidates(value)
       const expected = ['https://example.com/blog/feed', 'https://example.com/blog/feed/']
 
-      expect(candidates.map((c) => c.href)).toEqual(expected)
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
     })
 
     it('should strip param when path contains /feed/atom', () => {
@@ -138,7 +156,7 @@ describe('wordpressProbe', () => {
       const candidates = wordpressProbe.getCandidates(value)
       const expected = ['https://example.com/feed/atom', 'https://example.com/feed/atom/']
 
-      expect(candidates.map((c) => c.href)).toEqual(expected)
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
     })
 
     it('should not strip param for path containing feed as substring', () => {
@@ -146,6 +164,55 @@ describe('wordpressProbe', () => {
       const candidates = wordpressProbe.getCandidates(value)
 
       expect(candidates[0].href).toBe('https://example.com/feedback/feed')
+    })
+
+    it('should return /comments/feed path for feed=comments-rss2', () => {
+      const value = new URL('https://example.com/?feed=comments-rss2')
+      const candidates = wordpressProbe.getCandidates(value)
+      const expected = ['https://example.com/comments/feed', 'https://example.com/comments/feed/']
+
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
+    })
+
+    it('should return /comments/feed/atom path for feed=comments-atom', () => {
+      const value = new URL('https://example.com/?feed=comments-atom')
+      const candidates = wordpressProbe.getCandidates(value)
+      const expected = [
+        'https://example.com/comments/feed/atom',
+        'https://example.com/comments/feed/atom/',
+      ]
+
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
+    })
+
+    it('should preserve existing path for comment feeds', () => {
+      const value = new URL('https://example.com/blog/?feed=comments-rss2')
+      const candidates = wordpressProbe.getCandidates(value)
+      const expected = [
+        'https://example.com/blog/comments/feed',
+        'https://example.com/blog/comments/feed/',
+      ]
+
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
+    })
+
+    it('should strip param when path already has /comments/feed/', () => {
+      const value = new URL('https://example.com/comments/feed/?feed=comments-rss2')
+      const candidates = wordpressProbe.getCandidates(value)
+      const expected = ['https://example.com/comments/feed', 'https://example.com/comments/feed/']
+
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
+    })
+
+    it('should strip param when path already has /blog/comments/feed', () => {
+      const value = new URL('https://example.com/blog/comments/feed?feed=comments-atom')
+      const candidates = wordpressProbe.getCandidates(value)
+      const expected = [
+        'https://example.com/blog/comments/feed',
+        'https://example.com/blog/comments/feed/',
+      ]
+
+      expect(candidates.map((candidate) => candidate.href)).toEqual(expected)
     })
   })
 })
