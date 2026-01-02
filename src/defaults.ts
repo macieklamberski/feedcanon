@@ -1,5 +1,4 @@
 import { parseFeed } from 'feedsmith'
-import { bloggerRewrite } from './rewrites/blogger.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
   DefaultParserResult,
@@ -11,7 +10,7 @@ import type {
 } from './types.js'
 
 // URL rewrites for domain-specific normalization.
-export const defaultRewrites: Array<Rewrite> = [bloggerRewrite, feedburnerRewrite]
+export const defaultRewrites: Array<Rewrite> = [feedburnerRewrite]
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [
