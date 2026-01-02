@@ -6,6 +6,7 @@ export {
   defaultTiers,
 } from './defaults.js'
 export { findCanonical } from './index.js'
+export { bloggerRewrite } from './rewrites/blogger.js'
 export { feedburnerRewrite } from './rewrites/feedburner.js'
 export type {
   DefaultParserResult,
