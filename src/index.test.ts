@@ -1115,7 +1115,7 @@ describe('findCanonical', () => {
               const candidate = new URL(url)
               candidate.pathname = '/feed'
               candidate.searchParams.delete('feed')
-              return [candidate]
+              return [candidate.href]
             },
           },
         ],
@@ -1145,7 +1145,7 @@ describe('findCanonical', () => {
               const candidate = new URL(url)
               candidate.pathname = '/feed'
               candidate.searchParams.delete('feed')
-              return [candidate]
+              return [candidate.href]
             },
           },
         ],
@@ -1174,7 +1174,7 @@ describe('findCanonical', () => {
               const candidate = new URL(url)
               candidate.pathname = '/feed'
               candidate.searchParams.delete('feed')
-              return [candidate]
+              return [candidate.href]
             },
           },
         ],
@@ -1209,7 +1209,7 @@ describe('findCanonical', () => {
               second.pathname = '/feed'
               second.searchParams.delete('feed')
 
-              return [first, second]
+              return [first.href, second.href]
             },
           },
         ],

@@ -19,7 +19,7 @@ export type PlatformHandler = {
 // URL Probe for generating and validating alternate URL candidates.
 export type Probe = {
   match: (url: URL) => boolean
-  getCandidates: (url: URL) => Array<URL>
+  getCandidates: (url: URL) => Array<string>
 }
 
 // URL normalization options.

@@ -1660,7 +1660,7 @@ describe('applyProbes', () => {
         const candidate = new URL(url.href)
         candidate.pathname = candidatePath
         candidate.searchParams.delete(matchQuery)
-        return [candidate]
+        return [candidate.href]
       },
     }
   }
@@ -1736,7 +1736,7 @@ describe('applyProbes', () => {
           second.pathname = '/feed'
           second.searchParams.delete('feed')
 
-          return [first, second]
+          return [first.href, second.href]
         },
       },
     ]

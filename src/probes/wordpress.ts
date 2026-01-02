@@ -5,8 +5,13 @@ const feedTypes = ['atom', 'rss2', 'rss', 'rdf']
 export const wordpressProbe: Probe = {
   match: (url) => {
     const feed = url.searchParams.get('feed')?.toLowerCase()
-    if (!feed) return false
-    const type = feed.startsWith('comments-') ? feed.slice(9) : feed
+
+    if (!feed) {
+      return false
+    }
+
+    const isComment = feed.startsWith('comments-')
+    const type = isComment ? feed.slice(9) : feed
     return feedTypes.includes(type)
   },
 
@@ -17,7 +22,7 @@ export const wordpressProbe: Probe = {
       return []
     }
 
-    const candidates: Array<URL> = []
+    const candidates: Array<string> = []
     const isComment = feed.startsWith('comments-')
     const type = isComment ? feed.slice(9) : feed
 
@@ -27,12 +32,12 @@ export const wordpressProbe: Probe = {
       const withoutSlash = new URL(url)
       withoutSlash.pathname = url.pathname.replace(/\/$/, '')
       withoutSlash.searchParams.delete('feed')
-      candidates.push(withoutSlash)
+      candidates.push(withoutSlash.href)
 
       const withSlash = new URL(url)
       withSlash.pathname = url.pathname.replace(/\/?$/, '/')
       withSlash.searchParams.delete('feed')
-      candidates.push(withSlash)
+      candidates.push(withSlash.href)
 
       return candidates
     }
@@ -45,12 +50,12 @@ export const wordpressProbe: Probe = {
     const primary = new URL(url)
     primary.pathname = basePath + feedPath
     primary.searchParams.delete('feed')
-    candidates.push(primary)
+    candidates.push(primary.href)
 
     const withSlash = new URL(url)
     withSlash.pathname = `${basePath}${feedPath}/`
     withSlash.searchParams.delete('feed')
-    candidates.push(withSlash)
+    candidates.push(withSlash.href)
 
     return candidates
   },
