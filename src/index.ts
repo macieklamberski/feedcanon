@@ -177,7 +177,7 @@ export async function findCanonical(
     }
   }
 
-  // Phase 3.5: Apply URL probes.
+  // Phase 4: Apply URL probes.
   // Test alternate URL forms (e.g., WordPress query param -> path conversion).
   if (probes?.length) {
     variantSourceUrl = await applyProbes(variantSourceUrl, probes, async (candidateUrl) => {
@@ -190,7 +190,7 @@ export async function findCanonical(
     })
   }
 
-  // Phase 4: Generate Variants.
+  // Phase 5: Generate Variants.
   // Include variantSource for existsFn check, but skip fetch/compare (already verified).
   const variantUrls = new Set(
     tiers
@@ -199,7 +199,7 @@ export async function findCanonical(
   )
   variantUrls.add(variantSourceUrl)
 
-  // Phase 5: Test Variants (in tier order, first match wins).
+  // Phase 6: Test Variants (in tier order, first match wins).
   let winningUrl = variantSourceUrl
 
   for (const variantUrl of variantUrls) {
@@ -242,7 +242,7 @@ export async function findCanonical(
     }
   }
 
-  // Phase 6: HTTPS Upgrade on winning URL.
+  // Phase 7: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
     const httpsUrl = winningUrl.replace('http://', 'https://')
     const response = await fetchAndCompare(httpsUrl)
