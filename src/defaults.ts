@@ -310,12 +310,18 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     let signature: string
     let originalBuildDate: string | undefined
     let originalPubDate: string | undefined
+    let originalLink: string | undefined
 
     if (parsed.format === 'rss') {
       originalBuildDate = parsed.feed.lastBuildDate
       originalPubDate = parsed.feed.pubDate
+      originalLink = parsed.feed.link
       parsed.feed.lastBuildDate = undefined
       parsed.feed.pubDate = undefined
+      parsed.feed.link = undefined
+    } else if (parsed.format === 'rdf') {
+      originalLink = parsed.feed.link
+      parsed.feed.link = undefined
     } else if (parsed.format === 'atom') {
       originalBuildDate = parsed.feed.updated
       parsed.feed.updated = undefined
@@ -335,6 +341,9 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     if (parsed.format === 'rss') {
       parsed.feed.lastBuildDate = originalBuildDate
       parsed.feed.pubDate = originalPubDate
+      parsed.feed.link = originalLink
+    } else if (parsed.format === 'rdf') {
+      parsed.feed.link = originalLink
     } else if (parsed.format === 'atom') {
       parsed.feed.updated = originalBuildDate
     }
