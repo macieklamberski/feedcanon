@@ -297,10 +297,13 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 
     let signature: string
     let originalBuildDate: string | undefined
+    let originalPubDate: string | undefined
 
     if (parsed.format === 'rss') {
       originalBuildDate = parsed.feed.lastBuildDate
+      originalPubDate = parsed.feed.pubDate
       parsed.feed.lastBuildDate = undefined
+      parsed.feed.pubDate = undefined
     } else if (parsed.format === 'atom') {
       originalBuildDate = parsed.feed.updated
       parsed.feed.updated = undefined
@@ -319,6 +322,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 
     if (parsed.format === 'rss') {
       parsed.feed.lastBuildDate = originalBuildDate
+      parsed.feed.pubDate = originalPubDate
     } else if (parsed.format === 'atom') {
       parsed.feed.updated = originalBuildDate
     }
