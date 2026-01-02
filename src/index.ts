@@ -114,6 +114,7 @@ export async function findCanonical(
   // 2. Signature match (semantic equality via parser)
   const compareWithInitialResponse = async (
     comparedResponseBody: string | undefined,
+    comparedResponseUrl: string,
   ): Promise<boolean> => {
     if (!comparedResponseBody) {
       return false
@@ -128,8 +129,11 @@ export async function findCanonical(
     const comparedResponseFeed = await parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {
-      initialResponseSignature ||= parser.getSignature(initialResponseFeed)
-      const comparedResponseSignature = parser.getSignature(comparedResponseFeed)
+      initialResponseSignature ||= parser.getSignature(initialResponseFeed, initialResponseUrl)
+      const comparedResponseSignature = parser.getSignature(
+        comparedResponseFeed,
+        comparedResponseUrl,
+      )
 
       return initialResponseSignature === comparedResponseSignature
     }
@@ -147,7 +151,7 @@ export async function findCanonical(
     }
     onFetch?.({ url, response })
     if (response.status < 200 || response.status >= 300) return
-    if (!(await compareWithInitialResponse(response.body))) return
+    if (!(await compareWithInitialResponse(response.body, response.url))) return
     return response
   }
 

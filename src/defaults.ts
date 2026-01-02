@@ -263,7 +263,19 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
-const findSelfLink = (parsed: DefaultParserResult) => {
+const normalizeSignatureUrls = (signature: string, url: string): string => {
+  try {
+    const domain = new URL('/', url).hostname
+      .replace(/^www\./, '')
+      .split('.')
+      .join('\\.')
+    return signature.replace(new RegExp(`https?://(www\\.)?${domain}/`, 'g'), '/')
+  } catch {
+    return signature
+  }
+}
+
+const retrieveSelfLink = (parsed: DefaultParserResult) => {
   switch (parsed.format) {
     case 'atom':
       return parsed.feed.links?.find((link) => link.rel === 'self')
@@ -280,9 +292,9 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     } catch {}
   },
   getSelfUrl: (parsed) => {
-    return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
+    return parsed.format === 'json' ? parsed.feed.feed_url : retrieveSelfLink(parsed)?.href
   },
-  getSignature: (parsed) => {
+  getSignature: (parsed, url) => {
     // Neutralize dynamic fields before generating signature to ensure feeds
     // that differ only in self URL or timestamps are considered semantically identical.
 
@@ -292,7 +304,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       const signature = JSON.stringify(parsed.feed)
       parsed.feed.feed_url = originalSelfUrl
 
-      return signature
+      return normalizeSignatureUrls(signature, url)
     }
 
     let signature: string
@@ -309,7 +321,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       parsed.feed.updated = undefined
     }
 
-    const link = findSelfLink(parsed)
+    const link = retrieveSelfLink(parsed)
 
     if (!link) {
       signature = JSON.stringify(parsed.feed)
@@ -327,7 +339,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       parsed.feed.updated = originalBuildDate
     }
 
-    return signature
+    return normalizeSignatureUrls(signature, url)
   },
 }
 

@@ -7,7 +7,7 @@ export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFee
 export type ParserAdapter<T> = {
   parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
-  getSignature: (parsed: T) => string
+  getSignature: (parsed: T, url: string) => string
 }
 
 // URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
