@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, Rewrite } from './types.js'
 import {
   addMissingProtocol,
-  applyPlatformHandlers,
+  applyRewrites,
   fixMalformedProtocol,
   normalizeUrl,
   resolveFeedProtocol,
@@ -1586,8 +1586,8 @@ describe('normalizeUrl', () => {
   })
 })
 
-describe('applyPlatformHandlers', () => {
-  const createHandler = (matchHostname: string, newHostname: string): PlatformHandler => {
+describe('applyRewrites', () => {
+  const createRewrite = (matchHostname: string, newHostname: string): Rewrite => {
     return {
       match: (url) => {
         return url.hostname === matchHostname
@@ -1600,40 +1600,40 @@ describe('applyPlatformHandlers', () => {
     }
   }
 
-  it('should apply matching handler', () => {
+  it('should apply matching rewrite', () => {
     const value = 'https://old.example.com/feed'
-    const handlers = [createHandler('old.example.com', 'new.example.com')]
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites = [createRewrite('old.example.com', 'new.example.com')]
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://new.example.com/feed'
 
     expect(result).toBe(expected)
   })
 
-  it('should apply first matching handler when multiple match', () => {
+  it('should apply first matching rewrite when multiple match', () => {
     const value = 'https://multi.example.com/feed'
-    const handlers = [
-      createHandler('multi.example.com', 'first.example.com'),
-      createHandler('multi.example.com', 'second.example.com'),
+    const rewrites = [
+      createRewrite('multi.example.com', 'first.example.com'),
+      createRewrite('multi.example.com', 'second.example.com'),
     ]
-    const result = applyPlatformHandlers(value, handlers)
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://first.example.com/feed'
 
     expect(result).toBe(expected)
   })
 
-  it('should return original URL when no handler matches', () => {
+  it('should return original URL when no rewrite matches', () => {
     const value = 'https://example.com/feed'
-    const handlers = [createHandler('other.example.com', 'new.example.com')]
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites = [createRewrite('other.example.com', 'new.example.com')]
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://example.com/feed'
 
     expect(result).toBe(expected)
   })
 
-  it('should return original URL when handlers array is empty', () => {
+  it('should return original URL when rewrites array is empty', () => {
     const value = 'https://example.com/feed'
-    const handlers: Array<PlatformHandler> = []
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites: Array<Rewrite> = []
+    const result = applyRewrites(value, rewrites)
     const expected = 'https://example.com/feed'
 
     expect(result).toBe(expected)
@@ -1641,8 +1641,8 @@ describe('applyPlatformHandlers', () => {
 
   it('should return original string for invalid URL', () => {
     const value = 'not a valid url'
-    const handlers = [createHandler('example.com', 'new.example.com')]
-    const result = applyPlatformHandlers(value, handlers)
+    const rewrites = [createRewrite('example.com', 'new.example.com')]
+    const result = applyRewrites(value, rewrites)
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)

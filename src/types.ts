@@ -10,8 +10,8 @@ export type ParserAdapter<T> = {
   getSignature: (parsed: T) => string
 }
 
-// Platform handler for URL normalization (e.g., FeedBurner domain aliasing).
-export type PlatformHandler = {
+// URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
+export type Rewrite = {
   match: (url: URL) => boolean
   normalize: (url: URL) => URL
 }
@@ -62,7 +62,7 @@ export type FindCanonicalOptions<
   fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
   tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
-  platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
+  rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner).
   stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.

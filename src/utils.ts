@@ -1,7 +1,7 @@
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions, PlatformHandler } from './types.js'
+import type { NormalizeOptions, Rewrite } from './types.js'
 
 const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
 
@@ -351,13 +351,13 @@ export const normalizeUrl = (
   }
 }
 
-export const applyPlatformHandlers = (url: string, platforms: Array<PlatformHandler>): string => {
+export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
   try {
     let parsed = new URL(url)
 
-    for (const handler of platforms) {
-      if (handler.match(parsed)) {
-        parsed = handler.normalize(parsed)
+    for (const rewrite of rewrites) {
+      if (rewrite.match(parsed)) {
+        parsed = rewrite.normalize(parsed)
         break
       }
     }

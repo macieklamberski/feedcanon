@@ -1,8 +1,8 @@
-import type { PlatformHandler } from '../types.js'
+import type { Rewrite } from '../types.js'
 
 const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
 
-export const feedburnerHandler: PlatformHandler = {
+export const feedburnerRewrite: Rewrite = {
   match: (url) => {
     return hosts.includes(url.hostname)
   },

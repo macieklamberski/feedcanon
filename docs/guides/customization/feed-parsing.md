@@ -1,6 +1,6 @@
 ---
 prev: Data Fetching
-next: URL Variants
+next: URL Rewrites
 ---
 
 # Feed Parsing

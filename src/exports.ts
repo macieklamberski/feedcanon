@@ -1,12 +1,12 @@
 export {
   defaultFetch,
   defaultParser,
-  defaultPlatforms,
+  defaultRewrites,
   defaultStrippedParams,
   defaultTiers,
 } from './defaults.js'
 export { findCanonical } from './index.js'
-export { feedburnerHandler } from './platforms/feedburner.js'
+export { feedburnerRewrite } from './rewrites/feedburner.js'
 export type {
   DefaultParserResult,
   ExistsFn,
@@ -19,7 +19,7 @@ export type {
   OnFetchFn,
   OnMatchFn,
   ParserAdapter,
-  PlatformHandler,
+  Rewrite,
 } from './types.js'
 export {
   addMissingProtocol,

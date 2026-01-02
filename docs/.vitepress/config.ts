@@ -29,8 +29,8 @@ export default defineConfig({
             items: [
               { text: 'Data Fetching', link: '/guides/customization/data-fetching' },
               { text: 'Feed Parsing', link: '/guides/customization/feed-parsing' },
+              { text: 'URL Rewrites', link: '/guides/customization/url-rewrites' },
               { text: 'URL Variants', link: '/guides/customization/url-variants' },
-              { text: 'Platform Aliases', link: '/guides/customization/platform-aliases' },
             ],
           },
         ],

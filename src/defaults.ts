@@ -1,16 +1,16 @@
 import { parseFeed } from 'feedsmith'
-import { feedburnerHandler } from './platforms/feedburner.js'
+import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
   DefaultParserResult,
   FetchFn,
   NormalizeOptions,
   ParserAdapter,
-  PlatformHandler,
+  Rewrite,
   Tier,
 } from './types.js'
 
-// Platform handlers for domain-specific URL normalization.
-export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
+// URL rewrites for domain-specific normalization.
+export const defaultRewrites: Array<Rewrite> = [feedburnerRewrite]
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [
