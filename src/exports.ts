@@ -7,6 +7,7 @@ export {
 } from './defaults.js'
 export { findCanonical } from './index.js'
 export { feedburnerHandler } from './platforms/feedburner.js'
+export { wordpressProbe } from './probes/wordpress.js'
 export type {
   DefaultParserResult,
   ExistsFn,
@@ -20,6 +21,7 @@ export type {
   OnMatchFn,
   ParserAdapter,
   PlatformHandler,
+  Probe,
 } from './types.js'
 export {
   addMissingProtocol,
