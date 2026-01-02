@@ -1,6 +1,6 @@
 ---
 prev: URL Variants
-next: findCanonical
+next: URL Probes
 ---
 
 # Platform Aliases
