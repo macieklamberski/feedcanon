@@ -32,6 +32,9 @@ export const bloggerRewrite: Rewrite = {
     normalized.searchParams.delete('updated-min')
     normalized.searchParams.delete('updated-max')
 
+    // Strip orderby param.
+    normalized.searchParams.delete('orderby')
+
     return normalized
   },
 }

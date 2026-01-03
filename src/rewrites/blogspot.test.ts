@@ -165,6 +165,13 @@ describe('blogspotRewrite', () => {
         expect(blogspotRewrite.normalize(value).href).toBe(expected)
       })
 
+      it('should strip orderby param', () => {
+        const value = new URL('https://example.blogspot.com/feeds/posts/default?orderby=published')
+        const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+        expect(blogspotRewrite.normalize(value).href).toBe(expected)
+      })
+
       it('should strip max-results param', () => {
         const value = new URL('https://example.blogspot.com/feeds/posts/default?max-results=5')
         const expected = 'https://example.blogspot.com/feeds/posts/default'
