@@ -20,10 +20,14 @@ export const bloggerRewrite: Rewrite = {
     // Strip redirect param (controls redirect behavior, not content).
     normalized.searchParams.delete('redirect')
 
-    // Strip alt=atom (Atom is the default format, so this param is redundant).
-    if (normalized.searchParams.get('alt') === 'atom') {
+    // Strip alt=atom and alt=json (Atom is the default, JSON is same content).
+    const alt = normalized.searchParams.get('alt')
+    if (alt === 'atom' || alt === 'json' || alt === '') {
       normalized.searchParams.delete('alt')
     }
+
+    // Strip v param (GData API version, deprecated and now ignored).
+    normalized.searchParams.delete('v')
 
     // Strip pagination and date filter params. Feed readers subscribe to full
     // feeds, not filtered views. Stripping these ensures subscriptions to the
