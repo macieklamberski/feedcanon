@@ -1,10 +1,8 @@
 import type { Rewrite } from '../types.js'
 
-const hosts = ['blogger.com', 'www.blogger.com']
-
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
-    return hosts.includes(url.hostname)
+    return url.hostname === 'blogger.com' || url.hostname === 'www.blogger.com'
   },
 
   normalize: (url) => {

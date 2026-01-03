@@ -88,5 +88,26 @@ describe('bloggerRewrite', () => {
 
       expect(bloggerRewrite.normalize(value).href).toBe(expected)
     })
+
+    it('should preserve label feeds', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default/-/tech')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default/-/tech'
+
+      expect(bloggerRewrite.normalize(value).href).toBe(expected)
+    })
+
+    it('should preserve comment feeds', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/comments/default')
+      const expected = 'https://www.blogger.com/feeds/123/comments/default'
+
+      expect(bloggerRewrite.normalize(value).href).toBe(expected)
+    })
+
+    it('should preserve post-specific comment feeds', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/456/comments/default')
+      const expected = 'https://www.blogger.com/feeds/123/456/comments/default'
+
+      expect(bloggerRewrite.normalize(value).href).toBe(expected)
+    })
   })
 })
