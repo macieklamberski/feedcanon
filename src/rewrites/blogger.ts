@@ -2,20 +2,39 @@ import type { Rewrite } from '../types.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
 const bloggerPattern = /^(www\.|beta\.)?blogger\.com$/
+// Matches *.blogspot.com and country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
+const blogspotPattern = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
 
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
-    return bloggerPattern.test(url.hostname)
+    return bloggerPattern.test(url.hostname) || blogspotPattern.test(url.hostname)
   },
 
   normalize: (url) => {
     const normalized = new URL(url)
+    const isBlogger = bloggerPattern.test(normalized.hostname)
+    const isBlogspot = blogspotPattern.test(normalized.hostname)
 
-    // Force HTTPS (Blogger rewrites internal links based on protocol).
+    // Force HTTPS (Blogger/Blogspot rewrites internal links based on protocol).
     normalized.protocol = 'https:'
 
-    // Normalize to www (non-www redirects to www).
-    normalized.hostname = 'www.blogger.com'
+    // Normalize Blogger URLs to www (non-www redirects to www).
+    if (isBlogger) {
+      normalized.hostname = 'www.blogger.com'
+    }
+
+    // Normalize country-specific TLDs to .blogspot.com (Google redirects these anyway).
+    // Rewrite legacy feed URLs to modern format - atom.xml and rss.xml are backward-compatible.
+    if (isBlogspot) {
+      normalized.hostname = normalized.hostname.replace(blogspotPattern, '.blogspot.com')
+
+      if (normalized.pathname === '/atom.xml') {
+        normalized.pathname = '/feeds/posts/default'
+      } else if (normalized.pathname === '/rss.xml') {
+        normalized.pathname = '/feeds/posts/default'
+        normalized.searchParams.set('alt', 'rss')
+      }
+    }
 
     // Strip redirect param (controls redirect behavior, not content).
     normalized.searchParams.delete('redirect')
