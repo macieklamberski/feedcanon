@@ -1,8 +1,11 @@
 import type { Rewrite } from '../types.js'
 
+// Matches blogger.com, www.blogger.com, and beta.blogger.com.
+const bloggerPattern = /^(www\.|beta\.)?blogger\.com$/
+
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
-    return url.hostname === 'blogger.com' || url.hostname === 'www.blogger.com'
+    return bloggerPattern.test(url.hostname)
   },
 
   normalize: (url) => {

@@ -1,6 +1,6 @@
 import type { Rewrite } from '../types.js'
 
-// Matches *.blogspot.com and country-specific TLDs like *.blogspot.co.uk, *.blogspot.de
+// Matches *.blogspot.com and country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
 const blogspotPattern = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
 
 export const blogspotRewrite: Rewrite = {

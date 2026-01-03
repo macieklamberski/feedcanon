@@ -15,6 +15,12 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.match(value)).toBe(true)
     })
 
+    it('should match beta.blogger.com', () => {
+      const value = new URL('https://beta.blogger.com/feeds/123/posts/default')
+
+      expect(bloggerRewrite.match(value)).toBe(true)
+    })
+
     it('should not match other domains', () => {
       const value = new URL('https://example.com/feed')
 
@@ -38,6 +44,13 @@ describe('bloggerRewrite', () => {
 
     it('should normalize non-www to www', () => {
       const value = new URL('https://blogger.com/feeds/123/posts/default')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+
+      expect(bloggerRewrite.normalize(value).href).toBe(expected)
+    })
+
+    it('should normalize beta to www', () => {
+      const value = new URL('https://beta.blogger.com/feeds/123/posts/default')
       const expected = 'https://www.blogger.com/feeds/123/posts/default'
 
       expect(bloggerRewrite.normalize(value).href).toBe(expected)
