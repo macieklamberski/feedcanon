@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, spyOn } from 'bun:test'
-import { defaultFetch, defaultParser } from './defaults.js'
+import { defaultFetch, defaultParser, neutralizeFeedUrls } from './defaults.js'
 import type { DefaultParserResult, FetchFnResponse } from './types.js'
 
 describe('defaultFetch', () => {
@@ -700,14 +700,14 @@ describe('defaultParser', () => {
       }
     })
 
-    it('should normalize http vs https URLs in signature', async () => {
+    // This is an integration test to verify getSignature uses neutralizeFeedUrls.
+    it('should normalize URLs via neutralizeFeedUrls integration', async () => {
       const value = `
         <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
             <item>
-              <title>Post</title>
               <link>https://example.com/post/1</link>
             </item>
           </channel>
@@ -717,280 +717,412 @@ describe('defaultParser', () => {
 
       expect(parsed).toBeDefined()
 
-      const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-      const signature2 = defaultParser.getSignature(parsed, 'http://example.com/feed.rss')
+      const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed')
+      const signature2 = defaultParser.getSignature(parsed, 'http://www.example.com/feed/')
 
       expect(signature1).toBe(signature2)
+      expect(signature1).toContain('/post/1')
+      expect(signature1).not.toContain('https://example.com')
+    })
+  })
+})
+
+describe('neutralizeFeedUrls', () => {
+  describe('same-domain normalization', () => {
+    it('should normalize https same-domain URL to root-relative path', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should normalize www vs non-www URLs in signature', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://www.example.com/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize http same-domain URL to root-relative path', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"http://example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature1 = defaultParser.getSignature(parsed, 'https://www.example.com/feed.rss')
-      const signature2 = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature1).toBe(signature2)
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should preserve external URLs in signature', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://external.com/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize www same-domain URL to root-relative path', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://www.example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://external.com/post/1')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should strip same-domain URLs from signature', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://example.com/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize same-domain URL when feed URL has www', () => {
+      const url = 'https://www.example.com/feed'
+      const value = '{"link":"https://example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).not.toContain('https://example.com')
-      expect(signature).toContain('/post/1')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should not match similar domain names with different prefix', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://notexample.com/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should handle multiple same-domain URLs in signature', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"a":"https://example.com/post/1","b":"https://example.com/post/2"}'
+      const expected = '{"a":"/post/1","b":"/post/2"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://notexample.com/post/1')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should not match domain that continues after feed domain', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://example.com.evil.com/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize bare https same-domain to root', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"href":"https://example.com"}'
+      const expected = '{"href":"/"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://example.com.evil.com/post/1')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should not match subdomains of feed domain', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://api.example.com/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize bare http same-domain to root', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"href":"http://example.com"}'
+      const expected = '{"href":"/"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://api.example.com/post/1')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should not normalize URLs with ports', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://example.com:8080/post/1</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize bare www same-domain to root', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"href":"https://www.example.com"}'
+      const expected = '{"href":"/"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://example.com:8080/post/1')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should not normalize bare domain without trailing slash', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <description>Visit https://example.com for more</description>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize same-domain URLs in query parameters', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://tracker.com/click?url=https://example.com/post"}'
+      const expected = '{"link":"https://tracker.com/click?url=/post"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://example.com')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should normalize same-domain URLs in query parameters', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://tracker.com/click?url=https://example.com/post</link>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should handle mixed same-domain and external URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"internal":"https://example.com/post","external":"https://other.com/path"}'
+      const expected = '{"internal":"/post","external":"https://other.com/path"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('https://tracker.com/click?url=/post')
-      expect(signature).not.toContain('https://example.com/post')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should handle mixed same-domain and external URLs', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://example.com/post/1</link>
-              <description>Check https://external.com/page and https://example.com/about/</description>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should handle feed from subdomain normalizing its own URLs', () => {
+      const url = 'https://blog.example.com/feed'
+      const value = '{"link":"https://blog.example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-      expect(signature).toContain('/post/1')
-      expect(signature).toContain('https://external.com/page')
-      expect(signature).toContain('/about/')
-      expect(signature).not.toContain('https://example.com/')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should handle feed from subdomain without affecting parent domain URLs', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-            <item>
-              <title>Post</title>
-              <link>https://blog.example.com/post/1</link>
-              <description>See also https://example.com/main</description>
-            </item>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should not normalize parent domain URLs when feed is on subdomain', () => {
+      const url = 'https://blog.example.com/feed'
+      const value = '{"link":"https://example.com/main"}'
+      const expected = '{"link":"https://example.com/main"}'
 
-      expect(parsed).toBeDefined()
-
-      const signature = defaultParser.getSignature(parsed, 'https://blog.example.com/feed.rss')
-
-      expect(signature).toContain('/post/1')
-      expect(signature).toContain('https://example.com/main')
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
     })
 
-    it('should return original signature for invalid URL', async () => {
-      const value = `
-        <?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test</title>
-          </channel>
-        </rss>
-      `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+    it('should normalize URLs when feed URL has port', () => {
+      const url = 'https://example.com:8080/feed'
+      const value = '{"link":"https://example.com:8080/post/1"}'
+      const expected = '{"link":"/post/1"}'
 
-      expect(parsed).toBeDefined()
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
 
-      const signature = defaultParser.getSignature(parsed, 'not-a-valid-url')
-      const expected = JSON.stringify(parsed.feed)
+    it('should not normalize different port URLs when feed URL has port', () => {
+      const url = 'https://example.com:8080/feed'
+      const value = '{"link":"https://example.com:3000/post/1"}'
+      const expected = '{"link":"https://example.com:3000/post/1"}'
 
-      expect(signature).toBe(expected)
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not normalize portless URLs when feed URL has port', () => {
+      const url = 'https://example.com:8080/feed'
+      const value = '{"link":"https://example.com/post/1"}'
+      const expected = '{"link":"https://example.com/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should handle same-domain URLs in JSON arrays', () => {
+      const url = 'https://example.com/feed'
+      const value = '["https://example.com/a","https://example.com/b"]'
+      const expected = '["/a","/b"]'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should preserve path case when normalizing domain', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://example.com/Path/To/Page"}'
+      const expected = '{"link":"/Path/To/Page"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+  })
+
+  describe('trailing slash normalization', () => {
+    it('should strip trailing slash from https URL before quote', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://external.com/path/"}'
+      const expected = '{"link":"https://external.com/path"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should strip trailing slash from root-relative path before quote', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"/path/"}'
+      const expected = '{"link":"/path"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should preserve root "/" path', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"/"}'
+      const expected = '{"link":"/"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should strip trailing slash from deep path', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"/a/b/c/d/"}'
+      const expected = '{"link":"/a/b/c/d"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should strip trailing slash before query from https URL', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://external.com/path/?page=2"}'
+      const expected = '{"link":"https://external.com/path?page=2"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should strip trailing slash before query from root-relative path', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"/path/?page=2"}'
+      const expected = '{"link":"/path?page=2"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should handle query string with multiple parameters', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"/feed/json/?paged=2&format=json"}'
+      const expected = '{"link":"/feed/json?paged=2&format=json"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should normalize same-domain URL and strip trailing slash', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://example.com/post/1/"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should normalize same-domain URL with query and strip trailing slash', () => {
+      const url = 'https://example.com/rss'
+      const value = '{"link":"https://example.com/feed/?page=2"}'
+      const expected = '{"link":"/feed?page=2"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not strip trailing slash before fragment', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://external.com/path/#section"}'
+      const expected = '{"link":"https://external.com/path/#section"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should strip trailing slash before query even with fragment', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://external.com/path/?page=1#section"}'
+      const expected = '{"link":"https://external.com/path?page=1#section"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should only strip last trailing slash (multiple slashes)', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://external.com/path//"}'
+      const expected = '{"link":"https://external.com/path/"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should strip trailing slash from http URL', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"http://external.com/path/"}'
+      const expected = '{"link":"http://external.com/path"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+  })
+
+  describe('security edge cases', () => {
+    it('should not match domain suffix attack (example.com.evil.com)', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://example.com.evil.com/post/1"}'
+      const expected = '{"link":"https://example.com.evil.com/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not normalize URLs with ports', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://example.com:8080/post/1"}'
+      const expected = '{"link":"https://example.com:8080/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not match subdomains of feed domain', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://api.example.com/post/1"}'
+      const expected = '{"link":"https://api.example.com/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not match similar domain with different prefix (notexample.com)', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://notexample.com/post/1"}'
+      const expected = '{"link":"https://notexample.com/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should handle domain with hyphen correctly', () => {
+      const url = 'https://my-example.com/feed'
+      const value = '{"link":"https://my-example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not match partial domain (example vs example.com)', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://example/post/1"}'
+      const expected = '{"link":"https://example/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should not match www variant of suffix attack (www.example.com.evil.com)', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://www.example.com.evil.com/post/1"}'
+      const expected = '{"link":"https://www.example.com.evil.com/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+  })
+
+  describe('preservation cases', () => {
+    it('should preserve external domain URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://external.com/post/1"}'
+      const expected = '{"link":"https://external.com/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should preserve bare external domain URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"href":"https://external.com"}'
+      const expected = '{"href":"https://external.com"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should preserve URLs embedded in text (not standalone JSON values)', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"description":"Visit https://example.com for more"}'
+      const expected = '{"description":"Visit https://example.com for more"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should preserve bare domain followed by space in text', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"text":"Check https://example.com now"}'
+      const expected = '{"text":"Check https://example.com now"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should preserve URLs with authentication', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://user:pass@example.com/path"}'
+      const expected = '{"link":"https://user:pass@example.com/path"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+  })
+
+  describe('error handling', () => {
+    it('should return original signature for invalid URL', () => {
+      const url = 'not-a-valid-url'
+      const value = '{"title":"Test"}'
+      const expected = '{"title":"Test"}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should handle empty signature', () => {
+      const url = 'https://example.com/feed'
+      const value = ''
+      const expected = ''
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+
+    it('should handle signature with no URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"title":"Hello","count":42}'
+      const expected = '{"title":"Hello","count":42}'
+
+      expect(neutralizeFeedUrls(value, url)).toBe(expected)
+    })
+  })
+
+  // Tests documenting current behavior for potential future normalizations.
+  // These URLs are currently NOT normalized but could be considered for implementation.
+  describe('potential normalizations (not yet implemented)', () => {
+    it('should normalize protocol-relative URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"//example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).not.toBe(expected)
+    })
+
+    it('should normalize uppercase protocol URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"HTTPS://EXAMPLE.COM/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).not.toBe(expected)
+    })
+
+    it('should normalize uppercase domain URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"https://EXAMPLE.COM/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeFeedUrls(value, url)).not.toBe(expected)
     })
   })
 })

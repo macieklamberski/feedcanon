@@ -263,13 +263,18 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
-const normalizeSignatureUrls = (signature: string, url: string): string => {
+// Pre-compiled pattern for trailing slash normalization.
+const trailingSlashPattern = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
+
+export const neutralizeFeedUrls = (signature: string, url: string): string => {
+  // Neutralizes URLs in a JSON signature to ensure feeds differing only in URL
+  // variants (http/https, www/non-www, trailing slash) produce identical signatures.
+
   try {
-    const domain = new URL('/', url).hostname
-      .replace(/^www\./, '')
-      .split('.')
-      .join('\\.')
-    return signature.replace(new RegExp(`https?://(www\\.)?${domain}/`, 'g'), '/')
+    const escapedHost = new URL('/', url).host.replace(/^www\./, '').replaceAll('.', '\\.')
+    return signature
+      .replace(new RegExp(`https?://(?:www\\.)?${escapedHost}(?=[/"])(/)?`, 'g'), '/')
+      .replace(trailingSlashPattern, '$1$2')
   } catch {
     return signature
   }
@@ -304,7 +309,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       const signature = JSON.stringify(parsed.feed)
       parsed.feed.feed_url = originalSelfUrl
 
-      return normalizeSignatureUrls(signature, url)
+      return neutralizeFeedUrls(signature, url)
     }
 
     let signature: string
@@ -348,7 +353,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       parsed.feed.updated = originalBuildDate
     }
 
-    return normalizeSignatureUrls(signature, url)
+    return neutralizeFeedUrls(signature, url)
   },
 }
 
