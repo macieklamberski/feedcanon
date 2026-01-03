@@ -17,6 +17,11 @@ export const bloggerRewrite: Rewrite = {
     // Strip redirect param (controls redirect behavior, not content).
     normalized.searchParams.delete('redirect')
 
+    // Strip alt=atom (Atom is the default format, so this param is redundant).
+    if (normalized.searchParams.get('alt') === 'atom') {
+      normalized.searchParams.delete('alt')
+    }
+
     // Strip pagination and date filter params. Feed readers subscribe to full
     // feeds, not filtered views. Stripping these ensures subscriptions to the
     // same blog with different limits or date ranges canonicalize to one URL.

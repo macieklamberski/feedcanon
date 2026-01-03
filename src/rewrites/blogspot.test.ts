@@ -151,6 +151,20 @@ describe('blogspotRewrite', () => {
         expect(blogspotRewrite.normalize(value).href).toBe(expected)
       })
 
+      it('should strip alt=atom param', () => {
+        const value = new URL('https://example.blogspot.com/feeds/posts/default?alt=atom')
+        const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+        expect(blogspotRewrite.normalize(value).href).toBe(expected)
+      })
+
+      it('should preserve alt=rss param', () => {
+        const value = new URL('https://example.blogspot.com/feeds/posts/default?alt=rss')
+        const expected = 'https://example.blogspot.com/feeds/posts/default?alt=rss'
+
+        expect(blogspotRewrite.normalize(value).href).toBe(expected)
+      })
+
       it('should strip max-results param', () => {
         const value = new URL('https://example.blogspot.com/feeds/posts/default?max-results=5')
         const expected = 'https://example.blogspot.com/feeds/posts/default'

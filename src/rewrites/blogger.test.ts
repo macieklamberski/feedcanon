@@ -50,6 +50,20 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.normalize(value).href).toBe(expected)
     })
 
+    it('should strip alt=atom param', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=atom')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+
+      expect(bloggerRewrite.normalize(value).href).toBe(expected)
+    })
+
+    it('should preserve alt=rss param', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=rss')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss'
+
+      expect(bloggerRewrite.normalize(value).href).toBe(expected)
+    })
+
     it('should strip max-results param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?max-results=5')
       const expected = 'https://www.blogger.com/feeds/123/posts/default'
