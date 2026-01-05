@@ -52,7 +52,44 @@ describe('feedburnerRewrite', () => {
 
     it('should preserve path', () => {
       const value = new URL('https://feedproxy.google.com/~r/RockPaperShotgun/~3/ZG5fcDx64NA/')
-      const expected = 'https://feeds.feedburner.com/~r/RockPaperShotgun/~3/ZG5fcDx64NA/'
+      const expected = 'https://feeds.feedburner.com/~r/RockPaperShotgun/~3/ZG5fcDx64NA'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+  })
+
+  describe('normalization', () => {
+    it('should strip trailing slash', () => {
+      const value = new URL('https://feeds.feedburner.com/example/')
+      const expected = 'https://feeds.feedburner.com/example'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should collapse multiple slashes', () => {
+      const value = new URL('https://feeds.feedburner.com//example///feed')
+      const expected = 'https://feeds.feedburner.com/example/feed'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip hash fragment', () => {
+      const value = new URL('https://feeds.feedburner.com/example#section')
+      const expected = 'https://feeds.feedburner.com/example'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize percent encoding', () => {
+      const value = new URL('https://feeds.feedburner.com/%7Eexample')
+      const expected = 'https://feeds.feedburner.com/~example'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize unicode', () => {
+      const value = new URL('https://feeds.feedburner.com/caf\u00e9')
+      const expected = 'https://feeds.feedburner.com/caf%C3%A9'
 
       expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
     })

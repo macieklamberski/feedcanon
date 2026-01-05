@@ -282,4 +282,104 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
   })
+
+  describe('normalization', () => {
+    it('should strip trailing slash', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default/')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should collapse multiple slashes', () => {
+      const value = new URL('https://www.blogger.com//feeds//123//posts/default')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip hash fragment', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default#section')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip empty query string', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default?')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize percent encoding', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default/-/%7Etag')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default/-/~tag'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize unicode', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default/-/caf\u00e9')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default/-/caf%C3%A9'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should sort query params', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default?z=1&a=2')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?a=2&z=1'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip trailing slash on blogspot', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default/')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should collapse multiple slashes on blogspot', () => {
+      const value = new URL('https://example.blogspot.com//feeds//posts/default')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip hash fragment on blogspot', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default#section')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip empty query string on blogspot', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default?')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize percent encoding on blogspot', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default/-/%7Etag')
+      const expected = 'https://example.blogspot.com/feeds/posts/default/-/~tag'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize unicode on blogspot', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default/-/caf\u00e9')
+      const expected = 'https://example.blogspot.com/feeds/posts/default/-/caf%C3%A9'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should sort query params on blogspot', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default?z=1&alt=rss&a=2')
+      const expected = 'https://example.blogspot.com/feeds/posts/default?a=2&alt=rss&z=1'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+  })
 })

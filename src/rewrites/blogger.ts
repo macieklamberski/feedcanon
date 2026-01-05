@@ -1,4 +1,5 @@
-import type { Rewrite } from '../types.js'
+import type { NormalizeOptions, Rewrite } from '../types.js'
+import { normalizeUrl } from '../utils.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
 const bloggerPattern = /^(www\.|beta\.)?blogger\.com$/
@@ -61,6 +62,16 @@ export const bloggerRewrite: Rewrite = {
     // Strip orderby param.
     rewritten.searchParams.delete('orderby')
 
-    return rewritten
+    const normalized = normalizeUrl(rewritten.href, {
+      stripTrailingSlash: true,
+      collapseSlashes: true,
+      stripHash: true,
+      normalizeEncoding: true,
+      normalizeUnicode: true,
+      stripEmptyQuery: true,
+      sortQueryParams: true,
+    })
+
+    return new URL(normalized)
   },
 }

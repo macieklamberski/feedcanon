@@ -1,4 +1,5 @@
-import type { Rewrite } from '../types.js'
+import type { NormalizeOptions, Rewrite } from '../types.js'
+import { normalizeUrl } from '../utils.js'
 
 const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
 
@@ -16,6 +17,14 @@ export const feedburnerRewrite: Rewrite = {
     // Strip all query params (FeedBurner uses them for tracking only).
     rewritten.search = ''
 
-    return rewritten
+    const normalized = normalizeUrl(rewritten.href, {
+      stripTrailingSlash: true,
+      collapseSlashes: true,
+      stripHash: true,
+      normalizeEncoding: true,
+      normalizeUnicode: true,
+    })
+
+    return new URL(normalized)
   },
 }
