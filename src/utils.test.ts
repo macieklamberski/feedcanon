@@ -1592,10 +1592,10 @@ describe('applyRewrites', () => {
       match: (url) => {
         return url.hostname === matchHostname
       },
-      normalize: (url) => {
-        const normalized = new URL(url.href)
-        normalized.hostname = newHostname
-        return normalized
+      rewrite: (url) => {
+        const rewritten = new URL(url.href)
+        rewritten.hostname = newHostname
+        return rewritten
       },
     }
   }

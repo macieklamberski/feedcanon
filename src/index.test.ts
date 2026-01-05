@@ -1041,7 +1041,7 @@ describe('findCanonical', () => {
         match: () => {
           throw new Error('Rewrite error')
         },
-        normalize: (url) => url,
+        rewrite: (url) => url,
       }
       const options = toOptions({
         fetchFn: createMockFetch({
@@ -1064,14 +1064,14 @@ describe('findCanonical', () => {
       const body = '<feed></feed>'
       const firstRewrite: Rewrite = {
         match: (url) => url.hostname === 'multi.example.com',
-        normalize: (url) => {
+        rewrite: (url) => {
           url.hostname = 'first.example.com'
           return url
         },
       }
       const secondRewrite: Rewrite = {
         match: (url) => url.hostname === 'multi.example.com',
-        normalize: (url) => {
+        rewrite: (url) => {
           url.hostname = 'second.example.com'
           return url
         },
@@ -2206,7 +2206,7 @@ describe('findCanonical', () => {
       const value = 'https://example.com/feed'
       const badRewrite: Rewrite = {
         match: () => true,
-        normalize: () => {
+        rewrite: () => {
           // Return a URL object that will fail when converted to href
           // by mocking a broken URL
           return new URL('file:///invalid')

@@ -357,7 +357,7 @@ export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => 
 
     for (const rewrite of rewrites) {
       if (rewrite.match(parsed)) {
-        parsed = rewrite.normalize(parsed)
+        parsed = rewrite.rewrite(parsed)
         break
       }
     }

@@ -7,15 +7,15 @@ export const feedburnerRewrite: Rewrite = {
     return hosts.includes(url.hostname)
   },
 
-  normalize: (url) => {
-    const normalized = new URL(url)
+  rewrite: (url) => {
+    const rewritten = new URL(url)
 
     // Normalize domain to feeds.feedburner.com.
-    normalized.hostname = 'feeds.feedburner.com'
+    rewritten.hostname = 'feeds.feedburner.com'
 
     // Strip all query params (FeedBurner uses them for tracking only).
-    normalized.search = ''
+    rewritten.search = ''
 
-    return normalized
+    return rewritten
   },
 }

@@ -13,7 +13,7 @@ export type ParserAdapter<T> = {
 // URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
 export type Rewrite = {
   match: (url: URL) => boolean
-  normalize: (url: URL) => URL
+  rewrite: (url: URL) => URL
 }
 
 // URL normalization options.
