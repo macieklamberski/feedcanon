@@ -1,16 +1,11 @@
 import { parseFeed } from 'feedsmith'
-import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
   DefaultParserResult,
   FetchFn,
   NormalizeOptions,
   ParserAdapter,
-  Rewrite,
   Tier,
 } from './types.js'
-
-// URL rewrites for domain-specific normalization.
-export const defaultRewrites: Array<Rewrite> = [feedburnerRewrite]
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [

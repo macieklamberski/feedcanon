@@ -1,10 +1,4 @@
-import {
-  defaultFetch,
-  defaultParser,
-  defaultRewrites,
-  defaultStrippedParams,
-  defaultTiers,
-} from './defaults.js'
+import { defaultFetch, defaultParser, defaultStrippedParams, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
   FetchFnResponse,
@@ -44,7 +38,7 @@ export async function findCanonical(
     fetchFn = defaultFetch,
     existsFn,
     tiers = defaultTiers,
-    rewrites = defaultRewrites,
+    rewrites,
     stripQueryParams = defaultStrippedParams,
     onFetch,
     onMatch,
@@ -61,7 +55,7 @@ export async function findCanonical(
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
   const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
-    return resolved ? applyRewrites(resolved, rewrites) : undefined
+    return resolved && rewrites ? applyRewrites(resolved, rewrites) : resolved
   }
 
   // Phase 1: Initial fetch.

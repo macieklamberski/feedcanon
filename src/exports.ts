@@ -1,7 +1,6 @@
 export {
   defaultFetch,
   defaultParser,
-  defaultRewrites,
   defaultStrippedParams,
   defaultTiers,
 } from './defaults.js'
