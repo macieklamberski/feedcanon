@@ -313,7 +313,23 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 
 // Normalization tiers ordered from cleanest to least clean.
 export const defaultTiers: Array<Tier> = [
-  // Tier 1: Most aggressive - strip www and trailing slash.
+  // Tier 1: Most aggressive - strip query, www, and trailing slash.
+  {
+    stripProtocol: false,
+    stripAuthentication: false,
+    stripWww: true,
+    stripTrailingSlash: true,
+    stripRootSlash: true,
+    collapseSlashes: true,
+    stripHash: true,
+    sortQueryParams: false,
+    stripQuery: true,
+    stripEmptyQuery: true,
+    normalizeEncoding: true,
+    normalizeUnicode: true,
+    convertToPunycode: true,
+  },
+  // Tier 2: Strip www and trailing slash, keep query.
   {
     stripProtocol: false,
     stripAuthentication: false,
@@ -329,7 +345,7 @@ export const defaultTiers: Array<Tier> = [
     normalizeUnicode: true,
     convertToPunycode: true,
   },
-  // Tier 2: Keep www, strip trailing slash.
+  // Tier 3: Keep www, strip trailing slash, keep query.
   {
     stripProtocol: false,
     stripAuthentication: false,
@@ -345,7 +361,7 @@ export const defaultTiers: Array<Tier> = [
     normalizeUnicode: true,
     convertToPunycode: true,
   },
-  // Tier 3: Keep www and trailing slash.
+  // Tier 4: Keep www and trailing slash, keep query.
   {
     stripProtocol: false,
     stripAuthentication: false,

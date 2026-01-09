@@ -9,9 +9,10 @@ Feedcanon tests URL variants in tier order, from most normalized (cleanest) to l
 
 Default tiers:
 
-1. **Tier 1** — Strip www and trailing slash
-2. **Tier 2** — Keep www, strip trailing slash
-3. **Tier 3** — Keep www and trailing slash
+1. **Tier 1** — Strip query, www, and trailing slash
+2. **Tier 2** — Strip www and trailing slash, keep query
+3. **Tier 3** — Keep www, strip trailing slash, keep query
+4. **Tier 4** — Keep www and trailing slash, keep query
 
 ::: info
 Tracking parameters are stripped separately via the `stripQueryParams` option in `FindCanonicalOptions`, not per-tier. This ensures consistent param stripping across all variant testing.

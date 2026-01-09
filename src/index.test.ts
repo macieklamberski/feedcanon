@@ -755,6 +755,66 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
+
+      it('should prefer query-stripped URL when content matches', async () => {
+        const value = 'https://example.com/feed?format=rss&v=1'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss&v=1': { body },
+            'https://example.com/feed': { body },
+          }),
+          tiers: [
+            { stripQuery: true, stripWww: true, stripTrailingSlash: true },
+            { stripQuery: false, stripWww: true, stripTrailingSlash: true },
+          ],
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should preserve query when stripping breaks feed', async () => {
+        const value = 'https://example.com/feed?type=rss'
+        const expected = 'https://example.com/feed?type=rss'
+        const body = '<feed></feed>'
+        const differentBody = '<html>Not a feed</html>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?type=rss': { body },
+            'https://example.com/feed': { body: differentBody },
+          }),
+          tiers: [
+            { stripQuery: true, stripWww: true, stripTrailingSlash: true },
+            { stripQuery: false, stripWww: true, stripTrailingSlash: true },
+          ],
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should preserve query when stripped URL returns error', async () => {
+        const value = 'https://example.com/api?feed=posts'
+        const expected = 'https://example.com/api?feed=posts'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: async (url: string) => {
+            if (url === 'https://example.com/api?feed=posts') {
+              return { status: 200, url, body, headers: new Headers() }
+            }
+            return { status: 404, url, body: '', headers: new Headers() }
+          },
+          tiers: [
+            { stripQuery: true, stripWww: true, stripTrailingSlash: true },
+            { stripQuery: false, stripWww: true, stripTrailingSlash: true },
+          ],
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
     })
 
     describe('response comparison', () => {
