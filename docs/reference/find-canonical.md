@@ -1,5 +1,5 @@
 ---
-prev: Guides › URL Variants
+prev: Guides › URL Normalization Tiers
 next: API Reference › Utilities
 ---
 
@@ -9,7 +9,7 @@ The main function to find the canonical URL for a feed.
 
 ### `findCanonical()`
 
-Finds the canonical URL for a given feed URL by fetching, parsing, and testing URL variants.
+Finds the canonical URL for a given feed URL by fetching, parsing, and testing URL candidates.
 
 #### Parameters
 
@@ -25,7 +25,7 @@ Finds the canonical URL for a given feed URL by fetching, parsing, and testing U
 | `parser` | [`ParserAdapter`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L7) | [`defaultParser`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L249) | Custom feed parser. See [Feed Parsing](/guides/customization/feed-parsing) |
 | `fetchFn` | [`FetchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L90) | [`defaultFetch`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L235) | Custom fetch function. See [Data Fetching](/guides/customization/data-fetching) |
 | `existsFn` | [`ExistsFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L79) | — | Database lookup function. See [Using Callbacks](/guides/callbacks#onexists) |
-| `tiers` | [`Tier[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L37) | [`defaultTiers`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L272) | URL normalization tiers. See [URL Variants](/guides/customization/url-variants) |
+| `tiers` | [`Tier[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L37) | [`defaultTiers`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L272) | URL normalization tiers. See [URL Normalization Tiers](/guides/customization/url-tiers) |
 | `rewrites` | [`Rewrite[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L14) | `[]` | URL rewrites. See [URL Rewrites](/guides/customization/url-rewrites) |
 | `probes` | [`Probe[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L20) | — | URL probes for testing alternate URL forms. See [URL Probes](/guides/customization/url-probes) |
 | `stripQueryParams` | `string[]` | [`defaultStrippedParams`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L16) | Query params to strip |

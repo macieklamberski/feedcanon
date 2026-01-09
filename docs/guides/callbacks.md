@@ -44,7 +44,7 @@ The `response` object contains:
 
 ## onMatch
 
-Fires when a URL variant produces content matching the initial response.
+Fires when a URL candidate produces content matching the initial response.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -72,7 +72,7 @@ The callback receives:
 ### Use Cases
 
 - Collecting URL aliases for the same feed
-- Logging which variants work
+- Logging which candidates work
 - Building redirect maps
 
 ## onExists
@@ -93,7 +93,7 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 The `existsFn` function:
-- Receives each URL variant being tested
+- Receives each URL candidate being tested
 - Returns your data if URL exists, `undefined` otherwise
 - Triggers early termination when a match is found
 

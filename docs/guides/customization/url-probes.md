@@ -1,6 +1,6 @@
 ---
-prev: Platform Aliases
-next: findCanonical
+prev: URL Rewrites
+next: URL Normalization Tiers
 ---
 
 # URL Probes

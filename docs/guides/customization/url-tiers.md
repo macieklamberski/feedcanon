@@ -1,11 +1,11 @@
 ---
-prev: URL Rewrites
+prev: URL Probes
 next: findCanonical
 ---
 
-# URL Variants
+# URL Normalization Tiers
 
-Feedcanon tests URL variants in tier order, from most normalized (cleanest) to least normalized. The first variant that serves the same content wins.
+Feedcanon applies normalization tiers to generate URL candidates, ordered from cleanest to least clean. The first candidate serving the same content wins.
 
 Default tiers:
 
@@ -15,7 +15,7 @@ Default tiers:
 4. **Tier 4** — Keep www and trailing slash, keep query
 
 ::: info
-Tracking parameters are stripped separately via the `stripQueryParams` option in `FindCanonicalOptions`, not per-tier. This ensures consistent param stripping across all variant testing.
+Tracking parameters are stripped separately via the `stripQueryParams` option in `FindCanonicalOptions`, not per-tier. This ensures consistent param stripping across all tiers.
 :::
 
 ## Normalization Options
