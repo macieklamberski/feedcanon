@@ -1,6 +1,6 @@
 ---
 prev: Feed Parsing
-next: URL Variants
+next: URL Probes
 ---
 
 # URL Rewrites

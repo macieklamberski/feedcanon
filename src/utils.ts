@@ -1,7 +1,7 @@
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions, Rewrite } from './types.js'
+import type { NormalizeOptions, Probe, Rewrite } from './types.js'
 
 const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
 
@@ -368,6 +368,39 @@ export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => 
   }
 }
 
+// Apply URL probes, testing each candidate via callback.
+// Returns first working candidate URL, or original if none work.
+export const applyProbes = async (
+  url: string,
+  probes: Array<Probe>,
+  testCandidate: (url: string) => Promise<string | undefined>,
+): Promise<string> => {
+  try {
+    const parsed = new URL(url)
+
+    for (const probe of probes) {
+      if (!probe.match(parsed)) {
+        continue
+      }
+
+      for (const candidate of probe.getCandidates(parsed)) {
+        const result = await testCandidate(candidate)
+
+        if (result) {
+          return result
+        }
+      }
+
+      // First matching probe wins.
+      break
+    }
+
+    return url
+  } catch {
+    return url
+  }
+}
+
 export const createSignature = <T extends Record<string, unknown>>(
   object: T,
   fields: Array<keyof T>,
@@ -392,7 +425,7 @@ const trailingSlashPattern = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
   // Neutralizes URLs in text to ensure content differing only in URL
-  // variants (http/https, www/non-www, trailing slash) produces identical output.
+  // forms (http/https, www/non-www, trailing slash) produces identical output.
 
   const escapeHost = (url: string): string | undefined => {
     try {

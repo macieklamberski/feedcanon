@@ -16,6 +16,12 @@ export type Rewrite = {
   rewrite: (url: URL) => URL
 }
 
+// URL Probe for generating and validating alternate URL candidates.
+export type Probe = {
+  match: (url: URL) => boolean
+  getCandidates: (url: URL) => Array<string>
+}
+
 // URL normalization options.
 export type NormalizeOptions = {
   stripProtocol?: boolean // strip protocol (http ↔ https treated same)
@@ -34,7 +40,7 @@ export type NormalizeOptions = {
   convertToPunycode?: boolean // IDNA/Punycode conversion
 }
 
-// Tier options for findCanonical (stripQueryParams handled at top level).
+// Normalization tier options for findCanonical (stripQueryParams handled at top level).
 export type Tier = Omit<NormalizeOptions, 'stripQueryParams'>
 
 // Callback fired after each fetch operation.
@@ -61,8 +67,9 @@ export type FindCanonicalOptions<
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
-  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
   rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner).
+  probes?: Array<Probe> // URL probes (e.g., WordPress query param → path).
+  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
   stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.

@@ -1,4 +1,4 @@
-import type { NormalizeOptions, Rewrite } from '../types.js'
+import type { Rewrite } from '../types.js'
 import { normalizeUrl } from '../utils.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.

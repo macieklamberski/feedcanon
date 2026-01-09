@@ -5,7 +5,7 @@ import type {
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import { applyRewrites, normalizeUrl, resolveUrl } from './utils.js'
+import { applyProbes, applyRewrites, normalizeUrl, resolveUrl } from './utils.js'
 
 // Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
@@ -39,6 +39,7 @@ export async function findCanonical(
     existsFn,
     tiers = defaultTiers,
     rewrites,
+    probes,
     stripQueryParams = defaultStrippedParams,
     onFetch,
     onMatch,
@@ -47,9 +48,7 @@ export async function findCanonical(
 
   // Strip tracking params from URL using normalizeUrl with minimal options.
   const stripParams = (url: string): string => {
-    return stripQueryParams?.length
-      ? normalizeUrl(url, { stripQueryParams, sortQueryParams: true, stripEmptyQuery: true })
-      : url
+    return normalizeUrl(url, { stripQueryParams, sortQueryParams: true, stripEmptyQuery: true })
   }
 
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
@@ -152,7 +151,7 @@ export async function findCanonical(
   // Phase 3: Validate self URL.
   // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https://
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
-  let variantSourceUrl = initialResponseUrl
+  let candidateSourceUrl = initialResponseUrl
 
   if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {
     // Build list of URLs to try (self URL first, then alternate protocol).
@@ -169,66 +168,82 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        variantSourceUrl = resolveAndApplyRewrites(response.url) ?? initialResponseUrl
-        variantSourceUrl = stripParams(variantSourceUrl)
+        candidateSourceUrl = resolveAndApplyRewrites(response.url) ?? initialResponseUrl
+        candidateSourceUrl = stripParams(candidateSourceUrl)
         break
       }
     }
   }
 
-  // Phase 4: Generate Variants.
-  // Include variantSource for existsFn check, but skip fetch/compare (already verified).
-  const variantUrls = new Set(
+  // Phase 4: Apply URL probes.
+  // Test alternate URL forms (e.g., WordPress query param -> path conversion).
+  if (probes?.length) {
+    candidateSourceUrl = await applyProbes(candidateSourceUrl, probes, async (candidateUrl) => {
+      const response = await fetchAndCompare(candidateUrl)
+
+      if (response) {
+        onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
+        return stripParams(resolveAndApplyRewrites(response.url) ?? candidateUrl)
+      }
+    })
+  }
+
+  // Phase 5: Generate Candidates.
+  // Include candidateSource for existsFn check, but skip fetch/compare (already verified).
+  const candidateUrls = new Set(
     tiers
-      .map((tier) => resolveAndApplyRewrites(normalizeUrl(variantSourceUrl, tier)))
-      .filter((variantUrl): variantUrl is string => !!variantUrl),
+      .map((tier) => resolveAndApplyRewrites(normalizeUrl(candidateSourceUrl, tier)))
+      .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
   )
-  variantUrls.add(variantSourceUrl)
+  candidateUrls.add(candidateSourceUrl)
 
-  // Phase 5: Test Variants (in tier order, first match wins).
-  let winningUrl = variantSourceUrl
+  // Phase 6: Test Candidates (in tier order, first match wins).
+  let winningUrl = candidateSourceUrl
 
-  for (const variantUrl of variantUrls) {
-    // Check if variant exists in database.
+  for (const candidateUrl of candidateUrls) {
+    // Check if candidate exists in database.
     if (existsFn) {
-      const data = await existsFn(variantUrl)
+      const data = await existsFn(candidateUrl)
 
       if (data !== undefined) {
-        onExists?.({ url: variantUrl, data })
-        return variantUrl
+        onExists?.({ url: candidateUrl, data })
+        return candidateUrl
       }
     }
 
-    // Skip if same as variantSource (already verified).
-    if (variantUrl === variantSourceUrl) {
+    // Skip if same as candidateSource (already verified).
+    if (candidateUrl === candidateSourceUrl) {
       continue
     }
 
-    // Use initial response URL if it's the cleanest variant (already verified via initial fetch).
-    if (variantUrl === initialResponseUrl) {
+    // Use initial response URL if it's the cleanest candidate (already verified via initial fetch).
+    if (candidateUrl === initialResponseUrl) {
       winningUrl = initialResponseUrl
       break
     }
 
-    const variantResponse = await fetchAndCompare(variantUrl)
-    if (variantResponse) {
-      let variantResponseUrl = resolveAndApplyRewrites(variantResponse.url)
-      if (variantResponseUrl) {
-        variantResponseUrl = stripParams(variantResponseUrl)
+    const candidateResponse = await fetchAndCompare(candidateUrl)
+    if (candidateResponse) {
+      let candidateResponseUrl = resolveAndApplyRewrites(candidateResponse.url)
+      if (candidateResponseUrl) {
+        candidateResponseUrl = stripParams(candidateResponseUrl)
       }
 
-      // Skip variant if it redirects to a URL we already have as canonical.
-      if (variantResponseUrl === variantSourceUrl || variantResponseUrl === initialResponseUrl) {
+      // Skip candidate if it redirects to a URL we already have as canonical.
+      if (
+        candidateResponseUrl === candidateSourceUrl ||
+        candidateResponseUrl === initialResponseUrl
+      ) {
         continue
       }
 
-      onMatch?.({ url: variantUrl, response: variantResponse, feed: initialResponseFeed })
-      winningUrl = variantUrl
+      onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
+      winningUrl = candidateUrl
       break
     }
   }
 
-  // Phase 6: HTTPS Upgrade on winning URL.
+  // Phase 7: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
     const httpsUrl = winningUrl.replace('http://', 'https://')
     const response = await fetchAndCompare(httpsUrl)

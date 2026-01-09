@@ -1,4 +1,4 @@
-import type { NormalizeOptions, Rewrite } from '../types.js'
+import type { Rewrite } from '../types.js'
 import { normalizeUrl } from '../utils.js'
 
 const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
