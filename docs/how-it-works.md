@@ -53,7 +53,7 @@ The comparison uses a two-tier matching strategy:
 
 If the self URL fails (e.g., wrong protocol), Feedcanon tries the alternate protocol (`https://` ↔ `http://`).
 
-### 4. URL Probes (Optional)
+### 4. URL Probes
 
 If probes are configured, Feedcanon tests alternate URL forms:
 
@@ -72,7 +72,7 @@ https://example.com/feed
 Use /feed as base for URL normalization
 ```
 
-### 5. URL Normalization
+### 5. URL Tiers
 
 Using the validated base URL, Feedcanon generates URL candidates by applying URL normalization tiers. Candidates are ordered from cleanest (most normalized) to least clean.
 
