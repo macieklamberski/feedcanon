@@ -61,6 +61,9 @@ Only the first matching probe is used—subsequent probes are skipped.
 
 ## Built-in
 
+> [!WARNING]
+> No URL probes are enabled by default. To use built-in probes, you must explicitly pass them via the [`probes`](/reference/find-canonical#options) option.
+
 ### WordPress
 
 Converts WordPress query parameter feeds to path-based URLs:

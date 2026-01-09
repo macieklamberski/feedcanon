@@ -67,9 +67,9 @@ export type FindCanonicalOptions<
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
   fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
-  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
   rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner).
   probes?: Array<Probe> // URL probes (e.g., WordPress query param → path).
+  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
   stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.
