@@ -40,7 +40,7 @@ export type NormalizeOptions = {
   convertToPunycode?: boolean // IDNA/Punycode conversion
 }
 
-// Tier options for findCanonical (stripQueryParams handled at top level).
+// Normalization tier options for findCanonical (stripQueryParams handled at top level).
 export type Tier = Omit<NormalizeOptions, 'stripQueryParams'>
 
 // Callback fired after each fetch operation.

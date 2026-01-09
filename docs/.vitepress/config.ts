@@ -41,7 +41,7 @@ export default defineConfig({
               { text: 'Feed Parsing', link: '/guides/customization/feed-parsing' },
               { text: 'URL Rewrites', link: '/guides/customization/url-rewrites' },
               { text: 'URL Probes', link: '/guides/customization/url-probes' },
-              { text: 'URL Normalization Tiers', link: '/guides/customization/url-tiers' },
+              { text: 'URL Tiers', link: '/guides/customization/url-tiers' },
             ],
           },
         ],

@@ -22,6 +22,7 @@ export type {
   ParserAdapter,
   Probe,
   Rewrite,
+  Tier,
 } from './types.js'
 export {
   addMissingProtocol,

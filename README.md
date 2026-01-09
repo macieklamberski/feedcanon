@@ -41,8 +41,8 @@ This is a simplified flow. For complete details, see [How It Works](https://feed
 1. Fetch the input URL and parse the feed to establish reference content.
 2. Extract the feed's declared self URL (if present).
 3. Validate the self URL by fetching and comparing content.
-4. Generate URL variants ordered from cleanest to least clean.
-5. Test variants in order—the first one serving identical content wins.
+4. Generate URL candidates ordered from cleanest to least clean.
+5. Test candidates in order—the first one serving identical content wins.
 6. Upgrade HTTP to HTTPS if both serve identical content.
 
 ### Customization
@@ -53,7 +53,7 @@ Feedcanon is designed to be flexible. Every major component can be replaced or e
 - **Database lookup** — use `existsFn` to check if a URL already exists in your database.
 - **Custom fetch** — use your own HTTP client (Axios, Got, Ky, etc.)
 - **Custom parser** — bring your own parser (Feedsmith by default).
-- **Custom tiers** — define your own URL normalization variants.
+- **Custom tiers** — define your own URL tiers.
 - **Custom platforms** — add handlers to normalize domain aliases (like FeedBurner).
 
 ## Quick Start

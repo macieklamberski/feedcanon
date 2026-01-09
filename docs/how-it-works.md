@@ -74,7 +74,7 @@ Use /feed as base for URL normalization
 
 ### 5. URL Normalization
 
-Using the validated base URL, Feedcanon generates URL candidates by applying normalization tiers. Candidates are ordered from cleanest (most normalized) to least clean.
+Using the validated base URL, Feedcanon generates URL candidates by applying URL tiers. Candidates are ordered from cleanest (most normalized) to least clean.
 
 ```
 https://www.example.com/feed/?id=123&utm_source=twitter

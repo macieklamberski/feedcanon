@@ -1,6 +1,6 @@
 ---
 prev: URL Rewrites
-next: URL Normalization Tiers
+next: URL Tiers
 ---
 
 # URL Probes

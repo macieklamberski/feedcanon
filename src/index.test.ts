@@ -228,7 +228,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should use self URL redirect destination as variant source', async () => {
+      it('should use self URL redirect destination as candidate source', async () => {
         const value = 'https://old.example.com/feed'
         const expected = 'https://new.example.com/feed'
         const body = '<feed></feed>'
@@ -399,7 +399,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should use variant URL even when it redirects', async () => {
+      it('should use candidate URL even when it redirects', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -542,7 +542,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should skip variant that redirects back to variantSourceUrl', async () => {
+      it('should skip candidate that redirects back to candidateSourceUrl', async () => {
         const value = 'https://example.com/feed'
         const expected = 'https://www.example.com/feed'
         const body = '<feed></feed>'
@@ -558,7 +558,7 @@ describe('findCanonical', () => {
       })
     })
 
-    describe('variant selection', () => {
+    describe('candidate selection', () => {
       it('should clean polluted URL and upgrade to HTTPS', async () => {
         const value = 'http://www.example.com/feed/?utm_source=twitter&utm_medium=social'
         const expected = 'https://example.com/feed'
@@ -575,7 +575,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should keep functional query params when variant returns different content', async () => {
+      it('should keep functional query params when candidate returns different content', async () => {
         const value = 'https://example.com/feed?format=rss'
         const expected = 'https://example.com/feed?format=rss'
         const options = toOptions({
@@ -589,7 +589,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should fall back to original when all variants fail', async () => {
+      it('should fall back to original when all candidates fail', async () => {
         const value = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
         const expected = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
         const body = '<feed></feed>'
@@ -605,7 +605,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should reject variant when content differs', async () => {
+      it('should reject candidate when content differs', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'https://www.example.com/feed'
         const options = toOptions({
@@ -634,7 +634,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should fall back to variantSourceUrl when all variants fail', async () => {
+      it('should fall back to candidateSourceUrl when all candidates fail', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
@@ -650,7 +650,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return first matching variant when multiple match', async () => {
+      it('should return first matching candidate when multiple match', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -670,7 +670,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should strip tracking params from input URL when variant works', async () => {
+      it('should strip tracking params from input URL when candidate works', async () => {
         const value = 'https://example.com/feed?utm_source=twitter&utm_medium=social'
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -685,7 +685,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should use initialResponseUrl when variant matches it', async () => {
+      it('should use initialResponseUrl when candidate matches it', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'https://www.example.com/feed'
         const body = '<feed></feed>'
@@ -702,7 +702,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should use initialResponseUrl when normalized variant matches it', async () => {
+      it('should use initialResponseUrl when normalized candidate matches it', async () => {
         const value = 'http://www.example.com/feed/'
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -740,7 +740,7 @@ describe('findCanonical', () => {
         expect(fetchCalls).toEqual(['https://example.com/feed'])
       })
 
-      it('should fall back to variantSourceUrl when all variants return different content', async () => {
+      it('should fall back to candidateSourceUrl when all candidates return different content', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
@@ -859,7 +859,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should accept variant when signatures match but content differs', async () => {
+      it('should accept candidate when signatures match but content differs', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://example.com/feed'
         const body1 = '<feed><cachebuster>123</cachebuster><title>Test</title></feed>'
@@ -1091,7 +1091,7 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    it('should apply rewrite to generated variants', async () => {
+    it('should apply rewrite to generated candidates', async () => {
       const value = 'https://feeds2.feedburner.com/Example?format=xml'
       const expected = 'https://feeds.feedburner.com/Example'
       const body = '<feed></feed>'
@@ -1144,7 +1144,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should check variants in tier order', async () => {
+      it('should check candidates in tier order', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const checkedUrls: Array<string> = []
@@ -1180,7 +1180,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return non-first variant when existsFn matches it', async () => {
+      it('should return non-first candidate when existsFn matches it', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://www.example.com/feed'
         const body = '<feed></feed>'
@@ -1203,7 +1203,7 @@ describe('findCanonical', () => {
     })
 
     describe('parser', () => {
-      it('should use selfUrl as variant source when valid', async () => {
+      it('should use selfUrl as candidate source when valid', async () => {
         const value = 'https://cdn.example.com/feed'
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -1291,7 +1291,7 @@ describe('findCanonical', () => {
         expect(fetchCalls).toEqual([{ url: 'https://example.com/feed', status: 200 }])
       })
 
-      it('should call onFetch for each variant attempt', async () => {
+      it('should call onFetch for each candidate attempt', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const fetchCalls: Array<string> = []
@@ -1414,7 +1414,7 @@ describe('findCanonical', () => {
         expect(matchCalls).toEqual(['https://cdn.example.com/feed', 'https://example.com/feed'])
       })
 
-      it('should call onMatch for variant match', async () => {
+      it('should call onMatch for candidate match', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const matchCalls: Array<string> = []
@@ -1942,8 +1942,8 @@ describe('findCanonical', () => {
       })
     })
 
-    describe('variant comparison', () => {
-      it('should return early when existsFn matches non-first variant', async () => {
+    describe('candidate comparison', () => {
+      it('should return early when existsFn matches non-first candidate', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'https://www.example.com/feed'
         const body = '<feed></feed>'
@@ -1966,7 +1966,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should skip variant when parser.parse returns undefined on compared body', async () => {
+      it('should skip candidate when parser.parse returns undefined on compared body', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://www.example.com/feed'
         const validBody = '<feed><valid>true</valid></feed>'

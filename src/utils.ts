@@ -425,7 +425,7 @@ const trailingSlashPattern = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
   // Neutralizes URLs in text to ensure content differing only in URL
-  // variants (http/https, www/non-www, trailing slash) produces identical output.
+  // forms (http/https, www/non-www, trailing slash) produces identical output.
 
   const escapeHost = (url: string): string | undefined => {
     try {
