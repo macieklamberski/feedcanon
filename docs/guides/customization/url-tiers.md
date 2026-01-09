@@ -5,7 +5,7 @@ next: findCanonical
 
 # URL Tiers
 
-Feedcanon applies URL tiers to generate candidates, ordered from cleanest to least clean. The first candidate serving the same content wins.
+Feedcanon applies URL normalization tiers to generate candidates, ordered from cleanest to least clean. The first candidate serving the same content wins.
 
 Default tiers:
 

@@ -53,7 +53,7 @@ Feedcanon is designed to be flexible. Every major component can be replaced or e
 - **Database lookup** — use `existsFn` to check if a URL already exists in your database.
 - **Custom fetch** — use your own HTTP client (Axios, Got, Ky, etc.)
 - **Custom parser** — bring your own parser (Feedsmith by default).
-- **Custom tiers** — define your own URL tiers.
+- **Custom tiers** — define your own URL normalization tiers.
 - **Custom platforms** — add handlers to normalize domain aliases (like FeedBurner).
 
 ## Quick Start
