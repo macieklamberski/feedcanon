@@ -6,6 +6,7 @@ import type {
   ParserAdapter,
   Tier,
 } from './types.js'
+import { createSignature, neutralizeUrls } from './utils.js'
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [
@@ -258,23 +259,6 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
-// Pre-compiled pattern for trailing slash normalization.
-const trailingSlashPattern = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
-
-export const neutralizeFeedUrls = (signature: string, url: string): string => {
-  // Neutralizes URLs in a JSON signature to ensure feeds differing only in URL
-  // variants (http/https, www/non-www, trailing slash) produce identical signatures.
-
-  try {
-    const escapedHost = new URL('/', url).host.replace(/^www\./, '').replaceAll('.', '\\.')
-    return signature
-      .replace(new RegExp(`https?://(?:www\\.)?${escapedHost}(?=[/"])(/)?`, 'g'), '/')
-      .replace(trailingSlashPattern, '$1$2')
-  } catch {
-    return signature
-  }
-}
-
 const retrieveSelfLink = (parsed: DefaultParserResult) => {
   switch (parsed.format) {
     case 'atom':
@@ -298,57 +282,32 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     // Neutralize dynamic fields before generating signature to ensure feeds
     // that differ only in self URL or timestamps are considered semantically identical.
 
-    if (parsed.format === 'json') {
-      const originalSelfUrl = parsed.feed.feed_url
-      parsed.feed.feed_url = undefined
-      const signature = JSON.stringify(parsed.feed)
-      parsed.feed.feed_url = originalSelfUrl
-
-      return neutralizeFeedUrls(signature, url)
-    }
-
     let signature: string
-    let originalBuildDate: string | undefined
-    let originalPubDate: string | undefined
-    let originalLink: string | undefined
+    let contentUrl: string | undefined
 
-    if (parsed.format === 'rss') {
-      originalBuildDate = parsed.feed.lastBuildDate
-      originalPubDate = parsed.feed.pubDate
-      originalLink = parsed.feed.link
-      parsed.feed.lastBuildDate = undefined
-      parsed.feed.pubDate = undefined
-      parsed.feed.link = undefined
-    } else if (parsed.format === 'rdf') {
-      originalLink = parsed.feed.link
-      parsed.feed.link = undefined
-    } else if (parsed.format === 'atom') {
-      originalBuildDate = parsed.feed.updated
-      parsed.feed.updated = undefined
-    }
-
-    const link = retrieveSelfLink(parsed)
-
-    if (!link) {
-      signature = JSON.stringify(parsed.feed)
+    if (parsed.format === 'json') {
+      contentUrl = parsed.feed.home_page_url
+      signature = createSignature(parsed.feed, ['feed_url'])
     } else {
-      const originalSelfUrl = link.href
-      link.href = undefined
-      signature = JSON.stringify(parsed.feed)
-      link.href = originalSelfUrl
+      const selfLink = retrieveSelfLink(parsed)
+      const savedSelfHref = selfLink?.href
+      if (selfLink) selfLink.href = undefined
+
+      if (parsed.format === 'rss') {
+        contentUrl = parsed.feed.link
+        signature = createSignature(parsed.feed, ['lastBuildDate', 'pubDate', 'link', 'generator'])
+      } else if (parsed.format === 'rdf') {
+        contentUrl = parsed.feed.link
+        signature = createSignature(parsed.feed, ['link'])
+      } else {
+        signature = createSignature(parsed.feed, ['updated', 'generator'])
+      }
+
+      if (selfLink) selfLink.href = savedSelfHref
     }
 
-    if (parsed.format === 'rss') {
-      parsed.feed.lastBuildDate = originalBuildDate
-      parsed.feed.pubDate = originalPubDate
-      parsed.feed.link = originalLink
-    } else if (parsed.format === 'rdf') {
-      parsed.feed.link = originalLink
-    } else if (parsed.format === 'atom') {
-      parsed.feed.updated = originalBuildDate
-    }
-
-    return neutralizeFeedUrls(signature, url)
+    const urls = contentUrl ? [url, contentUrl] : [url]
+    return neutralizeUrls(signature, urls)
   },
 }
 

@@ -367,3 +367,49 @@ export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => 
     return url
   }
 }
+
+export const createSignature = <T extends Record<string, unknown>>(
+  object: T,
+  fields: Array<keyof T>,
+): string => {
+  const saved = fields.map((key) => [key, object[key]] as const)
+
+  for (const key of fields) {
+    object[key] = undefined as T[keyof T]
+  }
+
+  const signature = JSON.stringify(object)
+
+  for (const [key, val] of saved) {
+    object[key] = val as T[keyof T]
+  }
+
+  return signature
+}
+
+// Pre-compiled pattern for trailing slash normalization.
+const trailingSlashPattern = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
+
+export const neutralizeUrls = (text: string, urls: Array<string>): string => {
+  // Neutralizes URLs in text to ensure content differing only in URL
+  // variants (http/https, www/non-www, trailing slash) produces identical output.
+
+  const escapeHost = (url: string): string | undefined => {
+    try {
+      return new URL('/', url).host.replace(/^www\./, '').replaceAll('.', '\\.')
+    } catch {
+      return undefined
+    }
+  }
+
+  const hosts = urls.map(escapeHost).filter(Boolean)
+  if (hosts.length === 0) {
+    return text
+  }
+
+  const hostPattern = hosts.length === 1 ? hosts[0] : `(?:${hosts.join('|')})`
+
+  return text
+    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"])(/)?`, 'g'), '/')
+    .replace(trailingSlashPattern, '$1$2')
+}
