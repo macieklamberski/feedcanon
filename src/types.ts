@@ -7,13 +7,13 @@ export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFee
 export type ParserAdapter<T> = {
   parse: (body: string) => Promise<T | undefined> | T | undefined
   getSelfUrl: (parsed: T) => string | undefined
-  getSignature: (parsed: T) => string
+  getSignature: (parsed: T, url: string) => string
 }
 
-// Platform handler for URL normalization (e.g., FeedBurner domain aliasing).
-export type PlatformHandler = {
+// URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
+export type Rewrite = {
   match: (url: URL) => boolean
-  normalize: (url: URL) => URL
+  rewrite: (url: URL) => URL
 }
 
 // URL Probe for generating and validating alternate URL candidates.
@@ -68,7 +68,7 @@ export type FindCanonicalOptions<
   fetchFn?: FetchFn<TResponse>
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
   tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
-  platforms?: Array<PlatformHandler> // Platform handlers (e.g., FeedBurner).
+  rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner).
   probes?: Array<Probe> // URL probes (e.g., WordPress query param → path).
   stripQueryParams?: Array<string> // Query params to strip (e.g., utm_*, doing_wp_cron).
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.

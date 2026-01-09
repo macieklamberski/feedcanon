@@ -1,5 +1,5 @@
 ---
-prev: Guides › Platform Aliases
+prev: Guides › URL Variants
 next: API Reference › Utilities
 ---
 
@@ -25,9 +25,9 @@ Finds the canonical URL for a given feed URL by fetching, parsing, and testing U
 | `parser` | [`ParserAdapter`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L7) | [`defaultParser`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L249) | Custom feed parser. See [Feed Parsing](/guides/customization/feed-parsing) |
 | `fetchFn` | [`FetchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L90) | [`defaultFetch`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L235) | Custom fetch function. See [Data Fetching](/guides/customization/data-fetching) |
 | `existsFn` | [`ExistsFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L79) | — | Database lookup function. See [Using Callbacks](/guides/callbacks#onexists) |
-| `platforms` | [`PlatformHandler[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L14) | [`defaultPlatforms`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L13) | Platform handlers. See [Platform Aliases](/guides/customization/platform-aliases) |
-| `probes` | [`Probe[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L20) | — | URL probes for testing alternate URL forms |
 | `tiers` | [`Tier[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L37) | [`defaultTiers`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L272) | URL normalization tiers. See [URL Variants](/guides/customization/url-variants) |
+| `rewrites` | [`Rewrite[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L14) | `[]` | URL rewrites. See [URL Rewrites](/guides/customization/url-rewrites) |
+| `probes` | [`Probe[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L20) | — | URL probes for testing alternate URL forms. See [URL Probes](/guides/customization/url-probes) |
 | `stripQueryParams` | `string[]` | [`defaultStrippedParams`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L16) | Query params to strip |
 | `onFetch` | [`OnFetchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L40) | — | Callback after each fetch. See [Using Callbacks](/guides/callbacks#onfetch) |
 | `onMatch` | [`OnMatchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L46) | — | Callback when URL matches. See [Using Callbacks](/guides/callbacks#onmatch) |

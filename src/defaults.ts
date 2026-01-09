@@ -1,16 +1,12 @@
 import { parseFeed } from 'feedsmith'
-import { feedburnerHandler } from './platforms/feedburner.js'
 import type {
   DefaultParserResult,
   FetchFn,
   NormalizeOptions,
   ParserAdapter,
-  PlatformHandler,
   Tier,
 } from './types.js'
-
-// Platform handlers for domain-specific URL normalization.
-export const defaultPlatforms: Array<PlatformHandler> = [feedburnerHandler]
+import { createSignature, neutralizeUrls } from './utils.js'
 
 // Tracking parameters to strip when comparing URLs for similarity.
 export const defaultStrippedParams = [
@@ -263,7 +259,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
-const findSelfLink = (parsed: DefaultParserResult) => {
+const retrieveSelfLink = (parsed: DefaultParserResult) => {
   switch (parsed.format) {
     case 'atom':
       return parsed.feed.links?.find((link) => link.rel === 'self')
@@ -280,56 +276,60 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     } catch {}
   },
   getSelfUrl: (parsed) => {
-    return parsed.format === 'json' ? parsed.feed.feed_url : findSelfLink(parsed)?.href
+    return parsed.format === 'json' ? parsed.feed.feed_url : retrieveSelfLink(parsed)?.href
   },
-  getSignature: (parsed) => {
+  getSignature: (parsed, url) => {
     // Neutralize dynamic fields before generating signature to ensure feeds
     // that differ only in self URL or timestamps are considered semantically identical.
 
-    if (parsed.format === 'json') {
-      const originalSelfUrl = parsed.feed.feed_url
-      parsed.feed.feed_url = undefined
-      const signature = JSON.stringify(parsed.feed)
-      parsed.feed.feed_url = originalSelfUrl
-
-      return signature
-    }
-
     let signature: string
-    let originalBuildDate: string | undefined
+    let contentUrl: string | undefined
 
-    if (parsed.format === 'rss') {
-      originalBuildDate = parsed.feed.lastBuildDate
-      parsed.feed.lastBuildDate = undefined
-    } else if (parsed.format === 'atom') {
-      originalBuildDate = parsed.feed.updated
-      parsed.feed.updated = undefined
-    }
-
-    const link = findSelfLink(parsed)
-
-    if (!link) {
-      signature = JSON.stringify(parsed.feed)
+    if (parsed.format === 'json') {
+      contentUrl = parsed.feed.home_page_url
+      signature = createSignature(parsed.feed, ['feed_url'])
     } else {
-      const originalSelfUrl = link.href
-      link.href = undefined
-      signature = JSON.stringify(parsed.feed)
-      link.href = originalSelfUrl
+      const selfLink = retrieveSelfLink(parsed)
+      const savedSelfHref = selfLink?.href
+      if (selfLink) selfLink.href = undefined
+
+      if (parsed.format === 'rss') {
+        contentUrl = parsed.feed.link
+        signature = createSignature(parsed.feed, ['lastBuildDate', 'pubDate', 'link', 'generator'])
+      } else if (parsed.format === 'rdf') {
+        contentUrl = parsed.feed.link
+        signature = createSignature(parsed.feed, ['link'])
+      } else {
+        signature = createSignature(parsed.feed, ['updated', 'generator'])
+      }
+
+      if (selfLink) selfLink.href = savedSelfHref
     }
 
-    if (parsed.format === 'rss') {
-      parsed.feed.lastBuildDate = originalBuildDate
-    } else if (parsed.format === 'atom') {
-      parsed.feed.updated = originalBuildDate
-    }
-
-    return signature
+    const urls = contentUrl ? [url, contentUrl] : [url]
+    return neutralizeUrls(signature, urls)
   },
 }
 
 // Normalization tiers ordered from cleanest to least clean.
 export const defaultTiers: Array<Tier> = [
-  // Tier 1: Most aggressive - strip www and trailing slash.
+  // Tier 1: Most aggressive - strip query, www, and trailing slash.
+  {
+    stripProtocol: false,
+    stripAuthentication: false,
+    stripWww: true,
+    stripTrailingSlash: true,
+    stripRootSlash: true,
+    collapseSlashes: true,
+    stripHash: true,
+    sortQueryParams: false,
+    stripQuery: true,
+    stripEmptyQuery: true,
+    normalizeEncoding: true,
+    normalizeUnicode: true,
+    convertToPunycode: true,
+  },
+  // Tier 2: Strip www and trailing slash, keep query.
   {
     stripProtocol: false,
     stripAuthentication: false,
@@ -345,7 +345,7 @@ export const defaultTiers: Array<Tier> = [
     normalizeUnicode: true,
     convertToPunycode: true,
   },
-  // Tier 2: Keep www, strip trailing slash.
+  // Tier 3: Keep www, strip trailing slash, keep query.
   {
     stripProtocol: false,
     stripAuthentication: false,
@@ -361,7 +361,7 @@ export const defaultTiers: Array<Tier> = [
     normalizeUnicode: true,
     convertToPunycode: true,
   },
-  // Tier 3: Keep www and trailing slash.
+  // Tier 4: Keep www and trailing slash, keep query.
   {
     stripProtocol: false,
     stripAuthentication: false,

@@ -317,7 +317,7 @@ describe('defaultParser', () => {
 
       expect(parsed).toBeDefined()
 
-      const result = defaultParser.getSignature(parsed)
+      const result = defaultParser.getSignature(parsed, 'https://example.com/feed.json')
       const expected = JSON.stringify(parsed.feed)
 
       expect(result).toBe(expected)
@@ -342,8 +342,8 @@ describe('defaultParser', () => {
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
 
-      const signature1 = defaultParser.getSignature(parsed1)
-      const signature2 = defaultParser.getSignature(parsed2)
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed1.json')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed2.json')
 
       expect(signature1).toBe(signature2)
     })
@@ -361,7 +361,7 @@ describe('defaultParser', () => {
       expect(parsed.format).toBe('json')
 
       if (parsed.format === 'json') {
-        defaultParser.getSignature(parsed)
+        defaultParser.getSignature(parsed, expected)
 
         expect(parsed.feed.feed_url).toBe(expected)
       }
@@ -378,7 +378,7 @@ describe('defaultParser', () => {
 
       expect(parsed).toBeDefined()
 
-      const result = defaultParser.getSignature(parsed)
+      const result = defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
       const expected = JSON.stringify(parsed.feed)
 
       expect(result).toBe(expected)
@@ -405,8 +405,8 @@ describe('defaultParser', () => {
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
 
-      const signature1 = defaultParser.getSignature(parsed1)
-      const signature2 = defaultParser.getSignature(parsed2)
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed1.atom')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed2.atom')
 
       expect(signature1).toBe(signature2)
     })
@@ -426,7 +426,7 @@ describe('defaultParser', () => {
       expect(parsed.format).toBe('atom')
 
       if (parsed.format === 'atom') {
-        defaultParser.getSignature(parsed)
+        defaultParser.getSignature(parsed, expected)
         const result = parsed.feed.links?.find((link) => link.rel === 'self')?.href
 
         expect(result).toBe(expected)
@@ -458,8 +458,8 @@ describe('defaultParser', () => {
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
 
-      const signature1 = defaultParser.getSignature(parsed1)
-      const signature2 = defaultParser.getSignature(parsed2)
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed1.rss')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed2.rss')
 
       expect(signature1).toBe(signature2)
     })
@@ -481,7 +481,7 @@ describe('defaultParser', () => {
       expect(parsed.format).toBe('rss')
 
       if (parsed.format === 'rss') {
-        defaultParser.getSignature(parsed)
+        defaultParser.getSignature(parsed, expected)
         const result = parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
 
         expect(result).toBe(expected)
@@ -501,7 +501,7 @@ describe('defaultParser', () => {
 
       expect(parsed).toBeDefined()
 
-      const result = defaultParser.getSignature(parsed)
+      const result = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
       const expected = JSON.stringify(parsed.feed)
 
       expect(result).toBe(expected)
@@ -532,8 +532,8 @@ describe('defaultParser', () => {
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
 
-      const signature1 = defaultParser.getSignature(parsed1)
-      const signature2 = defaultParser.getSignature(parsed2)
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
 
       expect(signature1).toBe(signature2)
     })
@@ -555,10 +555,101 @@ describe('defaultParser', () => {
       expect(parsed.format).toBe('rss')
 
       if (parsed.format === 'rss') {
-        defaultParser.getSignature(parsed)
+        defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
 
         expect(parsed.feed.lastBuildDate).toBe(expected)
       }
+    })
+
+    it('should neutralize link in RSS feed signature', async () => {
+      const value1 = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <link>https://example.com/feed</link>
+          </channel>
+        </rss>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <link>https://example.com/feed/</link>
+          </channel>
+        </rss>
+      `
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore link after generating RSS signature', async () => {
+      const expected = 'https://example.com/feed'
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <link>${expected}</link>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+      expect(parsed.format).toBe('rss')
+
+      if (parsed.format === 'rss') {
+        defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+        expect(parsed.feed.link).toBe(expected)
+      }
+    })
+
+    it('should neutralize link in RDF feed signature', async () => {
+      const value1 = {
+        format: 'rdf' as const,
+        feed: {
+          title: 'Test',
+          link: 'https://example.com/feed',
+        },
+      }
+      const value2 = {
+        format: 'rdf' as const,
+        feed: {
+          title: 'Test',
+          link: 'https://example.com/feed/',
+        },
+      }
+
+      const signature1 = defaultParser.getSignature(value1, 'https://example.com/feed.rdf')
+      const signature2 = defaultParser.getSignature(value2, 'https://example.com/feed.rdf')
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore link after generating RDF signature', () => {
+      const expected = 'https://example.com/feed'
+      const value = {
+        format: 'rdf' as const,
+        feed: {
+          title: 'Test',
+          link: expected,
+        },
+      }
+
+      defaultParser.getSignature(value, 'https://example.com/feed.rdf')
+
+      expect(value.feed.link).toBe(expected)
     })
 
     it('should neutralize updated in Atom feed signature', async () => {
@@ -582,8 +673,8 @@ describe('defaultParser', () => {
       expect(parsed1).toBeDefined()
       expect(parsed2).toBeDefined()
 
-      const signature1 = defaultParser.getSignature(parsed1)
-      const signature2 = defaultParser.getSignature(parsed2)
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.atom')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.atom')
 
       expect(signature1).toBe(signature2)
     })
@@ -603,10 +694,35 @@ describe('defaultParser', () => {
       expect(parsed.format).toBe('atom')
 
       if (parsed.format === 'atom') {
-        defaultParser.getSignature(parsed)
+        defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
 
         expect(parsed.feed.updated).toBe(expected)
       }
+    })
+
+    // This is an integration test to verify getSignature uses neutralizeUrls.
+    it('should normalize URLs via neutralizeUrls integration', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <item>
+              <link>https://example.com/post/1</link>
+            </item>
+          </channel>
+        </rss>
+      `
+      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+
+      expect(parsed).toBeDefined()
+
+      const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed')
+      const signature2 = defaultParser.getSignature(parsed, 'http://www.example.com/feed/')
+
+      expect(signature1).toBe(signature2)
+      expect(signature1).toContain('/post/1')
+      expect(signature1).not.toContain('https://example.com')
     })
   })
 })

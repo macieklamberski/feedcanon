@@ -6,6 +6,16 @@ export default defineConfig({
     'Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest form.',
   lastUpdated: true,
   cleanUrls: true,
+  head: [
+    [
+      'script',
+      {
+        async: '',
+        src: 'https://stats.lamberski.com/script.js',
+        'data-website-id': 'b2baac98-7d57-4277-9aa3-98d7b96b5425',
+      },
+    ],
+  ],
   themeConfig: {
     outline: {
       level: [2, 3],
@@ -29,8 +39,8 @@ export default defineConfig({
             items: [
               { text: 'Data Fetching', link: '/guides/customization/data-fetching' },
               { text: 'Feed Parsing', link: '/guides/customization/feed-parsing' },
+              { text: 'URL Rewrites', link: '/guides/customization/url-rewrites' },
               { text: 'URL Variants', link: '/guides/customization/url-variants' },
-              { text: 'Platform Aliases', link: '/guides/customization/platform-aliases' },
               { text: 'URL Probes', link: '/guides/customization/url-probes' },
             ],
           },

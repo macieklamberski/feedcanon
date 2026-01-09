@@ -16,7 +16,7 @@ Below is an overview of the default behavior. Many aspects can be customized—s
 The process starts by fetching the input URL:
 
 1. Resolve the URL protocol (`feed://` → `https://`)
-2. Apply platform handlers (e.g., normalize FeedBurner domains)
+2. Apply rewrites (e.g., normalize FeedBurner domains)
 3. Fetch the content and verify it returns a successful response (2xx)
 4. Parse the feed to ensure it's valid
 
@@ -77,13 +77,15 @@ Use /feed as base for variant generation
 Using the validated base URL, Feedcanon generates URL variants by applying normalization tiers. Variants are ordered from cleanest (most normalized) to least clean.
 
 ```
-https://www.example.com/feed/?utm_source=twitter
-  ↓ Tier 1: Strip www, trailing slash, tracking params
+https://www.example.com/feed/?id=123&utm_source=twitter
+  ↓ Tier 1: Strip query, www, trailing slash
 https://example.com/feed
-  ↓ Tier 2: Strip trailing slash, tracking params
-https://www.example.com/feed
-  ↓ Tier 3: Strip trailing slash only
-https://www.example.com/feed?utm_source=twitter
+  ↓ Tier 2: Strip www, trailing slash, tracking params
+https://example.com/feed?id=123
+  ↓ Tier 3: Strip trailing slash, tracking params
+https://www.example.com/feed?id=123
+  ↓ Tier 4: Strip tracking params only
+https://www.example.com/feed/?id=123
 ```
 
 ### 6. Variant Testing
