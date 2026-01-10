@@ -443,6 +443,6 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
   const hostPattern = hosts.length === 1 ? hosts[0] : `(?:${hosts.join('|')})`
 
   return text
-    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"])(/)?`, 'g'), '/')
+    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"]|\\\\")(/)?`, 'g'), '/')
     .replace(trailingSlashPattern, '$1$2')
 }

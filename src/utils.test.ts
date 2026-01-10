@@ -2265,4 +2265,67 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).not.toBe(expected)
     })
   })
+
+  describe('JSON-escaped quotes in HTML content', () => {
+    it('should normalize URLs followed by escaped quotes in JSON', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ description: '<a href="https://example.com">link</a>' })
+      const expected = JSON.stringify({ description: '<a href="/">link</a>' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize URLs with path followed by escaped quotes', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ description: '<a href="https://example.com/post/1">link</a>' })
+      const expected = JSON.stringify({ description: '<a href="/post/1">link</a>' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize http URLs followed by escaped quotes', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ description: '<a href="http://example.com/post">link</a>' })
+      const expected = JSON.stringify({ description: '<a href="/post">link</a>' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize www URLs followed by escaped quotes', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description: '<a href="https://www.example.com/post">link</a>',
+      })
+      const expected = JSON.stringify({ description: '<a href="/post">link</a>' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize multiple URLs with escaped quotes in same content', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description:
+          '<a href="https://example.com/a">A</a> and <a href="https://example.com/b">B</a>',
+      })
+      const expected = JSON.stringify({
+        description: '<a href="/a">A</a> and <a href="/b">B</a>',
+      })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should handle mixed regular and escaped quotes', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        link: 'https://example.com/post',
+        description: '<a href="https://example.com/other">',
+      })
+      const expected = JSON.stringify({
+        link: '/post',
+        description: '<a href="/other">',
+      })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+  })
 })
