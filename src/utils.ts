@@ -322,6 +322,15 @@ export const normalizeUrl = (
       }
     }
 
+    // Lowercase query parameters.
+    if (options.lowercaseQuery && parsed.search) {
+      const entries = [...parsed.searchParams.entries()]
+      parsed.search = ''
+      for (const [key, value] of entries) {
+        parsed.searchParams.append(key.toLowerCase(), value.toLowerCase())
+      }
+    }
+
     // Sort query parameters.
     if (options.sortQueryParams) {
       parsed.searchParams.sort()

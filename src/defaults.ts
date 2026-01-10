@@ -240,6 +240,7 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   stripQueryParams: defaultStrippedParams,
   stripQuery: false,
   stripEmptyQuery: true,
+  lowercaseQuery: false,
   normalizeEncoding: true,
   normalizeUnicode: true,
   convertToPunycode: true,

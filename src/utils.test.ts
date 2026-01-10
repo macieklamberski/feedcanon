@@ -1345,6 +1345,63 @@ describe('normalizeUrl', () => {
     })
   })
 
+  describe('query lowercasing', () => {
+    it('should not lowercase query by default', () => {
+      const value = 'https://example.com/feed?Format=RSS'
+      const expected = 'example.com/feed?Format=RSS'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should lowercase query param names when lowercaseQuery is true', () => {
+      const value = 'https://example.com/feed?Format=rss'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?format=rss'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should lowercase query param values when lowercaseQuery is true', () => {
+      const value = 'https://example.com/feed?format=RSS'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?format=rss'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should lowercase both names and values when lowercaseQuery is true', () => {
+      const value = 'https://example.com/feed?Format=RSS'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?format=rss'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should handle multiple query params', () => {
+      const value = 'https://example.com/feed?A=X&B=Y'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?a=x&b=y'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should handle empty query value', () => {
+      const value = 'https://example.com/feed?Key='
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?key='
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should work with sortQueryParams', () => {
+      const value = 'https://example.com/feed?Z=1&A=2'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true, sortQueryParams: true }
+      const expected = 'example.com/feed?a=2&z=1'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+  })
+
   describe('percent encoding normalization', () => {
     it('should decode unnecessarily encoded safe chars by default', () => {
       const value = 'https://example.com/path%2Dto%2Dfeed'
