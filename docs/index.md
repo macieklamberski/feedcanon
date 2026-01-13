@@ -1,3 +1,7 @@
+---
+title: Feedcanon — Find Canonical Feed URLs
+---
+
 # Feedcanon
 
 Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest form.

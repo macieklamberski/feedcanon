@@ -1,6 +1,5 @@
 ---
-prev: Guides › URL Tiers
-next: API Reference › Utilities
+title: "Reference: findCanonical"
 ---
 
 # findCanonical

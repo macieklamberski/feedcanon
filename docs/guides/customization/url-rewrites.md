@@ -1,9 +1,8 @@
 ---
-prev: Feed Parsing
-next: URL Probes
+title: "Customization: URL Rewrites"
 ---
 
-# URL Rewrites
+# Customize URL Rewrites
 
 Rewrites transform known URLs before any other processing. They're useful for:
 

@@ -1,9 +1,8 @@
 ---
-prev: URL Rewrites
-next: URL Tiers
+title: "Customization: URL Probes"
 ---
 
-# URL Probes
+# Customize URL Probes
 
 Probes test alternate URL forms for known services or URL patterns to find cleaner canonical URLs.
 

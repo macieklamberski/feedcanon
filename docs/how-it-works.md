@@ -1,6 +1,5 @@
 ---
-prev: Quick Start
-next: Using Callbacks
+title: How It Works
 ---
 
 # How It Works

@@ -1,9 +1,8 @@
 ---
-prev: URL Probes
-next: findCanonical
+title: "Customization: URL Tiers"
 ---
 
-# URL Tiers
+# Customize URL Tiers
 
 Feedcanon applies URL normalization tiers to generate candidates, ordered from cleanest to least clean. The first candidate serving the same content wins.
 

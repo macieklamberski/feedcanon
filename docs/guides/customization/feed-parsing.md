@@ -1,9 +1,8 @@
 ---
-prev: Data Fetching
-next: URL Rewrites
+title: "Customization: Feed Parsing"
 ---
 
-# Feed Parsing
+# Customize Feed Parsing
 
 By default, Feedcanon uses [Feedsmith](https://github.com/macieklamberski/feedsmith) to parse feeds. You can use any feed parser by providing a custom `parser` that implements the adapter interface.
 

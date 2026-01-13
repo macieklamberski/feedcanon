@@ -1,6 +1,5 @@
 ---
-prev: Introduction
-next: How It Works
+title: Quick Start
 ---
 
 # Quick Start

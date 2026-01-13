@@ -2,11 +2,16 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Feedcanon',
+  titleTemplate: ':title',
   description:
     'Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest form.',
   lastUpdated: true,
   cleanUrls: true,
+  sitemap: {
+    hostname: 'https://feedcanon.dev',
+  },
   head: [
+    ['meta', { property: 'og:site_name', content: 'Feedcanon' }],
     [
       'script',
       {

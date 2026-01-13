@@ -1,5 +1,5 @@
 ---
-prev: API Reference › findCanonical
+title: "Reference: Utilities"
 ---
 
 # Utilities

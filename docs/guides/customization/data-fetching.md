@@ -1,9 +1,8 @@
 ---
-prev: Using Callbacks
-next: Feed Parsing
+title: "Customization: Data Fetching"
 ---
 
-# Data Fetching
+# Customize Data Fetching
 
 By default, Feedcanon uses native `fetch` to perform HTTP requests. You can use any HTTP client by providing a custom `fetchFn` that handles requests and returns responses.
 

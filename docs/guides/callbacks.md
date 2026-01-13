@@ -1,6 +1,5 @@
 ---
-prev: How It Works
-next: Data Fetching
+title: Using Callbacks
 ---
 
 # Using Callbacks
