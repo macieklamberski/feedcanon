@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitepress'
 
+const hostname = 'https://feedcanon.dev'
+
 export default defineConfig({
   title: 'Feedcanon',
   titleTemplate: ':title',
@@ -8,7 +10,14 @@ export default defineConfig({
   lastUpdated: true,
   cleanUrls: true,
   sitemap: {
-    hostname: 'https://feedcanon.dev',
+    hostname,
+  },
+  transformHead: ({ pageData }) => {
+    const canonicalUrl = `${hostname}/${pageData.relativePath}`
+      .replace(/index\.md$/, '')
+      .replace(/\.md$/, '')
+
+    return [['link', { rel: 'canonical', href: canonicalUrl }]]
   },
   head: [
     ['meta', { property: 'og:site_name', content: 'Feedcanon' }],
