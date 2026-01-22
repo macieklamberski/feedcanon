@@ -54,7 +54,7 @@
     "docs:build": "vitepress build docs"
   },
   "dependencies": {
-    "entities": "^7.0.0",
+    "entities": "^7.0.1",
     "feedsmith": "^2.8.0"
   },
   "devDependencies": {
