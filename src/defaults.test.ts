@@ -37,8 +37,14 @@ describe('defaultFetch', () => {
       }),
     )
     const result = await defaultFetch('https://example.com/feed.xml')
+    const expected: FetchFnResponse = {
+      url: 'https://example.com/feed.xml',
+      body: 'response body',
+      headers: expect.any(Headers),
+      status: 200,
+    }
 
-    expect(result.url).toBe('https://example.com/feed.xml')
+    expect(result).toEqual(expected)
   })
 
   it('should default to GET method when not specified', async () => {
@@ -98,16 +104,14 @@ describe('defaultFetch', () => {
     )
     const result = await defaultFetch('https://example.com/feed.xml')
     const expected: FetchFnResponse = {
-      headers: new Headers({ 'content-type': 'application/rss+xml' }),
-      body: 'feed content',
       url: 'https://example.com/feed.xml',
+      body: 'feed content',
+      headers: expect.any(Headers),
       status: 200,
     }
 
-    expect(result.headers.get('content-type')).toBe(expected.headers.get('content-type'))
-    expect(result.body).toBe(expected.body)
-    expect(result.url).toBe(expected.url)
-    expect(result.status).toBe(expected.status)
+    expect(result).toEqual(expected)
+    expect(result.headers.get('content-type')).toBe('application/rss+xml')
   })
 
   it('should preserve response URL for redirect handling', async () => {
@@ -119,8 +123,14 @@ describe('defaultFetch', () => {
       }),
     )
     const result = await defaultFetch('https://example.com/feed.xml')
+    const expected: FetchFnResponse = {
+      url: 'https://redirect.example.com/feed.xml',
+      body: '',
+      headers: expect.any(Headers),
+      status: 200,
+    }
 
-    expect(result.url).toBe('https://redirect.example.com/feed.xml')
+    expect(result).toEqual(expected)
   })
 
   it('should convert response body to text', async () => {
@@ -132,8 +142,14 @@ describe('defaultFetch', () => {
       }),
     )
     const result = await defaultFetch('https://example.com/feed.xml')
+    const expected: FetchFnResponse = {
+      url: '',
+      body: '<rss>feed content</rss>',
+      headers: expect.any(Headers),
+      status: 200,
+    }
 
-    expect(result.body).toBe('<rss>feed content</rss>')
+    expect(result).toEqual(expected)
   })
 
   it('should pass through status', async () => {
@@ -145,8 +161,14 @@ describe('defaultFetch', () => {
       }),
     )
     const result = await defaultFetch('https://example.com/feed.xml')
+    const expected: FetchFnResponse = {
+      url: '',
+      body: '',
+      headers: expect.any(Headers),
+      status: 404,
+    }
 
-    expect(result.status).toBe(404)
+    expect(result).toEqual(expected)
   })
 })
 
@@ -163,8 +185,7 @@ describe('defaultParser', () => {
       `
       const result = await defaultParser.parse(value)
 
-      expect(result).toBeDefined()
-      expect(result?.format).toBe('rss')
+      expect(result).toEqual(expect.objectContaining({ format: 'rss' }))
     })
 
     it('should parse valid Atom feed', async () => {
@@ -176,8 +197,7 @@ describe('defaultParser', () => {
       `
       const result = await defaultParser.parse(value)
 
-      expect(result).toBeDefined()
-      expect(result?.format).toBe('atom')
+      expect(result).toEqual(expect.objectContaining({ format: 'atom' }))
     })
 
     it('should parse valid JSON Feed', async () => {
@@ -187,8 +207,7 @@ describe('defaultParser', () => {
       })
       const result = await defaultParser.parse(value)
 
-      expect(result).toBeDefined()
-      expect(result?.format).toBe('json')
+      expect(result).toEqual(expect.objectContaining({ format: 'json' }))
     })
 
     it('should return undefined for invalid feed', async () => {
