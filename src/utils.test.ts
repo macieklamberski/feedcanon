@@ -844,12 +844,8 @@ describe('resolveUrl', () => {
   })
 
   describe('additional edge cases', () => {
-    it('should handle hash-only reference with base', () => {
-      const value = '#section'
-      const base = 'https://example.com/page'
-      const expected = 'https://example.com/page#section'
-
-      expect(resolveUrl(value, base)).toBe(expected)
+    it('should return undefined for hash-only reference with base', () => {
+      expect(resolveUrl('#section', 'https://example.com/page')).toBeUndefined()
     })
 
     it('should return undefined for invalid base URL', () => {
@@ -950,6 +946,22 @@ describe('resolveUrl', () => {
 
     it('should return undefined for protocol only', () => {
       expect(resolveUrl('https://')).toBeUndefined()
+    })
+
+    it('should return undefined for fragment-only URL', () => {
+      expect(resolveUrl('#section')).toBeUndefined()
+    })
+
+    it('should return undefined for fragment-only URL with base', () => {
+      expect(resolveUrl('#section', 'https://example.com')).toBeUndefined()
+    })
+
+    it('should return undefined for bare fragment', () => {
+      expect(resolveUrl('#')).toBeUndefined()
+    })
+
+    it('should return undefined for fragment-only URL with path base', () => {
+      expect(resolveUrl('#top', 'https://example.com/page')).toBeUndefined()
     })
   })
 
