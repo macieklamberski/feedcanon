@@ -1201,15 +1201,35 @@ describe('findCanonical', () => {
         expect(checkedUrls).toContain('https://www.example.com/feed')
       })
 
-      it.todo('should treat falsy-but-defined existsFn results as "exists"', () => {
-        // existsFn returns 0, false, null, or '' for a candidate URL.
-        // These are !== undefined, so should be treated as "URL exists".
-        // Expected: return the candidate URL immediately without further fetching.
+      it('should treat falsy-but-defined existsFn results as "exists"', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+          }),
+          existsFn: async (url) => (url === 'https://example.com/feed' ? 0 : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it.todo('should propagate error when existsFn throws', () => {
-        // existsFn rejects with an error for any URL.
-        // Expected: findCanonical rejects with the same error (not swallowed).
+      it('should propagate error when existsFn throws', async () => {
+        const value = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+          }),
+          existsFn: async () => {
+            throw new Error('DB connection failed')
+          },
+          parser: createMockParser(undefined),
+        })
+
+        expect(findCanonical(value, options)).rejects.toThrow('DB connection failed')
       })
     })
 
@@ -1605,14 +1625,34 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBeUndefined()
     })
 
-    it.todo('should handle empty tiers array', () => {
-      // Pass tiers: [] — no candidates are generated from normalization.
-      // Expected: return candidateSourceUrl as-is (with HTTPS upgrade if applicable).
+    it('should handle empty tiers array', async () => {
+      const value = 'http://www.example.com/feed/'
+      const expected = 'https://www.example.com/feed/'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'http://www.example.com/feed/': { body },
+          'https://www.example.com/feed/': { body },
+        }),
+        tiers: [],
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    it.todo('should resolve feed:// input URL', () => {
-      // Pass 'feed://example.com/feed' as inputUrl directly.
-      // Expected: resolve to https://example.com/feed and process normally.
+    it('should resolve feed:// input URL', async () => {
+      const value = 'feed://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
   })
 

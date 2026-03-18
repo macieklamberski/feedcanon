@@ -171,9 +171,14 @@ describe('defaultFetch', () => {
     expect(result).toEqual(expected)
   })
 
-  it.todo('should propagate error when native fetch throws', () => {
-    // Mock globalThis.fetch to throw a TypeError('Failed to fetch').
-    // Expected: defaultFetch rejects with the same error (not swallowed).
+  it('should propagate error when native fetch throws', () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+    )
+
+    expect(defaultFetch('https://example.com/feed.xml')).rejects.toThrow('Failed to fetch')
   })
 })
 
@@ -749,19 +754,93 @@ describe('defaultParser', () => {
       expect(signature1).not.toContain('https://example.com')
     })
 
-    it.todo('should neutralize generator in RSS feed signature', () => {
-      // Two RSS feeds with identical content except different <generator> values.
-      // Expected: both produce the same signature since generator is neutralized.
+    it('should neutralize generator in RSS feed signature', async () => {
+      const value1 = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <generator>WordPress 6.4</generator>
+          </channel>
+        </rss>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <generator>WordPress 6.5</generator>
+          </channel>
+        </rss>
+      `
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
+
+      expect(signature1).toBe(signature2)
     })
 
-    it.todo('should neutralize generator in Atom feed signature', () => {
-      // Two Atom feeds with identical content except different <generator> values.
-      // Expected: both produce the same signature since generator is neutralized.
+    it('should neutralize generator in Atom feed signature', async () => {
+      const value1 = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <generator>Hugo</generator>
+        </feed>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <generator>Jekyll</generator>
+        </feed>
+      `
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.atom')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.atom')
+
+      expect(signature1).toBe(signature2)
     })
 
-    it.todo('should neutralize pubDate in RSS feed signature', () => {
-      // Two RSS feeds with identical content except different <pubDate> values.
-      // Expected: both produce the same signature since pubDate is neutralized.
+    it('should neutralize pubDate in RSS feed signature', async () => {
+      const value1 = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <pubDate>Mon, 30 Dec 2024 10:00:00 GMT</pubDate>
+          </channel>
+        </rss>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test</title>
+            <pubDate>Mon, 30 Dec 2024 11:00:00 GMT</pubDate>
+          </channel>
+        </rss>
+      `
+      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
+      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
+
+      expect(parsed1).toBeDefined()
+      expect(parsed2).toBeDefined()
+
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
+
+      expect(signature1).toBe(signature2)
     })
   })
 })

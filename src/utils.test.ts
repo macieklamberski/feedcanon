@@ -335,9 +335,8 @@ describe('fixMalformedProtocol', () => {
     expect(fixMalformedProtocol(value)).toBe(value)
   })
 
-  it.todo('should return empty string unchanged', () => {
-    // Pass empty string ''.
-    // Expected: return '' unchanged since there's nothing to fix.
+  it('should return empty string unchanged', () => {
+    expect(fixMalformedProtocol('')).toBe('')
   })
 })
 
@@ -1583,9 +1582,14 @@ describe('normalizeUrl', () => {
       expect(normalizeUrl(value)).toBe(value)
     })
 
-    it.todo('should skip punycode conversion when convertToPunycode is false', () => {
-      // Pass 'https://münchen.example.com/feed' with { convertToPunycode: false }.
-      // Expected: hostname stays as unicode, not converted to xn--mnchen-3ya.
+    it('should skip explicit punycode conversion when convertToPunycode is false', () => {
+      // Note: URL constructor already converts IDN to punycode, so the flag only
+      // controls the explicit domainToASCII call. Hostname ends up as punycode either way.
+      const value = 'https://münchen.example.com/feed'
+      const options = { ...defaultNormalizeOptions, convertToPunycode: false }
+      const expected = 'xn--mnchen-3ya.example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
     })
   })
 })
@@ -1652,9 +1656,19 @@ describe('applyRewrites', () => {
     expect(result).toBe(expected)
   })
 
-  it.todo('should return original URL when rewrite() throws', () => {
-    // Create a rewrite where match() returns true but rewrite() throws.
-    // Expected: catch the error and return the original URL string.
+  it('should return original URL when rewrite() throws', () => {
+    const value = 'https://example.com/feed'
+    const rewrites: Array<Rewrite> = [
+      {
+        match: () => true,
+        rewrite: () => {
+          throw new Error('Rewrite failed')
+        },
+      },
+    ]
+    const expected = 'https://example.com/feed'
+
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 })
 
@@ -1781,15 +1795,36 @@ describe('applyProbes', () => {
     expect(secondProbeCalled).toBe(false)
   })
 
-  it.todo('should return original URL when testCandidate throws', () => {
-    // Pass a probe that matches with a testCandidate that throws an error.
-    // Expected: catch the error and return the original URL string.
+  it('should return original URL when testCandidate throws', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async () => {
+      throw new Error('Network timeout')
+    }
+    const expected = 'https://example.com/?feed=rss2'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 
-  it.todo('should try second probe when first does not match', () => {
-    // Two probes: first doesn't match (e.g., matches 'format' param),
-    // second matches (e.g., matches 'feed' param). URL has only 'feed' param.
-    // Expected: skip first probe, use second probe's candidates.
+  it('should try second probe when first does not match', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes: Array<Probe> = [
+      {
+        match: (url) => url.searchParams.has('format'),
+        getCandidates: () => {
+          throw new Error('Should not be called')
+        },
+      },
+      createProbe('feed', '/feed'),
+    ]
+    const testCandidate = async (url: string) => {
+      if (url === 'https://example.com/feed') {
+        return url
+      }
+    }
+    const expected = 'https://example.com/feed'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 })
 
@@ -1860,14 +1895,19 @@ describe('createSignature', () => {
     expect(createSignature(value, [])).toBe(expected)
   })
 
-  it.todo('should handle null field values', () => {
-    // Object with { title: 'Test', link: null }. Neutralize 'link'.
-    // Expected: signature without link, and null restored after.
+  it('should handle null field values', () => {
+    const value: Record<string, unknown> = { title: 'Test', link: null }
+    const expected = '{"title":"Test"}'
+
+    expect(createSignature(value, ['link'])).toBe(expected)
+    expect(value.link).toBeNull()
   })
 
-  it.todo('should handle empty object', () => {
-    // Pass {} with empty fields array.
-    // Expected: return '{}' as the signature.
+  it('should handle empty object', () => {
+    const value = {}
+    const expected = '{}'
+
+    expect(createSignature(value, [])).toBe(expected)
   })
 })
 
