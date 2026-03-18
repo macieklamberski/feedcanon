@@ -336,7 +336,7 @@ export const normalizeUrl = (
     }
 
     // Sort query parameters.
-    if (options.sortQueryParams) {
+    if (options.sortQueryParams && parsed.search) {
       parsed.searchParams.sort()
     }
 
