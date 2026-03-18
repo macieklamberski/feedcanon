@@ -1200,6 +1200,17 @@ describe('findCanonical', () => {
         expect(checkedUrls).toContain('https://example.com/feed')
         expect(checkedUrls).toContain('https://www.example.com/feed')
       })
+
+      it.todo('should treat falsy-but-defined existsFn results as "exists"', () => {
+        // existsFn returns 0, false, null, or '' for a candidate URL.
+        // These are !== undefined, so should be treated as "URL exists".
+        // Expected: return the candidate URL immediately without further fetching.
+      })
+
+      it.todo('should propagate error when existsFn throws', () => {
+        // existsFn rejects with an error for any URL.
+        // Expected: findCanonical rejects with the same error (not swallowed).
+      })
     })
 
     describe('parser', () => {
@@ -1592,6 +1603,16 @@ describe('findCanonical', () => {
       })
 
       expect(await findCanonical(value, options)).toBeUndefined()
+    })
+
+    it.todo('should handle empty tiers array', () => {
+      // Pass tiers: [] — no candidates are generated from normalization.
+      // Expected: return candidateSourceUrl as-is (with HTTPS upgrade if applicable).
+    })
+
+    it.todo('should resolve feed:// input URL', () => {
+      // Pass 'feed://example.com/feed' as inputUrl directly.
+      // Expected: resolve to https://example.com/feed and process normally.
     })
   })
 

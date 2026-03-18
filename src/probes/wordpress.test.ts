@@ -203,5 +203,15 @@ describe('wordpressProbe', () => {
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
+
+    it.todo('should return /comments/feed path for feed=comments-rss', () => {
+      // Pass URL with ?feed=comments-rss (not comments-rss2).
+      // Expected: ['/comments/feed', '/comments/feed/'].
+    })
+
+    it.todo('should return /comments/feed path for feed=comments-rdf', () => {
+      // Pass URL with ?feed=comments-rdf.
+      // Expected: ['/comments/feed', '/comments/feed/'].
+    })
   })
 })

@@ -170,6 +170,11 @@ describe('defaultFetch', () => {
 
     expect(result).toEqual(expected)
   })
+
+  it.todo('should propagate error when native fetch throws', () => {
+    // Mock globalThis.fetch to throw a TypeError('Failed to fetch').
+    // Expected: defaultFetch rejects with the same error (not swallowed).
+  })
 })
 
 describe('defaultParser', () => {
@@ -742,6 +747,21 @@ describe('defaultParser', () => {
       expect(signature1).toBe(signature2)
       expect(signature1).toContain('/post/1')
       expect(signature1).not.toContain('https://example.com')
+    })
+
+    it.todo('should neutralize generator in RSS feed signature', () => {
+      // Two RSS feeds with identical content except different <generator> values.
+      // Expected: both produce the same signature since generator is neutralized.
+    })
+
+    it.todo('should neutralize generator in Atom feed signature', () => {
+      // Two Atom feeds with identical content except different <generator> values.
+      // Expected: both produce the same signature since generator is neutralized.
+    })
+
+    it.todo('should neutralize pubDate in RSS feed signature', () => {
+      // Two RSS feeds with identical content except different <pubDate> values.
+      // Expected: both produce the same signature since pubDate is neutralized.
     })
   })
 })
