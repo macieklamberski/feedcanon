@@ -116,17 +116,18 @@ export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'h
 // - example.com/feed → https://example.com/feed
 // - /path/to/feed → /path/to/feed (unchanged, relative path)
 export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-  // Skip if URL already has a real protocol (http://, mailto:, tel:, etc.).
-  // URL constructor may incorrectly parse "example.com:8080" as protocol "example.com:"
-  // or "localhost:3000" as "localhost:". Real URI schemes don't contain dots (RFC 3986),
-  // so a dot in the protocol reveals it was actually a hostname:port, not a scheme.
-  try {
-    const parsed = new URL(url)
-    if (!parsed.protocol.includes('.') && parsed.protocol !== 'localhost:') {
+  // Skip if URL already has a real protocol. No registered IANA scheme contains
+  // a dot or slash, so "example.com:8080" won't false-positive as a scheme.
+  const colonIndex = url.indexOf(':')
+
+  if (colonIndex > 0) {
+    const beforeColon = url.slice(0, colonIndex)
+    const hasScheme =
+      !beforeColon.includes('.') && !beforeColon.includes('/') && beforeColon !== 'localhost'
+
+    if (hasScheme) {
       return url
     }
-  } catch {
-    // Not a valid URL yet, continue with protocol addition.
   }
 
   // Case 1: Protocol-relative URL (//example.com).
@@ -256,8 +257,8 @@ export const normalizeUrl = (
       parsed.pathname = parsed.pathname.normalize('NFC')
     }
 
-    // Punycode normalization (IDN to ASCII).
-    if (options.convertToPunycode) {
+    // Punycode normalization (IDN to ASCII). Skip for ASCII-only hostnames.
+    if (options.convertToPunycode && /[^a-z0-9.:-]/.test(parsed.hostname)) {
       const ascii = domainToASCII(parsed.hostname)
       if (ascii) {
         parsed.hostname = ascii
@@ -336,7 +337,7 @@ export const normalizeUrl = (
     }
 
     // Sort query parameters.
-    if (options.sortQueryParams) {
+    if (options.sortQueryParams && parsed.search) {
       parsed.searchParams.sort()
     }
 
