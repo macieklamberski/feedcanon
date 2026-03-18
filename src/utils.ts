@@ -256,8 +256,8 @@ export const normalizeUrl = (
       parsed.pathname = parsed.pathname.normalize('NFC')
     }
 
-    // Punycode normalization (IDN to ASCII).
-    if (options.convertToPunycode) {
+    // Punycode normalization (IDN to ASCII). Skip for ASCII-only hostnames.
+    if (options.convertToPunycode && /[^a-z0-9.:-]/.test(parsed.hostname)) {
       const ascii = domainToASCII(parsed.hostname)
       if (ascii) {
         parsed.hostname = ascii
