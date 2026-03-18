@@ -1895,7 +1895,7 @@ describe('createSignature', () => {
     expect(createSignature(value, [])).toBe(expected)
   })
 
-  it('should handle null field values', () => {
+  it('should omit null fields from signature', () => {
     const value: Record<string, unknown> = { title: 'Test', link: null }
     const expected = '{"title":"Test"}'
 
