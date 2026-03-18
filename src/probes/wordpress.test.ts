@@ -203,5 +203,19 @@ describe('wordpressProbe', () => {
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
+
+    it('should return /comments/feed path for feed=comments-rss', () => {
+      const value = new URL('https://example.com/?feed=comments-rss')
+      const expected = ['https://example.com/comments/feed', 'https://example.com/comments/feed/']
+
+      expect(wordpressProbe.getCandidates(value)).toEqual(expected)
+    })
+
+    it('should return /comments/feed path for feed=comments-rdf', () => {
+      const value = new URL('https://example.com/?feed=comments-rdf')
+      const expected = ['https://example.com/comments/feed', 'https://example.com/comments/feed/']
+
+      expect(wordpressProbe.getCandidates(value)).toEqual(expected)
+    })
   })
 })

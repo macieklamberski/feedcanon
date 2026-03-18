@@ -1200,6 +1200,37 @@ describe('findCanonical', () => {
         expect(checkedUrls).toContain('https://example.com/feed')
         expect(checkedUrls).toContain('https://www.example.com/feed')
       })
+
+      it('should treat falsy-but-defined existsFn results as "exists"', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+          }),
+          existsFn: async (url) => (url === 'https://example.com/feed' ? 0 : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should propagate error when existsFn throws', async () => {
+        const value = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+          }),
+          existsFn: async () => {
+            throw new Error('DB connection failed')
+          },
+          parser: createMockParser(undefined),
+        })
+
+        expect(findCanonical(value, options)).rejects.toThrow('DB connection failed')
+      })
     })
 
     describe('parser', () => {
@@ -1592,6 +1623,36 @@ describe('findCanonical', () => {
       })
 
       expect(await findCanonical(value, options)).toBeUndefined()
+    })
+
+    it('should handle empty tiers array', async () => {
+      const value = 'http://www.example.com/feed/'
+      const expected = 'https://www.example.com/feed/'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'http://www.example.com/feed/': { body },
+          'https://www.example.com/feed/': { body },
+        }),
+        tiers: [],
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should resolve feed:// input URL', async () => {
+      const value = 'feed://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
   })
 

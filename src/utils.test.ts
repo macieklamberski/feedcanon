@@ -169,248 +169,174 @@ describe('resolveFeedProtocol', () => {
 })
 
 describe('fixMalformedProtocol', () => {
-  it('should strip leading slash before protocol', () => {
-    const values = [
-      { value: '/http://example.com', expected: 'http://example.com' },
-      { value: '/https://example.com', expected: 'https://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['/http://example.com', 'http://example.com'],
+    ['/https://example.com', 'https://example.com'],
+  ])('should strip leading slash before protocol (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix protocol typos', () => {
-    const values = [
-      { value: 'htp://example.com', expected: 'http://example.com' },
-      { value: 'htps://example.com', expected: 'https://example.com' },
-      { value: 'hhttps://example.com', expected: 'https://example.com' },
-      { value: 'httpss://example.com', expected: 'https://example.com' },
-      { value: 'ttp://example.com', expected: 'http://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['htp://example.com', 'http://example.com'],
+    ['htps://example.com', 'https://example.com'],
+    ['hhttps://example.com', 'https://example.com'],
+    ['httpss://example.com', 'https://example.com'],
+    ['ttp://example.com', 'http://example.com'],
+  ])('should fix protocol typos (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix wrong separators after protocol', () => {
-    const values = [
-      { value: 'http=//example.com', expected: 'http://example.com' },
-      { value: 'http.//example.com', expected: 'http://example.com' },
-      { value: 'http\\//example.com', expected: 'http://example.com' },
-      { value: 'https=//example.com', expected: 'https://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http=//example.com', 'http://example.com'],
+    ['http.//example.com', 'http://example.com'],
+    ['http\\//example.com', 'http://example.com'],
+    ['https=//example.com', 'https://example.com'],
+  ])('should fix wrong separators after protocol (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix single slash after protocol', () => {
-    const values = [
-      { value: 'http:/example.com', expected: 'http://example.com' },
-      { value: 'https:/example.com', expected: 'https://example.com' },
-      { value: 'http:/www.example.com', expected: 'http://www.example.com' },
-      { value: 'https:/example.com/feed', expected: 'https://example.com/feed' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http:/example.com', 'http://example.com'],
+    ['https:/example.com', 'https://example.com'],
+    ['http:/www.example.com', 'http://www.example.com'],
+    ['https:/example.com/feed', 'https://example.com/feed'],
+  ])('should fix single slash after protocol (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix multiple colons and slashes', () => {
-    const values = [
-      { value: 'http:://example.com', expected: 'http://example.com' },
-      { value: 'http:///example.com', expected: 'http://example.com' },
-      { value: 'http:////example.com', expected: 'http://example.com' },
-      { value: 'https:::///example.com', expected: 'https://example.com' },
-      { value: 'http://///example.com', expected: 'http://example.com' },
-      { value: 'https://////www.example.com', expected: 'https://www.example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http:://example.com', 'http://example.com'],
+    ['http:///example.com', 'http://example.com'],
+    ['http:////example.com', 'http://example.com'],
+    ['https:::///example.com', 'https://example.com'],
+    ['http://///example.com', 'http://example.com'],
+    ['https://////www.example.com', 'https://www.example.com'],
+  ])('should fix multiple colons and slashes (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should remove leading junk after protocol', () => {
-    const values = [
-      { value: 'http://./example.com', expected: 'http://example.com' },
-      { value: 'http://,example.com', expected: 'http://example.com' },
-      { value: 'https://...example.com', expected: 'https://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http://./example.com', 'http://example.com'],
+    ['http://,example.com', 'http://example.com'],
+    ['https://...example.com', 'https://example.com'],
+  ])('should remove leading junk after protocol (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix placeholder syntax', () => {
-    const values = [
-      { value: 'http(s)://example.com', expected: 'https://example.com' },
-      { value: 'HTTP(S)://example.com/feed', expected: 'https://example.com/feed' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http(s)://example.com', 'https://example.com'],
+    ['HTTP(S)://example.com/feed', 'https://example.com/feed'],
+  ])('should fix placeholder syntax (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix colon within protocol letters', () => {
-    const values = [
-      { value: 'http:s//example.com', expected: 'https://example.com' },
-      { value: 'https:s//example.com', expected: 'https://example.com' },
-      { value: 'ht:tps//example.com', expected: 'https://example.com' },
-      { value: 'htt:p//example.com', expected: 'http://example.com' },
-      { value: 'h:ttp//example.com', expected: 'http://example.com' },
-      { value: 'ht:tp//example.com', expected: 'http://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http:s//example.com', 'https://example.com'],
+    ['https:s//example.com', 'https://example.com'],
+    ['ht:tps//example.com', 'https://example.com'],
+    ['htt:p//example.com', 'http://example.com'],
+    ['h:ttp//example.com', 'http://example.com'],
+    ['ht:tp//example.com', 'http://example.com'],
+  ])('should fix colon within protocol letters (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix double protocol prefix', () => {
-    const values = [
-      { value: 'http:http://example.com', expected: 'http://example.com' },
-      { value: 'https:https://example.com', expected: 'https://example.com' },
-      { value: 'http:https://example.com', expected: 'https://example.com' },
-      { value: 'https:http://example.com', expected: 'http://example.com' },
-      { value: 'http::http://example.com', expected: 'http://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http:http://example.com', 'http://example.com'],
+    ['https:https://example.com', 'https://example.com'],
+    ['http:https://example.com', 'https://example.com'],
+    ['https:http://example.com', 'http://example.com'],
+    ['http::http://example.com', 'http://example.com'],
+  ])('should fix double protocol prefix (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix misplaced www after protocol', () => {
-    const values = [
-      { value: 'http:www.//example.com', expected: 'http://www.example.com' },
-      { value: 'https:www.//example.com', expected: 'https://www.example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http:www.//example.com', 'http://www.example.com'],
+    ['https:www.//example.com', 'https://www.example.com'],
+  ])('should fix misplaced www after protocol (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix missing dot after www', () => {
-    const values = [
-      { value: 'http://www/example.com', expected: 'http://www.example.com' },
-      { value: 'https://www/example.com/feed', expected: 'https://www.example.com/feed' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http://www/example.com', 'http://www.example.com'],
+    ['https://www/example.com/feed', 'https://www.example.com/feed'],
+  ])('should fix missing dot after www (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix nested double protocols', () => {
-    const values = [
-      { value: 'http://https//example.com', expected: 'https://example.com' },
-      { value: 'http://https/example.com', expected: 'https://example.com' },
-      { value: 'https://https//example.com', expected: 'https://example.com' },
-      { value: 'http://http/example.com', expected: 'http://example.com' },
-      { value: 'http://http//example.com', expected: 'http://example.com' },
-      { value: 'http://ttp://example.com', expected: 'http://example.com' },
-      { value: 'http://ttps://example.com', expected: 'https://example.com' },
-      { value: 'htp://ttps://example.com', expected: 'https://example.com' },
-      { value: 'htps://ttp://example.com', expected: 'http://example.com' },
-      { value: 'hs://hp://example.com', expected: 'http://example.com' },
-      { value: 'httpss://htps://example.com', expected: 'https://example.com' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http://https//example.com', 'https://example.com'],
+    ['http://https/example.com', 'https://example.com'],
+    ['https://https//example.com', 'https://example.com'],
+    ['http://http/example.com', 'http://example.com'],
+    ['http://http//example.com', 'http://example.com'],
+    ['http://ttp://example.com', 'http://example.com'],
+    ['http://ttps://example.com', 'https://example.com'],
+    ['htp://ttps://example.com', 'https://example.com'],
+    ['htps://ttp://example.com', 'http://example.com'],
+    ['hs://hp://example.com', 'http://example.com'],
+    ['httpss://htps://example.com', 'https://example.com'],
+  ])('should fix nested double protocols (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should fix stray colon after protocol slashes', () => {
-    const values = [
-      { value: 'http://:/example.com', expected: 'http://example.com' },
-      { value: 'https://:/example.com', expected: 'https://example.com' },
-      { value: 'http://:/path/to/feed', expected: 'http://path/to/feed' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['http://:/example.com', 'http://example.com'],
+    ['https://:/example.com', 'https://example.com'],
+    ['http://:/path/to/feed', 'http://path/to/feed'],
+  ])('should fix stray colon after protocol slashes (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should preserve port numbers when fixing protocol typos', () => {
-    const values = [
-      { value: 'htp://example.com:8080', expected: 'http://example.com:8080' },
-      { value: 'htps://example.com:443/feed', expected: 'https://example.com:443/feed' },
-      { value: 'hhttps://example.com:3000', expected: 'https://example.com:3000' },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['htp://example.com:8080', 'http://example.com:8080'],
+    ['htps://example.com:443/feed', 'https://example.com:443/feed'],
+    ['hhttps://example.com:3000', 'https://example.com:3000'],
+  ])('should preserve port numbers when fixing protocol typos (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should preserve query strings when fixing protocol typos', () => {
-    const values = [
-      { value: 'htp://example.com?a=1', expected: 'http://example.com?a=1' },
-      {
-        value: 'htps://example.com/feed?format=rss&id=123',
-        expected: 'https://example.com/feed?format=rss&id=123',
-      },
-      {
-        value: 'hhttps://example.com?foo=bar#anchor',
-        expected: 'https://example.com?foo=bar#anchor',
-      },
-    ]
-
-    for (const { value, expected } of values) {
-      expect(fixMalformedProtocol(value)).toBe(expected)
-    }
+  it.each([
+    ['htp://example.com?a=1', 'http://example.com?a=1'],
+    ['htps://example.com/feed?format=rss&id=123', 'https://example.com/feed?format=rss&id=123'],
+    ['hhttps://example.com?foo=bar#anchor', 'https://example.com?foo=bar#anchor'],
+  ])('should preserve query strings when fixing protocol typos (%s)', (value, expected) => {
+    expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it('should not modify protocol-like strings in path', () => {
-    const values = [
-      'http://example.com/path/http://file',
-      'https://example.com/redirect?url=http://other.com',
-      'http://example.com/api/https://callback',
-    ]
-
-    for (const value of values) {
-      expect(fixMalformedProtocol(value)).toBe(value)
-    }
+  it.each([
+    ['http://example.com/path/http://file'],
+    ['https://example.com/redirect?url=http://other.com'],
+    ['http://example.com/api/https://callback'],
+  ])('should not modify protocol-like strings in path (%s)', (value) => {
+    expect(fixMalformedProtocol(value)).toBe(value)
   })
 
-  it('should preserve non-HTTP protocols unchanged', () => {
-    const values = [
-      'ftp://example.com/file',
-      'mailto:user@example.com',
-      'file:///path/to/file',
-      'data:text/plain;base64,SGVsbG8=',
-      'tel:+1234567890',
-    ]
-
-    for (const value of values) {
-      expect(fixMalformedProtocol(value)).toBe(value)
-    }
+  it.each([
+    ['ftp://example.com/file'],
+    ['mailto:user@example.com'],
+    ['file:///path/to/file'],
+    ['data:text/plain;base64,SGVsbG8='],
+    ['tel:+1234567890'],
+  ])('should preserve non-HTTP protocols unchanged (%s)', (value) => {
+    expect(fixMalformedProtocol(value)).toBe(value)
   })
 
-  it('should preserve valid URLs unchanged', () => {
-    const values = [
-      'http://example.com',
-      'https://example.com',
-      'http://example.com/path/to/feed',
-      'https://example.com/feed?format=rss',
-      'http://example.com:8080/feed',
-      'ftp://example.com/file',
-      '/path/to/feed',
-    ]
+  it.each([
+    ['http://example.com'],
+    ['https://example.com'],
+    ['http://example.com/path/to/feed'],
+    ['https://example.com/feed?format=rss'],
+    ['http://example.com:8080/feed'],
+    ['ftp://example.com/file'],
+    ['/path/to/feed'],
+  ])('should preserve valid URLs unchanged (%s)', (value) => {
+    expect(fixMalformedProtocol(value)).toBe(value)
+  })
 
-    for (const value of values) {
-      expect(fixMalformedProtocol(value)).toBe(value)
-    }
+  it('should return empty string unchanged', () => {
+    expect(fixMalformedProtocol('')).toBe('')
   })
 })
 
@@ -1655,6 +1581,16 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value)).toBe(value)
     })
+
+    it('should skip explicit punycode conversion when convertToPunycode is false', () => {
+      // Note: URL constructor already converts IDN to punycode, so the flag only
+      // controls the explicit domainToASCII call. Hostname ends up as punycode either way.
+      const value = 'https://münchen.example.com/feed'
+      const options = { ...defaultNormalizeOptions, convertToPunycode: false }
+      const expected = 'xn--mnchen-3ya.example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
   })
 })
 
@@ -1718,6 +1654,21 @@ describe('applyRewrites', () => {
     const expected = 'not a valid url'
 
     expect(result).toBe(expected)
+  })
+
+  it('should return original URL when rewrite() throws', () => {
+    const value = 'https://example.com/feed'
+    const rewrites: Array<Rewrite> = [
+      {
+        match: () => true,
+        rewrite: () => {
+          throw new Error('Rewrite failed')
+        },
+      },
+    ]
+    const expected = 'https://example.com/feed'
+
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 })
 
@@ -1843,6 +1794,38 @@ describe('applyProbes', () => {
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
     expect(secondProbeCalled).toBe(false)
   })
+
+  it('should return original URL when testCandidate throws', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async () => {
+      throw new Error('Network timeout')
+    }
+    const expected = 'https://example.com/?feed=rss2'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+
+  it('should try second probe when first does not match', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes: Array<Probe> = [
+      {
+        match: (url) => url.searchParams.has('format'),
+        getCandidates: () => {
+          throw new Error('Should not be called')
+        },
+      },
+      createProbe('feed', '/feed'),
+    ]
+    const testCandidate = async (url: string) => {
+      if (url === 'https://example.com/feed') {
+        return url
+      }
+    }
+    const expected = 'https://example.com/feed'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
 })
 
 describe('createSignature', () => {
@@ -1908,6 +1891,21 @@ describe('createSignature', () => {
   it('should handle empty fields array', () => {
     const value = { title: 'Test', link: 'https://example.com' }
     const expected = '{"title":"Test","link":"https://example.com"}'
+
+    expect(createSignature(value, [])).toBe(expected)
+  })
+
+  it('should omit null fields from signature', () => {
+    const value: Record<string, unknown> = { title: 'Test', link: null }
+    const expected = '{"title":"Test"}'
+
+    expect(createSignature(value, ['link'])).toBe(expected)
+    expect(value.link).toBeNull()
+  })
+
+  it('should handle empty object', () => {
+    const value = {}
+    const expected = '{}'
 
     expect(createSignature(value, [])).toBe(expected)
   })
@@ -2309,29 +2307,29 @@ describe('neutralizeUrls', () => {
     })
   })
 
-  describe('potential normalizations (not yet implemented)', () => {
-    it('should normalize protocol-relative URLs', () => {
-      const url = 'https://example.com/feed'
-      const value = '{"link":"//example.com/post/1"}'
-      const expected = '{"link":"/post/1"}'
-
-      expect(neutralizeUrls(value, [url])).not.toBe(expected)
+  describe.todo('potential normalizations', () => {
+    it.todo('should normalize protocol-relative URLs', () => {
+      // const url = 'https://example.com/feed'
+      // const value = '{"link":"//example.com/post/1"}'
+      // const expected = '{"link":"/post/1"}'
+      //
+      // expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should normalize uppercase protocol URLs', () => {
-      const url = 'https://example.com/feed'
-      const value = '{"link":"HTTPS://EXAMPLE.COM/post/1"}'
-      const expected = '{"link":"/post/1"}'
-
-      expect(neutralizeUrls(value, [url])).not.toBe(expected)
+    it.todo('should normalize uppercase protocol URLs', () => {
+      // const url = 'https://example.com/feed'
+      // const value = '{"link":"HTTPS://EXAMPLE.COM/post/1"}'
+      // const expected = '{"link":"/post/1"}'
+      //
+      // expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should normalize uppercase domain URLs', () => {
-      const url = 'https://example.com/feed'
-      const value = '{"link":"https://EXAMPLE.COM/post/1"}'
-      const expected = '{"link":"/post/1"}'
-
-      expect(neutralizeUrls(value, [url])).not.toBe(expected)
+    it.todo('should normalize uppercase domain URLs', () => {
+      // const url = 'https://example.com/feed'
+      // const value = '{"link":"https://EXAMPLE.COM/post/1"}'
+      // const expected = '{"link":"/post/1"}'
+      //
+      // expect(neutralizeUrls(value, [url])).toBe(expected)
     })
   })
 
