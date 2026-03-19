@@ -74,12 +74,16 @@ export default defineConfig({
     },
     socialLinks: [
       {
+        icon: 'npm',
+        link: 'https://www.npmjs.com/package/feedcanon',
+      },
+      {
         icon: 'github',
         link: 'https://github.com/macieklamberski/feedcanon',
       },
       {
-        icon: 'npm',
-        link: 'https://www.npmjs.com/package/feedcanon',
+        icon: 'x',
+        link: 'https://x.com/macieklamberski',
       },
     ],
   },

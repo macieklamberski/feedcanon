@@ -1,4 +1,7 @@
 :root {
+  --vp-font-family-base:
+    ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
   --vp-c-brand-1: #0066ff;
   --vp-c-brand-2: #0052d4;
   --vp-c-brand-3: #3385ff;
