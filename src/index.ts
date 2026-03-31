@@ -59,7 +59,9 @@ export async function findCanonical(
 
   // Phase 1: Initial fetch.
   const initialRequestUrl = resolveAndApplyRewrites(inputUrl)
-  if (!initialRequestUrl) return
+  if (!initialRequestUrl) {
+    return
+  }
 
   let initialResponse: FetchFnResponse
 
@@ -76,11 +78,15 @@ export async function findCanonical(
   }
 
   const initialResponseUrlRaw = resolveAndApplyRewrites(initialResponse.url)
-  if (!initialResponseUrlRaw) return
+  if (!initialResponseUrlRaw) {
+    return
+  }
   const initialResponseUrl = stripParams(initialResponseUrlRaw)
 
   const initialResponseBody = initialResponse.body
-  if (!initialResponseBody) return
+  if (!initialResponseBody) {
+    return
+  }
 
   let initialResponseSignature: string | undefined
 
@@ -88,7 +94,9 @@ export async function findCanonical(
   let selfRequestUrl: string | undefined
 
   const initialResponseFeed = await parser.parse(initialResponseBody)
-  if (!initialResponseFeed) return
+  if (!initialResponseFeed) {
+    return
+  }
 
   // All onMatch calls receive initialResponseFeed because matched URLs return content
   // equivalent to the initial response (that's the matching criteria). This allows consumers
@@ -137,14 +145,23 @@ export async function findCanonical(
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
     let response: FetchFnResponse
+
     try {
       response = await fetchFn(url)
     } catch {
       return
     }
+
     onFetch?.({ url, response })
-    if (response.status < 200 || response.status >= 300) return
-    if (!(await compareWithInitialResponse(response.body, response.url))) return
+
+    if (response.status < 200 || response.status >= 300) {
+      return
+    }
+
+    if (!(await compareWithInitialResponse(response.body, response.url))) {
+      return
+    }
+
     return response
   }
 
@@ -177,7 +194,7 @@ export async function findCanonical(
 
   // Phase 4: Apply URL probes.
   // Test alternate URL forms (e.g., WordPress query param -> path conversion).
-  if (probes?.length) {
+  if (probes && probes?.length > 0) {
     candidateSourceUrl = await applyProbes(candidateSourceUrl, probes, async (candidateUrl) => {
       const response = await fetchAndCompare(candidateUrl)
 

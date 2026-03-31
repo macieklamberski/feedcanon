@@ -26,6 +26,11 @@ const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
+const httpsLetterPattern = /s/i
+const nonAsciiHostnamePattern = /[^a-z0-9.:-]/
+const protocolPrefixPattern = /^https?:\/\//
+const wwwPrefixPattern = /^www\./
+
 // Pre-compiled patterns for fixMalformedProtocol.
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
 const validUrlPattern = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
@@ -62,7 +67,7 @@ export const fixMalformedProtocol = (url: string): string => {
     const inner = doubledMatch[1]
     const www = doubledMatch[2]
     const rest = url.slice(doubledMatch[0].length)
-    const protocol = /s/i.test(inner) ? 'https://' : 'http://'
+    const protocol = httpsLetterPattern.test(inner) ? 'https://' : 'http://'
     return protocol + (www ? 'www.' : '') + rest
   }
 
@@ -71,7 +76,7 @@ export const fixMalformedProtocol = (url: string): string => {
     const fullMatch = singleMatch[0]
     const www = singleMatch[1]
     const rest = url.slice(fullMatch.length)
-    const protocol = /s/i.test(fullMatch) ? 'https://' : 'http://'
+    const protocol = httpsLetterPattern.test(fullMatch) ? 'https://' : 'http://'
     return protocol + (www ? 'www.' : '') + rest
   }
 
@@ -258,7 +263,7 @@ export const normalizeUrl = (
     }
 
     // Punycode normalization (IDN to ASCII). Skip for ASCII-only hostnames.
-    if (options.convertToPunycode && /[^a-z0-9.:-]/.test(parsed.hostname)) {
+    if (options.convertToPunycode && nonAsciiHostnamePattern.test(parsed.hostname)) {
       const ascii = domainToASCII(parsed.hostname)
       if (ascii) {
         parsed.hostname = ascii
@@ -356,7 +361,7 @@ export const normalizeUrl = (
 
     // Strip protocol for comparison.
     if (options.stripProtocol) {
-      result = result.replace(/^https?:\/\//, '')
+      result = result.replace(protocolPrefixPattern, '')
     }
 
     return result
@@ -387,7 +392,7 @@ export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => 
 export const applyProbes = async (
   url: string,
   probes: Array<Probe>,
-  testCandidate: (url: string) => Promise<string | undefined>,
+  testCandidate: (url: string) => Promise<string | undefined> | string | undefined,
 ): Promise<string> => {
   try {
     const parsed = new URL(url)
@@ -443,9 +448,9 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
 
   const escapeHost = (url: string): string | undefined => {
     try {
-      return new URL('/', url).host.replace(/^www\./, '').replaceAll('.', '\\.')
+      return new URL('/', url).host.replace(wwwPrefixPattern, '').replaceAll('.', '\\.')
     } catch {
-      return undefined
+      return
     }
   }
 

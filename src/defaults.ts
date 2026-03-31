@@ -292,7 +292,9 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     } else {
       const selfLink = retrieveSelfLink(parsed)
       const savedSelfHref = selfLink?.href
-      if (selfLink) selfLink.href = undefined
+      if (selfLink) {
+        selfLink.href = undefined
+      }
 
       if (parsed.format === 'rss') {
         contentUrl = parsed.feed.link
@@ -304,7 +306,9 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
         signature = createSignature(parsed.feed, ['updated', 'generator'])
       }
 
-      if (selfLink) selfLink.href = savedSelfHref
+      if (selfLink) {
+        selfLink.href = savedSelfHref
+      }
     }
 
     const urls = contentUrl ? [url, contentUrl] : [url]

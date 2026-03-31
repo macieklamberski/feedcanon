@@ -4,7 +4,7 @@ import type { DefaultParserResult, FetchFnResponse } from './types.js'
 
 describe('defaultFetch', () => {
   // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
-  const createFetchMock = <T extends (...args: Array<any>) => Promise<Response>>(
+  const createFetchMock = <T extends (...args: Array<any>) => Response | Promise<Response>>(
     implementation: T,
   ) => {
     return implementation as unknown as typeof fetch
@@ -29,7 +29,7 @@ describe('defaultFetch', () => {
 
   it('should call native fetch with correct URL', async () => {
     fetchSpy.mockImplementation(
-      createFetchMock(async (url: string) => {
+      createFetchMock((url: string) => {
         return createMockResponse({
           url,
           text: async () => 'response body',
@@ -50,7 +50,7 @@ describe('defaultFetch', () => {
   it('should default to GET method when not specified', async () => {
     let capturedOptions: RequestInit | undefined
     fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
+      createFetchMock((_url: string, options?: RequestInit) => {
         capturedOptions = options
         return createMockResponse({})
       }),
@@ -64,7 +64,7 @@ describe('defaultFetch', () => {
   it('should use specified method from options', async () => {
     let capturedOptions: RequestInit | undefined
     fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
+      createFetchMock((_url: string, options?: RequestInit) => {
         capturedOptions = options
         return createMockResponse({})
       }),
@@ -78,7 +78,7 @@ describe('defaultFetch', () => {
   it('should pass headers to fetch', async () => {
     let capturedOptions: RequestInit | undefined
     fetchSpy.mockImplementation(
-      createFetchMock(async (_url: string, options?: RequestInit) => {
+      createFetchMock((_url: string, options?: RequestInit) => {
         capturedOptions = options
         return createMockResponse({})
       }),
@@ -93,7 +93,7 @@ describe('defaultFetch', () => {
 
   it('should return response with correct structure', async () => {
     fetchSpy.mockImplementation(
-      createFetchMock(async () => {
+      createFetchMock(() => {
         return createMockResponse({
           headers: new Headers({ 'content-type': 'application/rss+xml' }),
           text: async () => 'feed content',
@@ -116,7 +116,7 @@ describe('defaultFetch', () => {
 
   it('should preserve response URL for redirect handling', async () => {
     fetchSpy.mockImplementation(
-      createFetchMock(async () => {
+      createFetchMock(() => {
         return createMockResponse({
           url: 'https://redirect.example.com/feed.xml',
         })
@@ -135,7 +135,7 @@ describe('defaultFetch', () => {
 
   it('should convert response body to text', async () => {
     fetchSpy.mockImplementation(
-      createFetchMock(async () => {
+      createFetchMock(() => {
         return createMockResponse({
           text: async () => '<rss>feed content</rss>',
         })
@@ -154,7 +154,7 @@ describe('defaultFetch', () => {
 
   it('should pass through status', async () => {
     fetchSpy.mockImplementation(
-      createFetchMock(async () => {
+      createFetchMock(() => {
         return createMockResponse({
           status: 404,
         })
@@ -173,7 +173,7 @@ describe('defaultFetch', () => {
 
   it('should propagate error when native fetch throws', () => {
     fetchSpy.mockImplementation(
-      createFetchMock(async () => {
+      createFetchMock(() => {
         throw new TypeError('Failed to fetch')
       }),
     )
@@ -644,7 +644,7 @@ describe('defaultParser', () => {
       }
     })
 
-    it('should neutralize link in RDF feed signature', async () => {
+    it('should neutralize link in RDF feed signature', () => {
       const value1 = {
         format: 'rdf' as const,
         feed: {

@@ -22,7 +22,7 @@ describe('findCanonical', () => {
   }
 
   const createMockFetch = (responses: Record<string, Partial<FetchFnResponse>>) => {
-    return async (url: string): Promise<FetchFnResponse> => {
+    return (url: string): FetchFnResponse => {
       const response = responses[url]
 
       if (!response) {
@@ -371,7 +371,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url.startsWith('https://')) {
               throw new Error('SSL handshake failed')
             }
@@ -690,7 +690,7 @@ describe('findCanonical', () => {
         const expected = 'https://www.example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url === 'https://www.example.com/feed') {
               return { status: 200, url, body, headers: new Headers() }
             }
@@ -707,7 +707,7 @@ describe('findCanonical', () => {
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url === 'http://www.example.com/feed/') {
               return { status: 200, url: 'https://example.com/feed', body, headers: new Headers() }
             }
@@ -729,7 +729,7 @@ describe('findCanonical', () => {
         const fetchCalls: Array<string> = []
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             fetchCalls.push(url)
             return { status: 200, url, body, headers: new Headers() }
           },
@@ -747,7 +747,7 @@ describe('findCanonical', () => {
         const differentBody = '<feed><different/></feed>'
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url === 'https://www.example.com/feed/') {
               return { status: 200, url, body, headers: new Headers() }
             }
@@ -806,7 +806,7 @@ describe('findCanonical', () => {
         const expected = 'https://example.com/api?feed=posts'
         const body = '<feed></feed>'
         const options = toOptions({
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url === 'https://example.com/api?feed=posts') {
               return { status: 200, url, body, headers: new Headers() }
             }
@@ -1137,7 +1137,7 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
         })
 
@@ -1153,9 +1153,9 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async (url) => {
+          existsFn: (url) => {
             checkedUrls.push(url)
-            return undefined
+            return
           },
         })
 
@@ -1174,7 +1174,7 @@ describe('findCanonical', () => {
             'https://www.example.com/feed/': { body },
             'https://example.com/feed': { body },
           }),
-          existsFn: async () => undefined,
+          existsFn: () => undefined,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
@@ -1190,7 +1190,7 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async (url) => {
+          existsFn: (url) => {
             checkedUrls.push(url)
             return url === 'https://www.example.com/feed' ? { id: 99 } : undefined
           },
@@ -1209,21 +1209,21 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async (url) => (url === 'https://example.com/feed' ? 0 : undefined),
+          existsFn: (url) => (url === 'https://example.com/feed' ? 0 : undefined),
           parser: createMockParser(undefined),
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should propagate error when existsFn throws', async () => {
+      it('should propagate error when existsFn throws', () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async () => {
+          existsFn: () => {
             throw new Error('DB connection failed')
           },
           parser: createMockParser(undefined),
@@ -1365,7 +1365,7 @@ describe('findCanonical', () => {
         ])
       })
 
-      it('should propagate error when onFetch throws', async () => {
+      it('should propagate error when onFetch throws', () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1508,7 +1508,7 @@ describe('findCanonical', () => {
         })
       })
 
-      it('should propagate error when onMatch throws', async () => {
+      it('should propagate error when onMatch throws', () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1536,11 +1536,11 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async (url) => {
+          existsFn: (url) => {
             if (url === 'https://example.com/feed') {
               return existingData
             }
-            return undefined
+            return
           },
           onExists: ({ url, data }) => {
             existsCallData = { url, data }
@@ -1552,7 +1552,7 @@ describe('findCanonical', () => {
         expect(existsCallData).toEqual({ url: 'https://example.com/feed', data: existingData })
       })
 
-      it('should propagate error when onExists throws', async () => {
+      it('should propagate error when onExists throws', () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1560,7 +1560,7 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
           }),
-          existsFn: async (url) => (url === 'https://example.com/feed' ? { id: 55 } : undefined),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 55 } : undefined),
           onExists: () => {
             throw new Error('Callback error')
           },
@@ -1576,7 +1576,7 @@ describe('findCanonical', () => {
       const value = 'https://example.com/feed.xml'
       const options = toOptions({
         parser: createMockParser(undefined),
-        fetchFn: async () => {
+        fetchFn: () => {
           throw new Error('Network error')
         },
       })
@@ -1600,7 +1600,7 @@ describe('findCanonical', () => {
       const value = 'https://example.com/feed'
       const options = toOptions({
         parser: createMockParser(undefined),
-        fetchFn: async () => {
+        fetchFn: () => {
           throw new Error('Redirect loop detected')
         },
       })
@@ -1865,7 +1865,7 @@ describe('findCanonical', () => {
         const fetchCalls: Array<string> = []
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             fetchCalls.push(url)
             return { status: 200, url, body: '<feed/>', headers: new Headers() }
           },
@@ -1880,7 +1880,7 @@ describe('findCanonical', () => {
         const fetchCalls: Array<string> = []
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             fetchCalls.push(url)
             return { status: 200, url, body: '<feed/>', headers: new Headers() }
           },
@@ -1925,7 +1925,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const fetchCalls: Array<string> = []
         const options = toOptions({
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             fetchCalls.push(url)
             return { status: 200, url, body, headers: new Headers() }
           },
@@ -1987,7 +1987,7 @@ describe('findCanonical', () => {
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url === 'https://example.com/feed') {
               return { status: 200, url, body, headers: new Headers() }
             }
@@ -2011,13 +2011,13 @@ describe('findCanonical', () => {
         const differentBody = '<feed><item>different</item></feed>'
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => {
+          fetchFn: (url: string) => {
             if (url === 'https://example.com/feed') {
               return { status: 200, url, body: differentBody, headers: new Headers() }
             }
             return { status: 200, url, body, headers: new Headers() }
           },
-          existsFn: async (url) => (url === 'https://www.example.com/feed' ? { id: 7 } : undefined),
+          existsFn: (url) => (url === 'https://www.example.com/feed' ? { id: 7 } : undefined),
           tiers: [
             { stripWww: true, stripTrailingSlash: true },
             { stripWww: false, stripTrailingSlash: true },
@@ -2041,7 +2041,7 @@ describe('findCanonical', () => {
           parser: {
             parse: (body) => {
               if (body.includes('nope')) {
-                return undefined
+                return
               }
               return body
             },

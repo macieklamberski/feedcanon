@@ -1690,7 +1690,7 @@ describe('applyProbes', () => {
   it('should return first working candidate', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
-    const testCandidate = async (url: string) => {
+    const testCandidate = (url: string) => {
       if (url === 'https://example.com/feed') {
         return url
       }
@@ -1703,9 +1703,7 @@ describe('applyProbes', () => {
   it('should return original URL when no candidate works', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
-    const testCandidate = async () => {
-      return undefined
-    }
+    const testCandidate = () => undefined
     const expected = 'https://example.com/?feed=rss2'
 
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
@@ -1714,7 +1712,7 @@ describe('applyProbes', () => {
   it('should return original URL when no probe matches', async () => {
     const value = 'https://example.com/feed'
     const probes = [createProbe('feed', '/feed')]
-    const testCandidate = async () => {
+    const testCandidate = () => {
       throw new Error('Should not be called')
     }
     const expected = 'https://example.com/feed'
@@ -1725,7 +1723,7 @@ describe('applyProbes', () => {
   it('should return original URL when probes array is empty', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes: Array<Probe> = []
-    const testCandidate = async () => {
+    const testCandidate = () => {
       throw new Error('Should not be called')
     }
     const expected = 'https://example.com/?feed=rss2'
@@ -1736,7 +1734,7 @@ describe('applyProbes', () => {
   it('should return original string for invalid URL', async () => {
     const value = 'not a valid url'
     const probes = [createProbe('feed', '/feed')]
-    const testCandidate = async () => {
+    const testCandidate = () => {
       throw new Error('Should not be called')
     }
     const expected = 'not a valid url'
@@ -1762,7 +1760,7 @@ describe('applyProbes', () => {
         },
       },
     ]
-    const testCandidate = async (url: string) => {
+    const testCandidate = (url: string) => {
       if (url === 'https://example.com/feed') {
         return url
       }
@@ -1788,7 +1786,7 @@ describe('applyProbes', () => {
         },
       },
     ]
-    const testCandidate = async () => undefined
+    const testCandidate = () => undefined
     const expected = 'https://example.com/?feed=rss2'
 
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
@@ -1798,7 +1796,7 @@ describe('applyProbes', () => {
   it('should return original URL when testCandidate throws', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
-    const testCandidate = async () => {
+    const testCandidate = () => {
       throw new Error('Network timeout')
     }
     const expected = 'https://example.com/?feed=rss2'
@@ -1817,7 +1815,7 @@ describe('applyProbes', () => {
       },
       createProbe('feed', '/feed'),
     ]
-    const testCandidate = async (url: string) => {
+    const testCandidate = (url: string) => {
       if (url === 'https://example.com/feed') {
         return url
       }

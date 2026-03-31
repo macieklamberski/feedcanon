@@ -85,7 +85,7 @@ export type FetchFnOptions = {
 
 // Callback to check if URLs exist in database (early termination).
 // Returns data if URL exists, undefined otherwise.
-export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined>
+export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined> | T | undefined
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {
@@ -99,4 +99,4 @@ export type FetchFnResponse = {
 export type FetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (
   url: string,
   options?: FetchFnOptions,
-) => Promise<TResponse>
+) => Promise<TResponse> | TResponse
