@@ -1,3 +1,5 @@
+export type MaybePromise<T> = T | Promise<T>
+
 // Default feed type from feedsmith parser. Uses inline typeof import() because
 // tsdown strips `import type` in .d.ts files, breaking type resolution. Can be
 // simplified once feedsmith exports a ParsedFeed type directly.
@@ -5,7 +7,7 @@ export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFee
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
-  parse: (body: string) => Promise<T | undefined> | T | undefined
+  parse: (body: string) => MaybePromise<T | undefined>
   getSelfUrl: (parsed: T) => string | undefined
   getSignature: (parsed: T, url: string) => string
 }
@@ -85,7 +87,7 @@ export type FetchFnOptions = {
 
 // Callback to check if URLs exist in database (early termination).
 // Returns data if URL exists, undefined otherwise.
-export type ExistsFn<T = unknown> = (url: string) => Promise<T | undefined> | T | undefined
+export type ExistsFn<T = unknown> = (url: string) => MaybePromise<T | undefined>
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {
@@ -99,4 +101,4 @@ export type FetchFnResponse = {
 export type FetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (
   url: string,
   options?: FetchFnOptions,
-) => Promise<TResponse> | TResponse
+) => MaybePromise<TResponse>

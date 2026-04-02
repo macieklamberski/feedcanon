@@ -1,7 +1,7 @@
 import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
-import type { NormalizeOptions, Probe, Rewrite } from './types.js'
+import type { MaybePromise, NormalizeOptions, Probe, Rewrite } from './types.js'
 
 const strippedParamsCache = new WeakMap<Array<string>, Set<string>>()
 
@@ -392,7 +392,7 @@ export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => 
 export const applyProbes = async (
   url: string,
   probes: Array<Probe>,
-  testCandidate: (url: string) => Promise<string | undefined> | string | undefined,
+  testCandidate: (url: string) => MaybePromise<string | undefined>,
 ): Promise<string> => {
   try {
     const parsed = new URL(url)
