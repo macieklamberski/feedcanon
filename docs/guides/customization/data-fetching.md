@@ -6,7 +6,7 @@ title: "Customization: Data Fetching"
 
 By default, Feedcanon uses native `fetch` to perform HTTP requests. You can use any HTTP client by providing a custom `fetchFn` that handles requests and returns responses.
 
-Below are copy-paste examples for popular HTTP clients. See the [`FetchFnResponse`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L82) type for the full interface.
+Below are copy-paste examples for popular HTTP clients. See the [`FetchFnResponse`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L93) type for the full interface.
 
 ## Axios
 

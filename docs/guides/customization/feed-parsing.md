@@ -12,7 +12,7 @@ The `parser` option must implement `ParserAdapter<T>`:
 
 ```typescript
 type ParserAdapter<T> = {
-  parse: (body: string) => Promise<T | undefined> | T | undefined
+  parse: (body: string) => MaybePromise<T | undefined>
   getSelfUrl: (parsed: T) => string | undefined
   getSignature: (parsed: T) => object
 }
@@ -23,7 +23,7 @@ type ParserAdapter<T> = {
 Parse the feed body and return your feed type, or `undefined` if parsing fails. Both sync and async parsers are supported:
 
 ```typescript
-parse: (body: string) => Promise<Feed | undefined> | Feed | undefined
+parse: (body: string) => MaybePromise<Feed | undefined>
 ```
 
 ### getSelfUrl
