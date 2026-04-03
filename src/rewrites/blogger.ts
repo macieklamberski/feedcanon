@@ -2,19 +2,19 @@ import type { Rewrite } from '../types.js'
 import { normalizeUrl } from '../utils.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
-const bloggerPattern = /^(www\.|beta\.)?blogger\.com$/
+const bloggerRegex = /^(www\.|beta\.)?blogger\.com$/
 // Matches *.blogspot.com and country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
-const blogspotPattern = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
+const blogspotRegex = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
 
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
-    return bloggerPattern.test(url.hostname) || blogspotPattern.test(url.hostname)
+    return bloggerRegex.test(url.hostname) || blogspotRegex.test(url.hostname)
   },
 
   rewrite: (url) => {
     const rewritten = new URL(url)
-    const isBlogger = bloggerPattern.test(rewritten.hostname)
-    const isBlogspot = blogspotPattern.test(rewritten.hostname)
+    const isBlogger = bloggerRegex.test(rewritten.hostname)
+    const isBlogspot = blogspotRegex.test(rewritten.hostname)
 
     // Force HTTPS (Blogger/Blogspot rewrites internal links based on protocol).
     rewritten.protocol = 'https:'
@@ -27,7 +27,7 @@ export const bloggerRewrite: Rewrite = {
     // Normalize country-specific TLDs to .blogspot.com (Google redirects these anyway).
     // Rewrite legacy feed URLs to modern format - atom.xml and rss.xml are backward-compatible.
     if (isBlogspot) {
-      rewritten.hostname = rewritten.hostname.replace(blogspotPattern, '.blogspot.com')
+      rewritten.hostname = rewritten.hostname.replace(blogspotRegex, '.blogspot.com')
 
       if (rewritten.pathname === '/atom.xml') {
         rewritten.pathname = '/feeds/posts/default'
