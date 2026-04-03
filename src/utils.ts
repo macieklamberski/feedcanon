@@ -16,33 +16,32 @@ const getStrippedParamsSet = (params: Array<string>): Set<string> => {
   return cached
 }
 
-const ipv4Pattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+const ipv4Regex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
 // IPv6 addresses have 2-7 colons with hex segments. This is intentionally
 // loose - URL constructor validates the actual format, this just filters
 // obvious non-IPv6 strings like single-label hostnames.
-const ipv6Pattern = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
+const ipv6Regex = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 
 // Characters that are safe in URL path segments and don't need percent encoding.
-const safePathChars = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
+const safePathCharsRegex = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
-const httpsLetterPattern = /s/i
-const nonAsciiHostnamePattern = /[^a-z0-9.:-]/
-const protocolPrefixPattern = /^https?:\/\//
-const wwwPrefixPattern = /^www\./
+const httpsLetterRegex = /s/i
+const nonAsciiHostnameRegex = /[^a-z0-9.:-]/
+const protocolPrefixRegex = /^https?:\/\//
+const wwwPrefixRegex = /^www\./
 
 // Pre-compiled patterns for fixMalformedProtocol.
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
-const validUrlPattern = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
+const validUrlRegex = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
 
 // Doubled/nested protocol pattern - captures the INNER protocol which takes precedence.
 // Matches: http:http://, https:https://, http://https//, htp://ttps://, etc.
-const doubledProtocolPattern =
-  /^\/?[htps]{2,7}[:\s=.\\/]+([htps]{2,7})[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+const doubledProtocolRegex = /^\/?[htps]{2,7}[:\s=.\\/]+([htps]{2,7})[:\s=.\\/]+[.,:/]*(www[./]+)?/i
 
 // Single malformed protocol pattern - for typos, wrong separators, etc.
 // Must start with h (or /h) to be HTTP-like. Allows colons within letters (http:s//).
-const singleMalformedPattern = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+const singleMalformedRegex = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/]*(www[./]+)?/i
 
 // Fix common malformations in HTTP/HTTPS protocols. Handles:
 // - Excess slashes: http:////example.com → http://example.com
@@ -58,25 +57,25 @@ const singleMalformedPattern = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,
 // - Missing www dot: https://www/ → https://www.
 export const fixMalformedProtocol = (url: string): string => {
   // Fast path: valid URL without doubled protocol.
-  if (validUrlPattern.test(url) && !doubledProtocolPattern.test(url)) {
+  if (validUrlRegex.test(url) && !doubledProtocolRegex.test(url)) {
     return url
   }
 
-  const doubledMatch = doubledProtocolPattern.exec(url)
+  const doubledMatch = doubledProtocolRegex.exec(url)
   if (doubledMatch) {
     const inner = doubledMatch[1]
     const www = doubledMatch[2]
     const rest = url.slice(doubledMatch[0].length)
-    const protocol = httpsLetterPattern.test(inner) ? 'https://' : 'http://'
+    const protocol = httpsLetterRegex.test(inner) ? 'https://' : 'http://'
     return protocol + (www ? 'www.' : '') + rest
   }
 
-  const singleMatch = singleMalformedPattern.exec(url)
+  const singleMatch = singleMalformedRegex.exec(url)
   if (singleMatch) {
     const fullMatch = singleMatch[0]
     const www = singleMatch[1]
     const rest = url.slice(fullMatch.length)
-    const protocol = httpsLetterPattern.test(fullMatch) ? 'https://' : 'http://'
+    const protocol = httpsLetterRegex.test(fullMatch) ? 'https://' : 'http://'
     return protocol + (www ? 'www.' : '') + rest
   }
 
@@ -146,8 +145,8 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
       if (
         hostname.includes('.') ||
         hostname === 'localhost' ||
-        ipv4Pattern.test(hostname) ||
-        ipv6Pattern.test(hostname.replace(/^\[|\]$/g, ''))
+        ipv4Regex.test(hostname) ||
+        ipv6Regex.test(hostname.replace(/^\[|\]$/g, ''))
       ) {
         return parsed.href
       }
@@ -240,7 +239,7 @@ const decodeAndNormalizeEncoding = (value: string): string => {
     const char = String.fromCharCode(charCode)
 
     // Decode if it's a safe character that doesn't need encoding.
-    if (safePathChars.test(char)) {
+    if (safePathCharsRegex.test(char)) {
       return char
     }
 
@@ -263,7 +262,7 @@ export const normalizeUrl = (
     }
 
     // Punycode normalization (IDN to ASCII). Skip for ASCII-only hostnames.
-    if (options.convertToPunycode && nonAsciiHostnamePattern.test(parsed.hostname)) {
+    if (options.convertToPunycode && nonAsciiHostnameRegex.test(parsed.hostname)) {
       const ascii = domainToASCII(parsed.hostname)
       if (ascii) {
         parsed.hostname = ascii
@@ -361,7 +360,7 @@ export const normalizeUrl = (
 
     // Strip protocol for comparison.
     if (options.stripProtocol) {
-      result = result.replace(protocolPrefixPattern, '')
+      result = result.replace(protocolPrefixRegex, '')
     }
 
     return result
@@ -440,7 +439,7 @@ export const createSignature = <T extends Record<string, unknown>>(
 }
 
 // Pre-compiled pattern for trailing slash normalization.
-const trailingSlashPattern = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
+const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
   // Neutralizes URLs in text to ensure content differing only in URL
@@ -448,7 +447,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
 
   const escapeHost = (url: string): string | undefined => {
     try {
-      return new URL('/', url).host.replace(wwwPrefixPattern, '').replaceAll('.', '\\.')
+      return new URL('/', url).host.replace(wwwPrefixRegex, '').replaceAll('.', '\\.')
     } catch {
       return
     }
@@ -463,5 +462,5 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
 
   return text
     .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"]|\\\\")(/)?`, 'g'), '/')
-    .replace(trailingSlashPattern, '$1$2')
+    .replace(trailingSlashRegex, '$1$2')
 }

@@ -1,9 +1,9 @@
 import type { Probe } from '../types.js'
 
-const commentsFeedPathPattern = /\/comments\/feed(\/|$)/
-const feedPathPattern = /\/feed(\/|$)/
-const trailingSlashPattern = /\/$/
-const optionalTrailingSlashPattern = /\/?$/
+const commentsFeedPathRegex = /\/comments\/feed(\/|$)/
+const feedPathRegex = /\/feed(\/|$)/
+const trailingSlashRegex = /\/$/
+const optionalTrailingSlashRegex = /\/?$/
 
 const feedTypes = ['atom', 'rss2', 'rss', 'rdf']
 
@@ -32,15 +32,15 @@ export const wordpressProbe: Probe = {
     const type = isComment ? feed.slice(9) : feed
 
     // Path already contains feed segment - param is redundant, just strip it.
-    const pathPattern = isComment ? commentsFeedPathPattern : feedPathPattern
-    if (pathPattern.test(url.pathname)) {
+    const pathRegex = isComment ? commentsFeedPathRegex : feedPathRegex
+    if (pathRegex.test(url.pathname)) {
       const withoutSlash = new URL(url)
-      withoutSlash.pathname = url.pathname.replace(trailingSlashPattern, '')
+      withoutSlash.pathname = url.pathname.replace(trailingSlashRegex, '')
       withoutSlash.searchParams.delete('feed')
       candidates.push(withoutSlash.href)
 
       const withSlash = new URL(url)
-      withSlash.pathname = url.pathname.replace(optionalTrailingSlashPattern, '/')
+      withSlash.pathname = url.pathname.replace(optionalTrailingSlashRegex, '/')
       withSlash.searchParams.delete('feed')
       candidates.push(withSlash.href)
 
@@ -48,7 +48,7 @@ export const wordpressProbe: Probe = {
     }
 
     // Convert ?feed=X to path-based URL.
-    const basePath = url.pathname.replace(trailingSlashPattern, '')
+    const basePath = url.pathname.replace(trailingSlashRegex, '')
     const feedSegment = type === 'atom' ? '/feed/atom' : '/feed'
     const feedPath = isComment ? `/comments${feedSegment}` : feedSegment
 
