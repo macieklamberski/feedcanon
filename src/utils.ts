@@ -185,7 +185,8 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
 // Resolves a URL by converting feed protocols, resolving relative URLs,
 // and ensuring it's a valid HTTP(S) URL.
 export const resolveUrl = (url: string, base?: string): string | undefined => {
-  if (url.startsWith('#')) {
+  // Fragment-only URLs can only be resolved against a base URL.
+  if (url.startsWith('#') && !base) {
     return
   }
 
