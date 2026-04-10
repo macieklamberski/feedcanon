@@ -36,7 +36,6 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`:
 | `stripEmptyQuery` | `true` | Remove empty `?` |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
 | `normalizeUnicode` | `true` | NFC normalization |
-| `convertToPunycode` | `true` | Convert IDN to Punycode |
 
 ## Examples
 
@@ -71,7 +70,6 @@ const url = await findCanonical('https://example.com/feed', {
       stripEmptyQuery: true,
       normalizeEncoding: true,
       normalizeUnicode: true,
-      convertToPunycode: true,
     },
   ],
 })

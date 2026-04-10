@@ -40,7 +40,6 @@ export type NormalizeOptions = {
   lowercaseQuery?: boolean // lowercase query param names and values
   normalizeEncoding?: boolean // normalize %XX encoding
   normalizeUnicode?: boolean // NFC normalization
-  convertToPunycode?: boolean // IDNA/Punycode conversion
 }
 
 // Normalization tier options for findCanonical (stripQueryParams handled at top level).

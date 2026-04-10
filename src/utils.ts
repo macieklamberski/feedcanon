@@ -1,4 +1,3 @@
-import { domainToASCII } from 'node:url'
 import { decodeHTML } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { MaybePromise, NormalizeOptions, Probe, Rewrite } from './types.js'
@@ -27,7 +26,6 @@ const ipv6Regex = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 const safePathCharsRegex = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 
 const httpsLetterRegex = /s/i
-const nonAsciiHostnameRegex = /[^a-z0-9.:-]/
 const protocolPrefixRegex = /^https?:\/\//
 const wwwPrefixRegex = /^www\./
 
@@ -260,14 +258,6 @@ export const normalizeUrl = (
     if (options.normalizeUnicode) {
       parsed.hostname = parsed.hostname.normalize('NFC')
       parsed.pathname = parsed.pathname.normalize('NFC')
-    }
-
-    // Punycode normalization (IDN to ASCII). Skip for ASCII-only hostnames.
-    if (options.convertToPunycode && nonAsciiHostnameRegex.test(parsed.hostname)) {
-      const ascii = domainToASCII(parsed.hostname)
-      if (ascii) {
-        parsed.hostname = ascii
-      }
     }
 
     // Strip authentication.

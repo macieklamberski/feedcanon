@@ -43,7 +43,6 @@ Normalizes a URL by applying transformation options.
 | `stripEmptyQuery` | `true` | Remove empty `?` |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
 | `normalizeUnicode` | `true` | NFC normalization for Unicode |
-| `convertToPunycode` | `true` | Convert IDN to Punycode |
 
 #### Returns
 

@@ -243,7 +243,6 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   lowercaseQuery: false,
   normalizeEncoding: true,
   normalizeUnicode: true,
-  convertToPunycode: true,
 }
 
 export const defaultFetch: FetchFn = async (url, options) => {
@@ -332,7 +331,6 @@ export const defaultTiers: Array<Tier> = [
     stripEmptyQuery: true,
     normalizeEncoding: true,
     normalizeUnicode: true,
-    convertToPunycode: true,
   },
   // Tier 2: Strip www and trailing slash, keep query.
   {
@@ -348,7 +346,6 @@ export const defaultTiers: Array<Tier> = [
     stripEmptyQuery: true,
     normalizeEncoding: true,
     normalizeUnicode: true,
-    convertToPunycode: true,
   },
   // Tier 3: Keep www, strip trailing slash, keep query.
   {
@@ -364,7 +361,6 @@ export const defaultTiers: Array<Tier> = [
     stripEmptyQuery: true,
     normalizeEncoding: true,
     normalizeUnicode: true,
-    convertToPunycode: true,
   },
   // Tier 4: Keep www and trailing slash, keep query.
   {
@@ -380,6 +376,5 @@ export const defaultTiers: Array<Tier> = [
     stripEmptyQuery: true,
     normalizeEncoding: true,
     normalizeUnicode: true,
-    convertToPunycode: true,
   },
 ]

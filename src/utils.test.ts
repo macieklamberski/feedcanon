@@ -1584,14 +1584,11 @@ describe('normalizeUrl', () => {
       expect(normalizeUrl(value)).toBe(value)
     })
 
-    it('should skip explicit punycode conversion when convertToPunycode is false', () => {
-      // Note: URL constructor already converts IDN to punycode, so the flag only
-      // controls the explicit domainToASCII call. Hostname ends up as punycode either way.
+    it('should convert IDN hostnames to punycode', () => {
       const value = 'https://münchen.example.com/feed'
-      const options = { ...defaultNormalizeOptions, convertToPunycode: false }
       const expected = 'xn--mnchen-3ya.example.com/feed'
 
-      expect(normalizeUrl(value, options)).toBe(expected)
+      expect(normalizeUrl(value)).toBe(expected)
     })
   })
 })
