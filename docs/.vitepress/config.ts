@@ -39,9 +39,9 @@ export default defineConfig({
     [
       'script',
       {
-        async: '',
-        src: 'https://stats.lamberski.com/script.js',
-        'data-website-id': 'b2baac98-7d57-4277-9aa3-98d7b96b5425',
+        defer: '',
+        src: 'https://ping.lamberski.com/js/script.js',
+        'data-domain': 'feedcanon.dev',
       },
     ],
   ],
