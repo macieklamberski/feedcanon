@@ -6,7 +6,7 @@
       "name": "feedcanon",
       "dependencies": {
         "entities": "^7.0.1",
-        "feedsmith": "^2.9.3",
+        "feedsmith": "^2.9.4",
       },
       "devDependencies": {
         "@types/bun": "^1.3.13",
@@ -531,7 +531,7 @@
 
     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" }, "optionalPeers": ["picomatch"] }, "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg=="],
 
-    "feedsmith": ["feedsmith@2.9.3", "", { "dependencies": { "entities": "^7.0.1", "fast-xml-parser": "~5.7.1" } }, "sha512-H2Dj/gax2p61HszgUdhORg4Wtpfz9wu6w6fhloEWovcx2xF9+QzzNJvHisn4Vr2yoozjQpH75pq2OLf9/JY8Gg=="],
+    "feedsmith": ["feedsmith@2.9.4", "", { "dependencies": { "entities": "^7.0.1", "fast-xml-parser": "~5.7.2" } }, "sha512-mjBxjSQ52mZQQZmSwSwB4e+Ig6KHadjUG9rwNOb6t6s6F1mO/qFrijBi5TKjtjExfi6/eJ6v30TsaPgcYlQeNA=="],
 
     "figures": ["figures@6.1.0", "", { "dependencies": { "is-unicode-supported": "^2.0.0" } }, "sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg=="],
 
