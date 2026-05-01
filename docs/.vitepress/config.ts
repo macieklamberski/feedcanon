@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitepress'
 
+const indexMdRegex = /index\.md$/
+const mdRegex = /\.md$/
+const trailingSlashRegex = /\/$/
+
 const hostname = 'https://feedcanon.dev'
 
 export default defineConfig({
@@ -14,9 +18,9 @@ export default defineConfig({
   },
   transformHead: ({ pageData }) => {
     const canonicalUrl = `${hostname}/${pageData.relativePath}`
-      .replace(/index\.md$/, '')
-      .replace(/\.md$/, '')
-      .replace(/\/$/, '')
+      .replace(indexMdRegex, '')
+      .replace(mdRegex, '')
+      .replace(trailingSlashRegex, '')
 
     return [['link', { rel: 'canonical', href: canonicalUrl }]]
   },
@@ -35,9 +39,10 @@ export default defineConfig({
     [
       'script',
       {
-        async: '',
-        src: 'https://stats.lamberski.com/script.js',
-        'data-website-id': 'b2baac98-7d57-4277-9aa3-98d7b96b5425',
+        defer: '',
+        src: '/beat.js',
+        'data-domain': 'feedcanon.dev',
+        'data-api': '/beat.json',
       },
     ],
   ],
