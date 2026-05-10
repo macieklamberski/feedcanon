@@ -3,7 +3,7 @@ export type MaybePromise<T> = T | Promise<T>
 // Default feed type from feedsmith parser. Uses inline typeof import() because
 // tsdown strips `import type` in .d.ts files, breaking type resolution. Can be
 // simplified once feedsmith exports a ParsedFeed type directly.
-export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFeed>
+export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFeed<string>>
 
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
