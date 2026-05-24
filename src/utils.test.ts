@@ -11,6 +11,7 @@ import {
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
+  upgradeProtocol,
 } from './utils.js'
 
 describe('resolveFeedProtocol', () => {
@@ -505,6 +506,79 @@ describe('addMissingProtocol', () => {
       expect(addMissingProtocol(' example.com')).toBe(' example.com')
       expect(addMissingProtocol('\texample.com')).toBe('\texample.com')
       expect(addMissingProtocol('\nexample.com')).toBe('\nexample.com')
+    })
+  })
+})
+
+describe('upgradeProtocol', () => {
+  describe('default (upgrade to https)', () => {
+    const values = [
+      { value: 'http://example.com/feed', expected: 'https://example.com/feed' },
+      {
+        value: 'http://example.com:8080/path?a=1#frag',
+        expected: 'https://example.com:8080/path?a=1#frag',
+      },
+      { value: 'http://user:pass@example.com/', expected: 'https://user:pass@example.com/' },
+      { value: 'http://localhost/', expected: 'https://localhost/' },
+      { value: 'http://192.168.1.1/api', expected: 'https://192.168.1.1/api' },
+    ]
+
+    for (const { value, expected } of values) {
+      it(`should upgrade ${value} to ${expected}`, () => {
+        expect(upgradeProtocol(value)).toBe(expected)
+      })
+    }
+
+    it('should be case-insensitive on the protocol', () => {
+      expect(upgradeProtocol('HTTP://example.com/feed')).toBe('https://example.com/feed')
+      expect(upgradeProtocol('Http://example.com/feed')).toBe('https://example.com/feed')
+    })
+
+    it('should only touch the leading protocol, not occurrences inside the URL', () => {
+      const value = 'http://proxy.example/?target=http://other.example/page'
+      const expected = 'https://proxy.example/?target=http://other.example/page'
+
+      expect(upgradeProtocol(value)).toBe(expected)
+    })
+  })
+
+  describe('downgrade to http', () => {
+    it('should rewrite https:// to http://', () => {
+      expect(upgradeProtocol('https://example.com/feed', 'http')).toBe('http://example.com/feed')
+    })
+
+    it('should be case-insensitive on the protocol', () => {
+      expect(upgradeProtocol('HTTPS://example.com/feed', 'http')).toBe('http://example.com/feed')
+    })
+
+    it('should leave http:// unchanged', () => {
+      expect(upgradeProtocol('http://example.com/feed', 'http')).toBe('http://example.com/feed')
+    })
+  })
+
+  describe('unchanged inputs', () => {
+    it('should leave https:// unchanged when upgrading to https', () => {
+      expect(upgradeProtocol('https://example.com/feed')).toBe('https://example.com/feed')
+    })
+
+    it('should leave protocol-relative URLs unchanged', () => {
+      expect(upgradeProtocol('//example.com/feed')).toBe('//example.com/feed')
+    })
+
+    it('should leave non-http schemes unchanged', () => {
+      expect(upgradeProtocol('mailto:user@example.com')).toBe('mailto:user@example.com')
+      expect(upgradeProtocol('data:image/png;base64,iVBOR')).toBe('data:image/png;base64,iVBOR')
+      expect(upgradeProtocol('ftp://example.com/file')).toBe('ftp://example.com/file')
+      expect(upgradeProtocol('feed://example.com/rss.xml')).toBe('feed://example.com/rss.xml')
+    })
+
+    it('should leave bare domains and paths unchanged', () => {
+      expect(upgradeProtocol('example.com/feed')).toBe('example.com/feed')
+      expect(upgradeProtocol('/path/to/feed')).toBe('/path/to/feed')
+    })
+
+    it('should leave an empty string unchanged', () => {
+      expect(upgradeProtocol('')).toBe('')
     })
   })
 })

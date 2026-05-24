@@ -29,6 +29,9 @@ const httpsLetterRegex = /s/i
 const protocolPrefixRegex = /^https?:\/\//
 const wwwPrefixRegex = /^www\./
 
+const httpProtocolRegex = /^http:\/\//i
+const httpsProtocolRegex = /^https:\/\//i
+
 // Pre-compiled patterns for fixMalformedProtocol.
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
 const validUrlRegex = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
@@ -178,6 +181,20 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
   }
 
   return `${protocol}://${url}`
+}
+
+// Swaps an existing HTTP(S) protocol on a URL. Unlike `addMissingProtocol`,
+// which only acts when the protocol is absent, this rewrites the scheme
+// when one is already present. Protocol-relative URLs (`//host`) and
+// non-HTTP schemes (`mailto:`, `data:`, `ftp://`) are left unchanged.
+// Case-insensitive on the matched protocol; only the leading scheme is
+// touched, not any later `http://` substring inside the path or query.
+export const upgradeProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
+  if (protocol === 'https') {
+    return url.replace(httpProtocolRegex, 'https://')
+  }
+
+  return url.replace(httpsProtocolRegex, 'http://')
 }
 
 // Resolves a URL by converting feed protocols, resolving relative URLs,
