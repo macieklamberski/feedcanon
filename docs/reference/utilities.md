@@ -12,6 +12,7 @@ import {
   resolveUrl,
   resolveFeedProtocol,
   addMissingProtocol,
+  upgradeProtocol,
 } from 'feedcanon'
 ```
 
@@ -149,4 +150,42 @@ addMissingProtocol('//example.com/feed')
 
 addMissingProtocol('example.com/feed')
 // 'https://example.com/feed'
+```
+
+---
+
+### `upgradeProtocol()`
+
+Swaps an existing HTTP(S) protocol on a URL. Unlike `addMissingProtocol`, which only acts when the protocol is absent, this rewrites the scheme when one is already present.
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `url` | `string` | — | The URL to process |
+| `protocol` | `'http' \| 'https'` | `'https'` | Target protocol |
+
+#### Returns
+
+`string` — The URL with the protocol swapped, or unchanged if no matching HTTP(S) scheme is present.
+
+#### Notes
+
+- Case-insensitive on the matched protocol (`HTTP://` is upgraded).
+- Only the leading scheme is touched; an `http://` substring later in the path or query is left alone.
+- Protocol-relative URLs (`//host`) and non-HTTP schemes (`mailto:`, `data:`, `ftp://`, `feed://`) are left unchanged.
+
+#### Example
+
+```typescript
+import { upgradeProtocol } from 'feedcanon'
+
+upgradeProtocol('http://example.com/feed')
+// 'https://example.com/feed'
+
+upgradeProtocol('https://example.com/feed', 'http')
+// 'http://example.com/feed'
+
+upgradeProtocol('//example.com/feed')
+// '//example.com/feed' (unchanged)
 ```

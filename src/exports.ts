@@ -30,4 +30,5 @@ export {
   normalizeUrl,
   resolveFeedProtocol,
   resolveUrl,
+  upgradeProtocol,
 } from './utils.js'
