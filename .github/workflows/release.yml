@@ -13,10 +13,6 @@ on:
           - rc
           - beta
           - alpha
-<<<<<<< HEAD
-          - next
-=======
->>>>>>> main
 
 jobs:
   test:
