@@ -81,11 +81,11 @@ Add your own tracking parameters (at the top level, not per-tier):
 
 ```typescript
 import { findCanonical } from 'feedcanon'
-import { defaultStrippedParams } from 'feedcanon/defaults'
+import { defaultTrackingParams } from 'urlpurify'
 
 const url = await findCanonical('https://example.com/feed', {
   stripQueryParams: [
-    ...defaultStrippedParams,
+    ...defaultTrackingParams,
     'my_tracking_param',
     'internal_ref',
   ],
@@ -111,4 +111,4 @@ const url = await findCanonical('https://example.com/feed', {
 
 ## Default Stripped Parameters
 
-Feedcanon strips 100+ tracking parameters by default. See [`defaultStrippedParams`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L16) for the complete list.
+Feedcanon strips 150+ tracking parameters by default, sourced from the [urlpurify](https://github.com/macieklamberski/urlpurify) package. See [`defaultTrackingParams`](https://github.com/macieklamberski/urlpurify/blob/main/src/params.ts) for the complete list.

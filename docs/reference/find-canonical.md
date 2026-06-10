@@ -27,7 +27,7 @@ Finds the canonical URL for a given feed URL by fetching, parsing, and testing U
 | `tiers` | [`Tier[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L47) | [`defaultTiers`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L315) | URL normalization tiers. See [URL Tiers](/guides/customization/url-tiers) |
 | `rewrites` | [`Rewrite[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L16) | `[]` | URL rewrites. See [URL Rewrites](/guides/customization/url-rewrites) |
 | `probes` | [`Probe[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L22) | — | URL probes for testing alternate URL forms. See [URL Probes](/guides/customization/url-probes) |
-| `stripQueryParams` | `string[]` | [`defaultStrippedParams`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L16) | Query params to strip |
+| `stripQueryParams` | `string[]` | [`defaultTrackingParams`](https://github.com/macieklamberski/urlpurify/blob/main/src/params.ts) | Query params to strip |
 | `onFetch` | [`OnFetchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L50) | — | Callback after each fetch. See [Using Callbacks](/guides/callbacks#onfetch) |
 | `onMatch` | [`OnMatchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L56) | — | Callback when URL matches. See [Using Callbacks](/guides/callbacks#onmatch) |
 | `onExists` | [`OnExistsFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts#L62) | — | Callback when URL exists. See [Using Callbacks](/guides/callbacks#onexists) |

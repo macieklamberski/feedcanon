@@ -1,4 +1,5 @@
-import { defaultFetch, defaultParser, defaultStrippedParams, defaultTiers } from './defaults.js'
+import { defaultTrackingParams } from 'urlpurify'
+import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
   FetchFnResponse,
@@ -40,7 +41,7 @@ export async function findCanonical(
     tiers = defaultTiers,
     rewrites,
     probes,
-    stripQueryParams = defaultStrippedParams,
+    stripQueryParams = defaultTrackingParams,
     onFetch,
     onMatch,
     onExists,
