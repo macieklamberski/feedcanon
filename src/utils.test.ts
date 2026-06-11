@@ -1277,9 +1277,9 @@ describe('normalizeUrl', () => {
   })
 
   describe('tracking parameter stripping', () => {
-    it('should strip default tracking parameters', () => {
+    it('should keep tracking parameters with default options', () => {
       const value = 'https://example.com/feed?utm_source=twitter&fbclid=abc&id=123'
-      const expected = 'example.com/feed?id=123'
+      const expected = 'example.com/feed?fbclid=abc&id=123&utm_source=twitter'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -1498,8 +1498,7 @@ describe('normalizeUrl', () => {
 
   describe('combined normalizations', () => {
     it('should apply all default normalizations', () => {
-      const value =
-        'https://user:pass@www.EXAMPLE.COM:443/path//to/feed/?utm_source=test&z=2&a=1#section'
+      const value = 'https://user:pass@www.EXAMPLE.COM:443/path//to/feed/?z=2&a=1#section'
       const expected = 'user:pass@example.com/path/to/feed?a=1&z=2'
 
       expect(normalizeUrl(value)).toBe(expected)

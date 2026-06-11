@@ -9,6 +9,13 @@ import type {
   Rewrite,
 } from './types.js'
 
+// Stand-in for an injected cleaner (e.g. urlpurify): removes doing_wp_cron.
+const stripWpCron = (url: string): string => {
+  const parsed = new URL(url)
+  parsed.searchParams.delete('doing_wp_cron')
+  return parsed.toString()
+}
+
 describe('findCanonical', () => {
   // Helper that provides type context for options, enabling proper callback typing.
   const toOptions = <T>(o: FindCanonicalOptions<T> & { parser: ParserAdapter<T> }) => o
@@ -426,6 +433,7 @@ describe('findCanonical', () => {
             },
           }),
           parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
@@ -443,6 +451,7 @@ describe('findCanonical', () => {
             },
           }),
           parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
