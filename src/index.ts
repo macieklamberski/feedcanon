@@ -1,4 +1,3 @@
-import { defaultTrackingParams } from 'urlpurify'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -37,19 +36,23 @@ export async function findCanonical(
   const {
     parser = defaultParser,
     fetchFn = defaultFetch,
+    cleanUrlFn,
     existsFn,
     tiers = defaultTiers,
     rewrites,
     probes,
-    stripQueryParams = defaultTrackingParams,
     onFetch,
     onMatch,
     onExists,
   } = options ?? {}
 
-  // Strip tracking params from URL using normalizeUrl with minimal options.
+  // Clean the URL with the injected function (when given), then tidy the
+  // remaining query.
   const stripParams = (url: string): string => {
-    return normalizeUrl(url, { stripQueryParams, sortQueryParams: true, stripEmptyQuery: true })
+    return normalizeUrl(cleanUrlFn ? cleanUrlFn(url) : url, {
+      sortQueryParams: true,
+      stripEmptyQuery: true,
+    })
   }
 
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.

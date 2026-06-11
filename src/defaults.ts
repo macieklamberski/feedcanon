@@ -1,5 +1,4 @@
 import { parseFeed } from 'feedsmith'
-import { defaultTrackingParams } from 'urlpurify'
 import type {
   DefaultParserResult,
   FetchFn,
@@ -18,7 +17,6 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   collapseSlashes: true,
   stripHash: true,
   sortQueryParams: true,
-  stripQueryParams: defaultTrackingParams,
   stripQuery: false,
   stripEmptyQuery: true,
   lowercaseQuery: false,
