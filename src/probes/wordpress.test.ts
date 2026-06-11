@@ -68,6 +68,12 @@ describe('wordpressProbe', () => {
 
       expect(wordpressProbe.match(value)).toBe(false)
     })
+
+    it('should not match URL with empty comments feed type', () => {
+      const value = new URL('https://example.com/?feed=comments-')
+
+      expect(wordpressProbe.match(value)).toBe(false)
+    })
   })
 
   describe('getCandidates', () => {
@@ -122,6 +128,20 @@ describe('wordpressProbe', () => {
         'https://example.com/feed/atom?other=param',
         'https://example.com/feed/atom/?other=param',
       ]
+
+      expect(wordpressProbe.getCandidates(value)).toEqual(expected)
+    })
+
+    it('should return candidates for uppercase feed value', () => {
+      const value = new URL('https://example.com/?feed=ATOM')
+      const expected = ['https://example.com/feed/atom', 'https://example.com/feed/atom/']
+
+      expect(wordpressProbe.getCandidates(value)).toEqual(expected)
+    })
+
+    it('should preserve hash fragment', () => {
+      const value = new URL('https://example.com/?feed=rss2#latest')
+      const expected = ['https://example.com/feed#latest', 'https://example.com/feed/#latest']
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })

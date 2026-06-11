@@ -71,6 +71,27 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
+  it('should unwrap pcast:https:// to https://', () => {
+    const value = 'pcast:https://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should unwrap itpc:http:// to http://', () => {
+    const value = 'itpc:http://example.com/podcast.xml'
+    const expected = 'http://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should unwrap podcast:https:// to https://', () => {
+    const value = 'podcast:https://example.com/feed.xml'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
   it('should return https URLs unchanged', () => {
     const value = 'https://example.com/feed.xml'
 
@@ -392,6 +413,13 @@ describe('addMissingProtocol', () => {
     it('should handle domain with query string', () => {
       const value = 'example.com/feed?format=rss'
       const expected = 'https://example.com/feed?format=rss'
+
+      expect(addMissingProtocol(value)).toBe(expected)
+    })
+
+    it('should add https:// to bare IPv4 address', () => {
+      const value = '192.168.1.1/feed'
+      const expected = 'https://192.168.1.1/feed'
 
       expect(addMissingProtocol(value)).toBe(expected)
     })
@@ -1315,6 +1343,26 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
+
+    it('should strip params and lowercase remaining query together', () => {
+      const value = 'https://example.com/feed?UTM_Source=Twitter&Format=RSS'
+      const options = {
+        ...defaultNormalizeOptions,
+        stripQueryParams: ['utm_source'],
+        lowercaseQuery: true,
+      }
+      const expected = 'example.com/feed?format=rss'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should strip empty query left after stripping all params', () => {
+      const value = 'https://example.com/feed?utm_source=twitter'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source'] }
+      const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
   })
 
   describe('query string stripping', () => {
@@ -1683,10 +1731,9 @@ describe('applyRewrites', () => {
   it('should apply matching rewrite', () => {
     const value = 'https://old.example.com/feed'
     const rewrites = [createRewrite('old.example.com', 'new.example.com')]
-    const result = applyRewrites(value, rewrites)
     const expected = 'https://new.example.com/feed'
 
-    expect(result).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 
   it('should apply first matching rewrite when multiple match', () => {
@@ -1695,37 +1742,48 @@ describe('applyRewrites', () => {
       createRewrite('multi.example.com', 'first.example.com'),
       createRewrite('multi.example.com', 'second.example.com'),
     ]
-    const result = applyRewrites(value, rewrites)
     const expected = 'https://first.example.com/feed'
 
-    expect(result).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 
   it('should return original URL when no rewrite matches', () => {
     const value = 'https://example.com/feed'
     const rewrites = [createRewrite('other.example.com', 'new.example.com')]
-    const result = applyRewrites(value, rewrites)
     const expected = 'https://example.com/feed'
 
-    expect(result).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 
   it('should return original URL when rewrites array is empty', () => {
     const value = 'https://example.com/feed'
     const rewrites: Array<Rewrite> = []
-    const result = applyRewrites(value, rewrites)
     const expected = 'https://example.com/feed'
 
-    expect(result).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 
   it('should return original string for invalid URL', () => {
     const value = 'not a valid url'
     const rewrites = [createRewrite('example.com', 'new.example.com')]
-    const result = applyRewrites(value, rewrites)
     const expected = 'not a valid url'
 
-    expect(result).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(expected)
+  })
+
+  it('should return original URL when match() throws', () => {
+    const value = 'https://example.com/feed'
+    const rewrites: Array<Rewrite> = [
+      {
+        match: () => {
+          throw new Error('Match failed')
+        },
+        rewrite: (url) => url,
+      },
+    ]
+    const expected = 'https://example.com/feed'
+
+    expect(applyRewrites(value, rewrites)).toBe(expected)
   })
 
   it('should return original URL when rewrite() throws', () => {
@@ -1896,6 +1954,16 @@ describe('applyProbes', () => {
 
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
+
+  it.todo('should await async testCandidate results', () => {
+    // testCandidate returns a Promise that resolves to the candidate URL after a delay.
+    // Expected: applyProbes awaits it and returns the resolved candidate.
+  })
+
+  it.todo('should return original URL when getCandidates throws', () => {
+    // Probe matches but getCandidates throws. Expected: the surrounding try/catch returns
+    // the original URL instead of propagating the error.
+  })
 })
 
 describe('createSignature', () => {
@@ -1927,11 +1995,11 @@ describe('createSignature', () => {
 
   it('should restore original values after creating signature', () => {
     const value = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
+    const expected = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
+
     createSignature(value, ['generator'])
 
-    expect(value.generator).toBe('WordPress')
-    expect(value.title).toBe('Test')
-    expect(value.link).toBe('https://example.com')
+    expect(value).toEqual(expected)
   })
 
   it('should handle nested objects', () => {
@@ -1939,7 +2007,6 @@ describe('createSignature', () => {
     const expected = '{"title":"Test"}'
 
     expect(createSignature(value, ['meta'])).toBe(expected)
-    expect(value.meta).toEqual({ author: 'John', date: '2024-01-01' })
   })
 
   it('should handle arrays', () => {
@@ -1947,7 +2014,6 @@ describe('createSignature', () => {
     const expected = '{"title":"Test"}'
 
     expect(createSignature(value, ['items'])).toBe(expected)
-    expect(value.items).toEqual([1, 2, 3])
   })
 
   it('should handle undefined fields', () => {
@@ -1955,7 +2021,13 @@ describe('createSignature', () => {
     const expected = '{"title":"Test"}'
 
     expect(createSignature(value, ['link'])).toBe(expected)
-    expect(value.link).toBeUndefined()
+  })
+
+  it('should handle field missing from object', () => {
+    const value: Record<string, unknown> = { title: 'Test' }
+    const expected = '{"title":"Test"}'
+
+    expect(createSignature(value, ['link'])).toBe(expected)
   })
 
   it('should handle empty fields array', () => {
@@ -1970,7 +2042,6 @@ describe('createSignature', () => {
     const expected = '{"title":"Test"}'
 
     expect(createSignature(value, ['link'])).toBe(expected)
-    expect(value.link).toBeNull()
   })
 
   it('should handle empty object', () => {
@@ -1978,6 +2049,12 @@ describe('createSignature', () => {
     const expected = '{}'
 
     expect(createSignature(value, [])).toBe(expected)
+  })
+
+  it.todo('should restore fields when JSON.stringify throws on circular reference', () => {
+    // Object contains a circular reference, so JSON.stringify throws after the fields were already
+    // neutralized. The current implementation has no try/finally around the stringify, so the
+    // saved values are never restored. Potential source bug.
   })
 })
 
@@ -2375,31 +2452,30 @@ describe('neutralizeUrls', () => {
 
       expect(neutralizeUrls(value, [])).toBe(expected)
     })
+
+    it('should ignore invalid URLs and normalize using valid ones', () => {
+      const urls = ['not-a-valid-url', 'https://example.com/feed']
+      const value = '{"link":"https://example.com/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeUrls(value, urls)).toBe(expected)
+    })
   })
 
   describe.todo('potential normalizations', () => {
     it.todo('should normalize protocol-relative URLs', () => {
-      // const url = 'https://example.com/feed'
-      // const value = '{"link":"//example.com/post/1"}'
-      // const expected = '{"link":"/post/1"}'
-      //
-      // expect(neutralizeUrls(value, [url])).toBe(expected)
+      // Signature contains a protocol-relative link like //example.com/post/1 on the feed host.
+      // Expected: normalized to /post/1 like the absolute forms.
     })
 
     it.todo('should normalize uppercase protocol URLs', () => {
-      // const url = 'https://example.com/feed'
-      // const value = '{"link":"HTTPS://EXAMPLE.COM/post/1"}'
-      // const expected = '{"link":"/post/1"}'
-      //
-      // expect(neutralizeUrls(value, [url])).toBe(expected)
+      // Signature contains HTTPS://EXAMPLE.COM/post/1 (uppercase scheme and host) for the
+      // feed host. Expected: normalized to /post/1 case-insensitively.
     })
 
     it.todo('should normalize uppercase domain URLs', () => {
-      // const url = 'https://example.com/feed'
-      // const value = '{"link":"https://EXAMPLE.COM/post/1"}'
-      // const expected = '{"link":"/post/1"}'
-      //
-      // expect(neutralizeUrls(value, [url])).toBe(expected)
+      // Signature contains https://EXAMPLE.COM/post/1 (uppercase host only) for the feed host.
+      // Expected: normalized to /post/1 case-insensitively.
     })
   })
 

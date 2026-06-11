@@ -936,13 +936,13 @@ describe('findCanonical', () => {
 
   describe('rewrites', () => {
     it('should normalize FeedBurner aliases to canonical domain', async () => {
-      const value = 'https://feedproxy.google.com/TechCrunch?format=xml'
-      const expected = 'https://feeds.feedburner.com/TechCrunch'
+      const value = 'https://feedproxy.google.com/ExampleNews?format=xml'
+      const expected = 'https://feeds.feedburner.com/ExampleNews'
       const body = '<feed></feed>'
       const options = toOptions({
         fetchFn: createMockFetch({
-          'https://feedproxy.google.com/TechCrunch?format=xml': { body },
-          'https://feeds.feedburner.com/TechCrunch': { body },
+          'https://feedproxy.google.com/ExampleNews?format=xml': { body },
+          'https://feeds.feedburner.com/ExampleNews': { body },
         }),
         parser: createMockParser(undefined),
         rewrites: [feedburnerRewrite],
@@ -1237,8 +1237,9 @@ describe('findCanonical', () => {
           },
           parser: createMockParser(undefined),
         })
+        const throwing = () => findCanonical(value, options)
 
-        expect(findCanonical(value, options)).rejects.toThrow('DB connection failed')
+        expect(throwing()).rejects.toThrow('DB connection failed')
       })
     })
 
@@ -1386,8 +1387,9 @@ describe('findCanonical', () => {
             throw new Error('Callback error')
           },
         })
+        const throwing = () => findCanonical(value, options)
 
-        expect(findCanonical(value, options)).rejects.toThrow('Callback error')
+        expect(throwing()).rejects.toThrow('Callback error')
       })
     })
 
@@ -1529,8 +1531,9 @@ describe('findCanonical', () => {
             throw new Error('Callback error')
           },
         })
+        const throwing = () => findCanonical(value, options)
 
-        expect(findCanonical(value, options)).rejects.toThrow('Callback error')
+        expect(throwing()).rejects.toThrow('Callback error')
       })
     })
 
@@ -1574,8 +1577,23 @@ describe('findCanonical', () => {
             throw new Error('Callback error')
           },
         })
+        const throwing = () => findCanonical(value, options)
 
-        expect(findCanonical(value, options)).rejects.toThrow('Callback error')
+        expect(throwing()).rejects.toThrow('Callback error')
+      })
+    })
+
+    describe('cleanUrlFn', () => {
+      it.todo('should propagate error when cleanUrlFn throws', () => {
+        // cleanUrlFn throws when cleaning the initial response URL. Expected: the error propagates
+        // to the caller since URL cleaning is not wrapped in try/catch.
+      })
+    })
+
+    describe('defaults', () => {
+      it.todo('should use defaultParser and defaultFetch when options are omitted', () => {
+        // findCanonical(url) with no options falls back to defaultParser and defaultFetch, which
+        // performs real network requests. Needs global fetch interception to test.
       })
     })
   })
@@ -1917,10 +1935,11 @@ describe('findCanonical', () => {
         const value = 'https://example.com/feed'
         const options = toOptions({
           parser: createMockParser(undefined),
-          fetchFn: async (url: string) => ({
+          fetchFn: async (url: string): Promise<FetchFnResponse> => ({
             status: 200,
             url,
-            body: undefined as unknown as string,
+            // @ts-expect-error: This is for testing purposes.
+            body: undefined,
             headers: new Headers(),
           }),
         })
@@ -2065,6 +2084,11 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
+    })
+
+    it.todo('should return the same URL when re-run on its own result', () => {
+      // Run findCanonical, then run it again on the returned canonical URL with the same mocks.
+      // Expected: the second run returns the identical URL (idempotency).
     })
   })
 

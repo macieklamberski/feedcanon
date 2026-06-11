@@ -1,30 +1,37 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import { defaultFetch, defaultParser } from './defaults.js'
 import type { DefaultParserResult, FetchFnResponse } from './types.js'
 
 describe('defaultFetch', () => {
-  // biome-ignore lint/suspicious/noExplicitAny: Mock helper needs flexible signature.
-  const createFetchMock = <T extends (...args: Array<any>) => Response | Promise<Response>>(
-    implementation: T,
-  ) => {
-    return implementation as unknown as typeof fetch
-  }
-
   type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
 
+  const createFetchMock = (
+    implementation: (url: string, options?: RequestInit) => Response | Promise<Response>,
+  ): typeof fetch => {
+    // @ts-expect-error: This is for testing purposes.
+    return implementation
+  }
+
   const createMockResponse = (partial: Partial<MockResponse>): Response => {
-    return {
+    const response: MockResponse = {
       headers: partial.headers ?? new Headers(),
       text: partial.text ?? (async () => ''),
       url: partial.url ?? '',
       status: partial.status ?? 200,
-    } as Response
+    }
+
+    // @ts-expect-error: This is for testing purposes.
+    return response
   }
 
   const fetchSpy = spyOn(globalThis, 'fetch')
 
-  afterEach(() => {
+  beforeEach(() => {
     fetchSpy.mockReset()
+  })
+
+  afterAll(() => {
+    fetchSpy.mockRestore()
   })
 
   it('should call native fetch with correct URL', async () => {
@@ -36,7 +43,6 @@ describe('defaultFetch', () => {
         })
       }),
     )
-    const result = await defaultFetch('https://example.com/feed.xml')
     const expected: FetchFnResponse = {
       url: 'https://example.com/feed.xml',
       body: 'response body',
@@ -44,7 +50,7 @@ describe('defaultFetch', () => {
       status: 200,
     }
 
-    expect(result).toEqual(expected)
+    expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
   })
 
   it('should default to GET method when not specified', async () => {
@@ -58,7 +64,9 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml')
 
-    expect(capturedOptions?.method).toBe('GET')
+    const expected: RequestInit = { method: 'GET' }
+
+    expect(capturedOptions).toEqual(expected)
   })
 
   it('should use specified method from options', async () => {
@@ -72,7 +80,9 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml', { method: 'HEAD' })
 
-    expect(capturedOptions?.method).toBe('HEAD')
+    const expected: RequestInit = { method: 'HEAD' }
+
+    expect(capturedOptions).toEqual(expected)
   })
 
   it('should pass headers to fetch', async () => {
@@ -88,7 +98,9 @@ describe('defaultFetch', () => {
       headers: { 'X-Custom': 'value' },
     })
 
-    expect(capturedOptions?.headers).toEqual({ 'X-Custom': 'value' })
+    const expected: RequestInit = { method: 'GET', headers: { 'X-Custom': 'value' } }
+
+    expect(capturedOptions).toEqual(expected)
   })
 
   it('should return response with correct structure', async () => {
@@ -122,7 +134,6 @@ describe('defaultFetch', () => {
         })
       }),
     )
-    const result = await defaultFetch('https://example.com/feed.xml')
     const expected: FetchFnResponse = {
       url: 'https://redirect.example.com/feed.xml',
       body: '',
@@ -130,7 +141,7 @@ describe('defaultFetch', () => {
       status: 200,
     }
 
-    expect(result).toEqual(expected)
+    expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
   })
 
   it('should convert response body to text', async () => {
@@ -141,7 +152,6 @@ describe('defaultFetch', () => {
         })
       }),
     )
-    const result = await defaultFetch('https://example.com/feed.xml')
     const expected: FetchFnResponse = {
       url: '',
       body: '<rss>feed content</rss>',
@@ -149,7 +159,7 @@ describe('defaultFetch', () => {
       status: 200,
     }
 
-    expect(result).toEqual(expected)
+    expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
   })
 
   it('should pass through status', async () => {
@@ -160,7 +170,6 @@ describe('defaultFetch', () => {
         })
       }),
     )
-    const result = await defaultFetch('https://example.com/feed.xml')
     const expected: FetchFnResponse = {
       url: '',
       body: '',
@@ -168,7 +177,7 @@ describe('defaultFetch', () => {
       status: 404,
     }
 
-    expect(result).toEqual(expected)
+    expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
   })
 
   it('should propagate error when native fetch throws', () => {
@@ -177,12 +186,28 @@ describe('defaultFetch', () => {
         throw new TypeError('Failed to fetch')
       }),
     )
+    const throwing = () => defaultFetch('https://example.com/feed.xml')
 
-    expect(defaultFetch('https://example.com/feed.xml')).rejects.toThrow('Failed to fetch')
+    expect(throwing()).rejects.toThrow('Failed to fetch')
+  })
+
+  it.todo('should propagate error when response.text() rejects', () => {
+    // Mocked response.text() rejects (e.g. interrupted body stream). Expected: defaultFetch rejects
+    // with the same error instead of returning a response.
   })
 })
 
 describe('defaultParser', () => {
+  const parseOrThrow = async (body: string) => {
+    const parsed = await defaultParser.parse(body)
+
+    if (!parsed) {
+      throw new Error('Expected feed to parse')
+    }
+
+    return parsed
+  }
+
   describe('parse', () => {
     it('should parse valid RSS feed', async () => {
       const value = `
@@ -193,9 +218,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const result = await defaultParser.parse(value)
 
-      expect(result).toEqual(expect.objectContaining({ format: 'rss' }))
+      expect(await defaultParser.parse(value)).toEqual(expect.objectContaining({ format: 'rss' }))
     })
 
     it('should parse valid Atom feed', async () => {
@@ -205,9 +229,8 @@ describe('defaultParser', () => {
           <title>Test Feed</title>
         </feed>
       `
-      const result = await defaultParser.parse(value)
 
-      expect(result).toEqual(expect.objectContaining({ format: 'atom' }))
+      expect(await defaultParser.parse(value)).toEqual(expect.objectContaining({ format: 'atom' }))
     })
 
     it('should parse valid JSON Feed', async () => {
@@ -215,23 +238,34 @@ describe('defaultParser', () => {
         version: 'https://jsonfeed.org/version/1.1',
         title: 'Test Feed',
       })
-      const result = await defaultParser.parse(value)
 
-      expect(result).toEqual(expect.objectContaining({ format: 'json' }))
+      expect(await defaultParser.parse(value)).toEqual(expect.objectContaining({ format: 'json' }))
+    })
+
+    it('should parse valid RDF feed', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/">
+          <channel rdf:about="https://example.com/feed.rdf">
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+          </channel>
+        </rdf:RDF>
+      `
+
+      expect(await defaultParser.parse(value)).toEqual(expect.objectContaining({ format: 'rdf' }))
     })
 
     it('should return undefined for invalid feed', async () => {
       const value = 'not a feed'
-      const result = await defaultParser.parse(value)
 
-      expect(result).toBeUndefined()
+      expect(await defaultParser.parse(value)).toBeUndefined()
     })
 
     it('should return undefined for empty string', async () => {
       const value = ''
-      const result = await defaultParser.parse(value)
 
-      expect(result).toBeUndefined()
+      expect(await defaultParser.parse(value)).toBeUndefined()
     })
   })
 
@@ -243,9 +277,8 @@ describe('defaultParser', () => {
         feed_url: 'https://example.com/feed.json',
       })
       const expected = 'https://example.com/feed.json'
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
     })
 
@@ -254,9 +287,8 @@ describe('defaultParser', () => {
         version: 'https://jsonfeed.org/version/1.1',
         title: 'Test',
       })
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
     })
 
@@ -269,9 +301,8 @@ describe('defaultParser', () => {
         </feed>
       `
       const expected = 'https://example.com/feed.atom'
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
     })
 
@@ -283,9 +314,8 @@ describe('defaultParser', () => {
           <link rel="alternate" href="https://example.com"/>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
     })
 
@@ -300,9 +330,8 @@ describe('defaultParser', () => {
         </rss>
       `
       const expected = 'https://example.com/feed.rss'
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
     })
 
@@ -315,15 +344,14 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
     })
 
     it('should extract self URL from RDF feed', () => {
-      const value = {
-        format: 'rdf' as const,
+      const value: DefaultParserResult = {
+        format: 'rdf',
         feed: {
           atom: {
             links: [{ rel: 'self', href: 'https://example.com/rdf.xml' }],
@@ -332,6 +360,17 @@ describe('defaultParser', () => {
       }
 
       expect(defaultParser.getSelfUrl(value)).toBe('https://example.com/rdf.xml')
+    })
+
+    it('should return undefined for RDF feed without atom links', () => {
+      const value: DefaultParserResult = {
+        format: 'rdf',
+        feed: {
+          title: 'Test',
+        },
+      }
+
+      expect(defaultParser.getSelfUrl(value)).toBeUndefined()
     })
   })
 
@@ -342,14 +381,10 @@ describe('defaultParser', () => {
         title: 'Test',
         items: [{ id: '1', content_text: 'Hello' }],
       })
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = '{"title":"Test","items":[{"id":"1","content_text":"Hello"}]}'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
-
-      const result = defaultParser.getSignature(parsed, 'https://example.com/feed.json')
-      const expected = JSON.stringify(parsed.feed)
-
-      expect(result).toBe(expected)
+      expect(defaultParser.getSignature(parsed, 'https://example.com/feed.json')).toBe(expected)
     })
 
     it('should neutralize feed_url in JSON Feed signature', async () => {
@@ -365,11 +400,8 @@ describe('defaultParser', () => {
         feed_url: 'https://example.com/feed2.json',
         items: [{ id: '1' }],
       })
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed1.json')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed2.json')
@@ -378,22 +410,23 @@ describe('defaultParser', () => {
     })
 
     it('should restore feed_url after generating signature', async () => {
-      const expected = 'https://example.com/feed.json'
       const value = JSON.stringify({
         version: 'https://jsonfeed.org/version/1.1',
         title: 'Test',
-        feed_url: expected,
+        feed_url: 'https://example.com/feed.json',
       })
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = 'https://example.com/feed.json'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(parsed.format).toBe('json')
 
-      if (parsed.format === 'json') {
-        defaultParser.getSignature(parsed, expected)
-
-        expect(parsed.feed.feed_url).toBe(expected)
+      if (parsed.format !== 'json') {
+        throw new Error('Expected JSON Feed')
       }
+
+      defaultParser.getSignature(parsed, 'https://example.com/feed.json')
+
+      expect(parsed.feed.feed_url).toBe(expected)
     })
 
     it('should return signature for Atom feed without self link', async () => {
@@ -403,14 +436,10 @@ describe('defaultParser', () => {
           <title>Test</title>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = '{"title":{"value":"Test"}}'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
-
-      const result = defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
-      const expected = JSON.stringify(parsed.feed)
-
-      expect(result).toBe(expected)
+      expect(defaultParser.getSignature(parsed, 'https://example.com/feed.atom')).toBe(expected)
     })
 
     it('should neutralize self link in Atom feed signature', async () => {
@@ -428,11 +457,8 @@ describe('defaultParser', () => {
           <link rel="self" href="https://example.com/feed2.atom"/>
         </feed>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed1.atom')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed2.atom')
@@ -441,25 +467,27 @@ describe('defaultParser', () => {
     })
 
     it('should restore self link href after generating Atom signature', async () => {
-      const expected = 'https://example.com/feed.atom'
       const value = `
         <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
-          <link rel="self" href="${expected}"/>
+          <link rel="self" href="https://example.com/feed.atom"/>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = 'https://example.com/feed.atom'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(parsed.format).toBe('atom')
 
-      if (parsed.format === 'atom') {
-        defaultParser.getSignature(parsed, expected)
-        const result = parsed.feed.links?.find((link) => link.rel === 'self')?.href
-
-        expect(result).toBe(expected)
+      if (parsed.format !== 'atom') {
+        throw new Error('Expected Atom feed')
       }
+
+      defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
+
+      const selfHref = parsed.feed.links?.find((link) => link.rel === 'self')?.href
+
+      expect(selfHref).toBe(expected)
     })
 
     it('should neutralize self link in RSS feed signature', async () => {
@@ -481,11 +509,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed1.rss')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed2.rss')
@@ -494,27 +519,29 @@ describe('defaultParser', () => {
     })
 
     it('should restore self link href after generating RSS signature', async () => {
-      const expected = 'https://example.com/feed.rss'
       const value = `
         <?xml version="1.0"?>
         <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
           <channel>
             <title>Test</title>
-            <atom:link rel="self" href="${expected}"/>
+            <atom:link rel="self" href="https://example.com/feed.rss"/>
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = 'https://example.com/feed.rss'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(parsed.format).toBe('rss')
 
-      if (parsed.format === 'rss') {
-        defaultParser.getSignature(parsed, expected)
-        const result = parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
-
-        expect(result).toBe(expected)
+      if (parsed.format !== 'rss') {
+        throw new Error('Expected RSS feed')
       }
+
+      defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      const selfHref = parsed.feed.atom?.links?.find((link) => link.rel === 'self')?.href
+
+      expect(selfHref).toBe(expected)
     })
 
     it('should return signature for RSS feed without self link', async () => {
@@ -526,14 +553,10 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = '{"title":"Test"}'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
-
-      const result = defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-      const expected = JSON.stringify(parsed.feed)
-
-      expect(result).toBe(expected)
+      expect(defaultParser.getSignature(parsed, 'https://example.com/feed.rss')).toBe(expected)
     })
 
     it('should neutralize lastBuildDate in RSS feed signature', async () => {
@@ -555,11 +578,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
@@ -568,26 +588,27 @@ describe('defaultParser', () => {
     })
 
     it('should restore lastBuildDate after generating RSS signature', async () => {
-      const expected = 'Mon, 30 Dec 2024 10:00:00 GMT'
       const value = `
         <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
-            <lastBuildDate>${expected}</lastBuildDate>
+            <lastBuildDate>Mon, 30 Dec 2024 10:00:00 GMT</lastBuildDate>
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = 'Mon, 30 Dec 2024 10:00:00 GMT'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(parsed.format).toBe('rss')
 
-      if (parsed.format === 'rss') {
-        defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-        expect(parsed.feed.lastBuildDate).toBe(expected)
+      if (parsed.format !== 'rss') {
+        throw new Error('Expected RSS feed')
       }
+
+      defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(parsed.feed.lastBuildDate).toBe(expected)
     })
 
     it('should neutralize link in RSS feed signature', async () => {
@@ -609,11 +630,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
@@ -622,38 +640,39 @@ describe('defaultParser', () => {
     })
 
     it('should restore link after generating RSS signature', async () => {
-      const expected = 'https://example.com/feed'
       const value = `
         <?xml version="1.0"?>
         <rss version="2.0">
           <channel>
             <title>Test</title>
-            <link>${expected}</link>
+            <link>https://example.com/feed</link>
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = 'https://example.com/feed'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(parsed.format).toBe('rss')
 
-      if (parsed.format === 'rss') {
-        defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
-
-        expect(parsed.feed.link).toBe(expected)
+      if (parsed.format !== 'rss') {
+        throw new Error('Expected RSS feed')
       }
+
+      defaultParser.getSignature(parsed, 'https://example.com/feed.rss')
+
+      expect(parsed.feed.link).toBe(expected)
     })
 
     it('should neutralize link in RDF feed signature', () => {
-      const value1 = {
-        format: 'rdf' as const,
+      const value1: DefaultParserResult = {
+        format: 'rdf',
         feed: {
           title: 'Test',
           link: 'https://example.com/feed',
         },
       }
-      const value2 = {
-        format: 'rdf' as const,
+      const value2: DefaultParserResult = {
+        format: 'rdf',
         feed: {
           title: 'Test',
           link: 'https://example.com/feed/',
@@ -667,14 +686,14 @@ describe('defaultParser', () => {
     })
 
     it('should restore link after generating RDF signature', () => {
-      const expected = 'https://example.com/feed'
-      const value = {
-        format: 'rdf' as const,
+      const value: DefaultParserResult = {
+        format: 'rdf',
         feed: {
           title: 'Test',
-          link: expected,
+          link: 'https://example.com/feed',
         },
       }
+      const expected = 'https://example.com/feed'
 
       defaultParser.getSignature(value, 'https://example.com/feed.rdf')
 
@@ -696,11 +715,8 @@ describe('defaultParser', () => {
           <updated>2024-12-30T11:00:00Z</updated>
         </feed>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.atom')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.atom')
@@ -709,24 +725,25 @@ describe('defaultParser', () => {
     })
 
     it('should restore updated after generating Atom signature', async () => {
-      const expected = '2024-12-30T10:00:00Z'
       const value = `
         <?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
-          <updated>${expected}</updated>
+          <updated>2024-12-30T10:00:00Z</updated>
         </feed>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
+      const expected = '2024-12-30T10:00:00Z'
+      const parsed = await parseOrThrow(value)
 
-      expect(parsed).toBeDefined()
       expect(parsed.format).toBe('atom')
 
-      if (parsed.format === 'atom') {
-        defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
-
-        expect(parsed.feed.updated).toBe(expected)
+      if (parsed.format !== 'atom') {
+        throw new Error('Expected Atom feed')
       }
+
+      defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
+
+      expect(parsed.feed.updated).toBe(expected)
     })
 
     // This is an integration test to verify getSignature uses neutralizeUrls.
@@ -742,9 +759,7 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed = (await defaultParser.parse(value)) as DefaultParserResult
-
-      expect(parsed).toBeDefined()
+      const parsed = await parseOrThrow(value)
 
       const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed')
       const signature2 = defaultParser.getSignature(parsed, 'http://www.example.com/feed/')
@@ -773,11 +788,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
@@ -800,11 +812,8 @@ describe('defaultParser', () => {
           <generator>Jekyll</generator>
         </feed>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.atom')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.atom')
@@ -831,11 +840,8 @@ describe('defaultParser', () => {
           </channel>
         </rss>
       `
-      const parsed1 = (await defaultParser.parse(value1)) as DefaultParserResult
-      const parsed2 = (await defaultParser.parse(value2)) as DefaultParserResult
-
-      expect(parsed1).toBeDefined()
-      expect(parsed2).toBeDefined()
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
 
       const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
       const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')

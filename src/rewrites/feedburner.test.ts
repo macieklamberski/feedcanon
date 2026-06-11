@@ -26,6 +26,12 @@ describe('feedburnerRewrite', () => {
 
       expect(feedburnerRewrite.match(value)).toBe(false)
     })
+
+    it('should not match www.feedburner.com', () => {
+      const value = new URL('https://www.feedburner.com/example')
+
+      expect(feedburnerRewrite.match(value)).toBe(false)
+    })
   })
 
   describe('rewrite', () => {
@@ -51,8 +57,15 @@ describe('feedburnerRewrite', () => {
     })
 
     it('should preserve path', () => {
-      const value = new URL('https://feedproxy.google.com/~r/RockPaperShotgun/~3/ZG5fcDx64NA/')
-      const expected = 'https://feeds.feedburner.com/~r/RockPaperShotgun/~3/ZG5fcDx64NA'
+      const value = new URL('https://feedproxy.google.com/~r/ExampleBlog/~3/abc123XYZ/')
+      const expected = 'https://feeds.feedburner.com/~r/ExampleBlog/~3/abc123XYZ'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should keep http protocol unchanged', () => {
+      const value = new URL('http://feeds.feedburner.com/example')
+      const expected = 'http://feeds.feedburner.com/example'
 
       expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -75,6 +88,13 @@ describe('feedburnerRewrite', () => {
 
     it('should strip hash fragment', () => {
       const value = new URL('https://feeds.feedburner.com/example#section')
+      const expected = 'https://feeds.feedburner.com/example'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should strip empty query string', () => {
+      const value = new URL('https://feeds.feedburner.com/example?')
       const expected = 'https://feeds.feedburner.com/example'
 
       expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
