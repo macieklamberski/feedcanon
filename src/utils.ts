@@ -239,9 +239,7 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
     }
 
     return parsed.href
-  } catch {
-    return
-  }
+  } catch {}
 }
 
 const decodeAndNormalizeEncoding = (value: string): string => {
@@ -456,9 +454,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
   const escapeHost = (url: string): string | undefined => {
     try {
       return new URL('/', url).host.replace(wwwPrefixRegex, '').replaceAll('.', '\\.')
-    } catch {
-      return
-    }
+    } catch {}
   }
 
   const hosts = urls.map(escapeHost).filter(Boolean)
