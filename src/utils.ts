@@ -24,11 +24,9 @@ const ipv6Regex = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathCharsRegex = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
-
 const httpsLetterRegex = /s/i
 const protocolPrefixRegex = /^https?:\/\//
 const wwwPrefixRegex = /^www\./
-
 const httpProtocolRegex = /^http:\/\//i
 const httpsProtocolRegex = /^https:\/\//i
 
