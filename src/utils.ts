@@ -29,6 +29,8 @@ const protocolPrefixRegex = /^https?:\/\//
 const wwwPrefixRegex = /^www\./
 const httpProtocolRegex = /^http:\/\//i
 const httpsProtocolRegex = /^https:\/\//i
+// Protocol-relative authority introduced by a backslash (`\\host`, `/\host`, `\/host`).
+const backslashAuthorityRegex = /^\s*(?:\\[/\\]|\/\\)/
 
 // Pre-compiled patterns for fixMalformedProtocol.
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
@@ -210,6 +212,14 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   // expands entities with a trailing semicolon, so a query parameter whose name matches an
   // entity (e.g. `?id=1&copy=2`) is left intact instead of being mangled into `?id=1©=2`.
   resolvedUrl = url.includes('&') ? decodeHTMLStrict(url) : url
+
+  // Step 1b: Reject protocol-relative authorities introduced by a backslash. The WHATWG
+  // parser treats `\` as `/`, so `\\evil.com` or `/\evil.com` resolved against a base would
+  // rebase onto an attacker-named host. Legitimate protocol-relative URLs (`//host`) and
+  // malformed protocols repaired later (`http:\\host`) are unaffected.
+  if (backslashAuthorityRegex.test(resolvedUrl)) {
+    return
+  }
 
   // Step 2: Convert feed-related protocols.
   resolvedUrl = resolveFeedProtocol(resolvedUrl)

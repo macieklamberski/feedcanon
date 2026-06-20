@@ -737,6 +737,28 @@ describe('resolveUrl', () => {
     })
   })
 
+  describe('backslash authority rejection', () => {
+    const base = 'https://good.com/blog/'
+
+    it('should reject a backslash protocol-relative authority', () => {
+      expect(resolveUrl('\\\\evil.com', base)).toBeUndefined()
+      expect(resolveUrl('\\\\evil.com')).toBeUndefined()
+    })
+
+    it('should reject a mixed slash-backslash authority', () => {
+      expect(resolveUrl('/\\evil.com', base)).toBeUndefined()
+      expect(resolveUrl('\\/evil.com', base)).toBeUndefined()
+    })
+
+    it('should reject a backslash authority decoded from an HTML entity', () => {
+      expect(resolveUrl('&bsol;&bsol;evil.com', base)).toBeUndefined()
+    })
+
+    it('should still resolve a legitimate protocol-relative URL', () => {
+      expect(resolveUrl('//cdn.example.com/feed', base)).toBe('https://cdn.example.com/feed')
+    })
+  })
+
   describe('bare domains', () => {
     it('should add https:// to bare domain', () => {
       const value = 'example.com/feed.xml'
