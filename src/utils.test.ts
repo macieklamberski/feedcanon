@@ -2477,5 +2477,13 @@ describe('neutralizeUrls', () => {
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
+
+    it('should normalize same-domain URL when host is uppercased in the body', () => {
+      const url = 'https://example.com/feed'
+      const value = '{"link":"http://EXAMPLE.COM/post/1"}'
+      const expected = '{"link":"/post/1"}'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
   })
 })
