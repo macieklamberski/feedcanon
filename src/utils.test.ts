@@ -2063,10 +2063,24 @@ describe('createSignature', () => {
     expect(createSignature(value, [])).toBe(expected)
   })
 
-  it.todo('should restore fields when JSON.stringify throws on circular reference', () => {
-    // Object contains a circular reference, so JSON.stringify throws after the fields were already
-    // neutralized. The current implementation has no try/finally around the stringify, so the
-    // saved values are never restored. Potential source bug.
+  it('should omit only top-level fields, not same-named nested keys', () => {
+    const value = {
+      link: 'https://example.com/feed',
+      items: [{ link: 'https://example.com/post' }],
+    }
+    const expected = JSON.stringify({ items: [{ link: 'https://example.com/post' }] })
+
+    expect(createSignature(value, ['link'])).toBe(expected)
+  })
+
+  it('should leave the object intact when serialization throws', () => {
+    // BigInt is not serializable, so JSON.stringify throws. Because no field is mutated,
+    // the input object is unchanged — the prior implementation left it corrupted.
+    const value: Record<string, unknown> = { title: 'Test', big: 1n }
+
+    expect(() => createSignature(value, ['title'])).toThrow()
+    expect(value.title).toBe('Test')
+    expect(value.big).toBe(1n)
   })
 })
 

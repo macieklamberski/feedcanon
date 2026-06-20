@@ -429,19 +429,15 @@ export const createSignature = <T extends Record<string, unknown>>(
   object: T,
   fields: Array<keyof T>,
 ): string => {
-  const saved = fields.map((key) => [key, object[key]] as const)
+  const excluded = new Set(fields)
 
-  for (const key of fields) {
-    object[key] = undefined as T[keyof T]
-  }
-
-  const signature = JSON.stringify(object)
-
-  for (const [key, val] of saved) {
-    object[key] = val as T[keyof T]
-  }
-
-  return signature
+  // Omit the named top-level fields via a replacer instead of mutating the object.
+  // `this` is the holder of each property, so `this === object` matches only the
+  // root's own fields, leaving same-named keys on nested items untouched. This keeps
+  // the input feed object intact even if serialization throws, and adds no copy.
+  return JSON.stringify(object, function (this: unknown, key, value) {
+    return this === object && excluded.has(key as keyof T) ? undefined : value
+  })
 }
 
 // Static pattern that locates the start of each absolute HTTP(S) URL in feed text.
