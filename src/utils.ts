@@ -464,7 +464,10 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
 
   const hostPattern = hosts.length === 1 ? hosts[0] : `(?:${hosts.join('|')})`
 
+  // Case-insensitive: hosts are case-insensitive per RFC 3986, and `escapeHost`
+  // already lowercased them via the URL parser, so a host appearing uppercased
+  // in the feed body must still be neutralized.
   return text
-    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"]|\\\\")(/)?`, 'g'), '/')
+    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"]|\\\\")(/)?`, 'gi'), '/')
     .replace(trailingSlashRegex, '$1$2')
 }
