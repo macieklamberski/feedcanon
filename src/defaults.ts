@@ -289,24 +289,34 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       contentUrl = parsed.feed.home_page_url
       signature = createSignature(parsed.feed, ['feed_url'])
     } else {
+      // The self link is nested, so it is temporarily cleared rather than excluded by
+      // createSignature (which only omits top-level fields). The finally restores it even
+      // if serialization throws, so the input feed object is never left mutated.
       const selfLink = retrieveSelfLink(parsed)
       const savedSelfHref = selfLink?.href
       if (selfLink) {
         selfLink.href = undefined
       }
 
-      if (parsed.format === 'rss') {
-        contentUrl = parsed.feed.link
-        signature = createSignature(parsed.feed, ['lastBuildDate', 'pubDate', 'link', 'generator'])
-      } else if (parsed.format === 'rdf') {
-        contentUrl = parsed.feed.link
-        signature = createSignature(parsed.feed, ['link'])
-      } else {
-        signature = createSignature(parsed.feed, ['updated', 'generator'])
-      }
-
-      if (selfLink) {
-        selfLink.href = savedSelfHref
+      try {
+        if (parsed.format === 'rss') {
+          contentUrl = parsed.feed.link
+          signature = createSignature(parsed.feed, [
+            'lastBuildDate',
+            'pubDate',
+            'link',
+            'generator',
+          ])
+        } else if (parsed.format === 'rdf') {
+          contentUrl = parsed.feed.link
+          signature = createSignature(parsed.feed, ['link'])
+        } else {
+          signature = createSignature(parsed.feed, ['updated', 'generator'])
+        }
+      } finally {
+        if (selfLink) {
+          selfLink.href = savedSelfHref
+        }
       }
     }
 
