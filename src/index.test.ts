@@ -512,9 +512,8 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should preserve credentials added by redirect', async () => {
+      it('should reject a redirect that adds credentials', async () => {
         const value = 'https://example.com/feed'
-        const expected = 'https://user:token@example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -524,7 +523,7 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
         })
 
-        expect(await findCanonical(value, options)).toBe(expected)
+        expect(await findCanonical(value, options)).toBeUndefined()
       })
 
       it('should preserve non-standard port from redirect', async () => {
@@ -1757,9 +1756,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should use self URL with credentials when it validates', async () => {
+      it('should ignore a self URL with credentials and fall back to the bare host', async () => {
         const value = 'https://example.com/feed'
-        const expected = 'https://user:pass@example.com/feed'
+        const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({

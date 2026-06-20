@@ -665,10 +665,18 @@ describe('resolveUrl', () => {
       expect(resolveUrl(value)).toBe(value)
     })
 
-    it('should preserve authentication credentials', () => {
+    it('should reject authentication credentials', () => {
       const value = 'https://user:pass@example.com/feed.xml'
 
-      expect(resolveUrl(value)).toBe(value)
+      expect(resolveUrl(value)).toBeUndefined()
+    })
+
+    it('should reject userinfo injected via an HTML entity', () => {
+      // `&commat;` decodes to `@`, turning the real host into userinfo so the
+      // string reads as good.com while the host is actually evil.com.
+      const value = 'https://good.com&commat;evil.com/feed.xml'
+
+      expect(resolveUrl(value)).toBeUndefined()
     })
 
     it('should preserve non-standard ports', () => {

@@ -238,6 +238,14 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
       return
     }
 
+    // Reject userinfo. A feed self URL like `https://good.com&commat;evil.com/feed`
+    // decodes to `https://good.com@evil.com/feed`, whose actual host is evil.com
+    // while the string reads as good.com. Public feeds never carry credentials, so
+    // refusing them removes the host-confusion entirely.
+    if (parsed.username || parsed.password) {
+      return
+    }
+
     return parsed.href
   } catch {}
 }
