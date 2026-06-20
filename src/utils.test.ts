@@ -2398,26 +2398,28 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve URLs embedded in text (not standalone JSON values)', () => {
+    it('should neutralize own-host URLs embedded in text', () => {
+      // Preserving these would make a feed templating its own www vs non-www host
+      // into prose produce different signatures, so they are neutralized too.
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ description: 'Visit https://example.com for more' })
-      const expected = JSON.stringify({ description: 'Visit https://example.com for more' })
+      const expected = JSON.stringify({ description: 'Visit / for more' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve bare domain followed by space in text', () => {
+    it('should neutralize a bare own-host domain followed by a space', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ text: 'Check https://example.com now' })
-      const expected = JSON.stringify({ text: 'Check https://example.com now' })
+      const expected = JSON.stringify({ text: 'Check / now' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve URLs with authentication', () => {
+    it('should neutralize own-host URLs carrying authentication', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://user:pass@example.com/path' })
-      const expected = JSON.stringify({ link: 'https://user:pass@example.com/path' })
+      const expected = JSON.stringify({ link: '/path' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
@@ -2566,17 +2568,17 @@ describe('neutralizeUrls', () => {
 
     it('should normalize same-domain URL when host is uppercased in the body', () => {
       const url = 'https://example.com/feed'
-      const value = '{"link":"http://EXAMPLE.COM/post/1"}'
-      const expected = '{"link":"/post/1"}'
+      const value = JSON.stringify({ link: 'http://EXAMPLE.COM/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
   })
 
   describe('regex injection', () => {
-    it('should escape regex metacharacters in host without catastrophic backtracking', () => {
-      // The host comes from feed content. An unescaped `(a+)+` would be a ReDoS
-      // pattern; with a long matching run in the body it must still return quickly.
+    it('should not backtrack catastrophically on a host with regex metacharacters', () => {
+      // The host comes from feed content. Were it interpolated into a pattern, `(a+)+`
+      // would be a ReDoS; host matching parses tokens instead, so this returns quickly.
       const url = 'http://(a+)+x.com/feed'
       const value = `"https://${'a'.repeat(40)}!"`
 
@@ -2591,8 +2593,8 @@ describe('neutralizeUrls', () => {
 
     it('should neutralize a host containing regex metacharacters literally', () => {
       const url = 'http://a+b.example.com/feed'
-      const value = '{"link":"https://a+b.example.com/post"}'
-      const expected = '{"link":"/post"}'
+      const value = JSON.stringify({ link: 'https://a+b.example.com/post' })
+      const expected = JSON.stringify({ link: '/post' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
