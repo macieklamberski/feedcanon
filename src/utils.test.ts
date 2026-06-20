@@ -654,6 +654,18 @@ describe('resolveUrl', () => {
 
       expect(resolveUrl(value)).toBe(expected)
     })
+
+    it('should not decode a query parameter whose name matches an entity', () => {
+      const value = 'https://example.com/feed?id=1&copy=2&reg=us'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should not decode an unterminated entity in the query', () => {
+      const value = 'https://example.com/feed?a=1&sect=2&times=3'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
   })
 
   describe('standard HTTP/HTTPS URLs', () => {

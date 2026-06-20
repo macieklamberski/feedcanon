@@ -1,4 +1,4 @@
-import { decodeHTML } from 'entities'
+import { decodeHTMLStrict } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { MaybePromise, NormalizeOptions, Probe, Rewrite } from './types.js'
 
@@ -206,8 +206,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   let resolvedUrl: string | undefined
 
   // Step 1: Decode HTML entities to recover the intended URL.
-  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &).
-  resolvedUrl = url.includes('&') ? decodeHTML(url) : url
+  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &). Strict decoding only
+  // expands entities with a trailing semicolon, so a query parameter whose name matches an
+  // entity (e.g. `?id=1&copy=2`) is left intact instead of being mangled into `?id=1©=2`.
+  resolvedUrl = url.includes('&') ? decodeHTMLStrict(url) : url
 
   // Step 2: Convert feed-related protocols.
   resolvedUrl = resolveFeedProtocol(resolvedUrl)
