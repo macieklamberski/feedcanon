@@ -446,6 +446,8 @@ export const createSignature = <T extends Record<string, unknown>>(
 
 // Pre-compiled pattern for trailing slash normalization.
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
+// Regex metacharacters that must be escaped before a host is interpolated into a dynamic pattern.
+const regexMetaCharsRegex = /[.*+?^${}()|[\]\\]/g
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
   // Neutralizes URLs in text to ensure content differing only in URL
@@ -453,7 +455,9 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
 
   const escapeHost = (url: string): string | undefined => {
     try {
-      return new URL('/', url).host.replace(wwwPrefixRegex, '').replaceAll('.', '\\.')
+      // Fully escape regex metacharacters. The host comes from feed content,
+      // so an unescaped metacharacter (e.g. `(a+)+`) would be a ReDoS injection.
+      return new URL('/', url).host.replace(wwwPrefixRegex, '').replace(regexMetaCharsRegex, '\\$&')
     } catch {}
   }
 

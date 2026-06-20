@@ -2486,4 +2486,29 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
   })
+
+  describe('regex injection', () => {
+    it('should escape regex metacharacters in host without catastrophic backtracking', () => {
+      // The host comes from feed content. An unescaped `(a+)+` would be a ReDoS
+      // pattern; with a long matching run in the body it must still return quickly.
+      const url = 'http://(a+)+x.com/feed'
+      const value = `"https://${'a'.repeat(40)}!"`
+
+      const start = performance.now()
+      const result = neutralizeUrls(value, [url])
+      const elapsed = performance.now() - start
+
+      expect(elapsed).toBeLessThan(1000)
+      // The literal `(a+)+x.com` host is not present in the body, so nothing is neutralized.
+      expect(result).toBe(value)
+    })
+
+    it('should neutralize a host containing regex metacharacters literally', () => {
+      const url = 'http://a+b.example.com/feed'
+      const value = '{"link":"https://a+b.example.com/post"}'
+      const expected = '{"link":"/post"}'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+  })
 })
