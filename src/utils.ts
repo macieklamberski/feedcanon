@@ -444,34 +444,71 @@ export const createSignature = <T extends Record<string, unknown>>(
   return signature
 }
 
-// Pre-compiled pattern for trailing slash normalization.
+// Static pattern that locates the start of each absolute HTTP(S) URL in feed text.
+// Fixed and never built from feed input, so it carries no ReDoS risk. A URL token runs
+// from a match to the next delimiter (quote, whitespace, angle bracket, backslash, `}`).
+const urlSchemeRegex = /https?:\/\//gi
+const urlDelimiterRegex = /[\s"'<>\\}]/
+// Strips a trailing slash from any URL or root-relative path before a quote or query.
+// Static and linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
-// Regex metacharacters that must be escaped before a host is interpolated into a dynamic pattern.
-const regexMetaCharsRegex = /[.*+?^${}()|[\]\\]/g
+
+const neutralizeHost = (url: string): string | undefined => {
+  try {
+    return new URL(url).host.replace(wwwPrefixRegex, '').toLowerCase()
+  } catch {}
+}
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
-  // Neutralizes URLs in text to ensure content differing only in URL
-  // forms (http/https, www/non-www, trailing slash) produces identical output.
-
-  const escapeHost = (url: string): string | undefined => {
-    try {
-      // Fully escape regex metacharacters. The host comes from feed content,
-      // so an unescaped metacharacter (e.g. `(a+)+`) would be a ReDoS injection.
-      return new URL('/', url).host.replace(wwwPrefixRegex, '').replace(regexMetaCharsRegex, '\\$&')
-    } catch {}
-  }
-
-  const hosts = urls.map(escapeHost).filter(Boolean)
-  if (hosts.length === 0) {
+  // Rewrites each occurrence of a feed's own URL to a root-relative form, so content
+  // differing only in URL form (http/https, www/non-www, trailing slash, host casing)
+  // produces identical output. Each URL is located by scanning for the scheme and parsed
+  // with the URL API for host comparison — the feed-supplied host is never interpolated
+  // into a pattern, which is what previously made this a ReDoS injection point.
+  const hosts = new Set(urls.map(neutralizeHost).filter(Boolean))
+  if (hosts.size === 0) {
     return text
   }
 
-  const hostPattern = hosts.length === 1 ? hosts[0] : `(?:${hosts.join('|')})`
+  let result = ''
+  let lastIndex = 0
+  urlSchemeRegex.lastIndex = 0
 
-  // Case-insensitive: hosts are case-insensitive per RFC 3986, and `escapeHost`
-  // already lowercased them via the URL parser, so a host appearing uppercased
-  // in the feed body must still be neutralized.
-  return text
-    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"]|\\\\")(/)?`, 'gi'), '/')
-    .replace(trailingSlashRegex, '$1$2')
+  for (let match = urlSchemeRegex.exec(text); match; match = urlSchemeRegex.exec(text)) {
+    const start = match.index
+
+    // Skip schemes inside a URL that was already rewritten (e.g. a nested URL in a query).
+    if (start < lastIndex) {
+      continue
+    }
+
+    let end = start
+    while (end < text.length && !urlDelimiterRegex.test(text[end])) {
+      end++
+    }
+
+    let parsed: URL
+    try {
+      parsed = new URL(text.slice(start, end))
+    } catch {
+      continue
+    }
+
+    if (!hosts.has(parsed.host.replace(wwwPrefixRegex, '').toLowerCase())) {
+      continue
+    }
+
+    // Root-relative form with the trailing slash collapsed (the root path stays `/`).
+    let path = parsed.pathname
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.slice(0, -1)
+    }
+
+    result += text.slice(lastIndex, start) + path + parsed.search + parsed.hash
+    lastIndex = end
+  }
+
+  result += text.slice(lastIndex)
+
+  return result.replace(trailingSlashRegex, '$1$2')
 }
