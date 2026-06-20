@@ -2314,26 +2314,28 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve URLs embedded in text (not standalone JSON values)', () => {
+    it('should neutralize own-host URLs embedded in text', () => {
+      // Preserving these would make a feed templating its own www vs non-www host
+      // into prose produce different signatures, so they are neutralized too.
       const url = 'https://example.com/feed'
       const value = '{"description":"Visit https://example.com for more"}'
-      const expected = '{"description":"Visit https://example.com for more"}'
+      const expected = '{"description":"Visit / for more"}'
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve bare domain followed by space in text', () => {
+    it('should neutralize a bare own-host domain followed by a space', () => {
       const url = 'https://example.com/feed'
       const value = '{"text":"Check https://example.com now"}'
-      const expected = '{"text":"Check https://example.com now"}'
+      const expected = '{"text":"Check / now"}'
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve URLs with authentication', () => {
+    it('should neutralize own-host URLs carrying authentication', () => {
       const url = 'https://example.com/feed'
       const value = '{"link":"https://user:pass@example.com/path"}'
-      const expected = '{"link":"https://user:pass@example.com/path"}'
+      const expected = '{"link":"/path"}'
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
@@ -2488,9 +2490,9 @@ describe('neutralizeUrls', () => {
   })
 
   describe('regex injection', () => {
-    it('should escape regex metacharacters in host without catastrophic backtracking', () => {
-      // The host comes from feed content. An unescaped `(a+)+` would be a ReDoS
-      // pattern; with a long matching run in the body it must still return quickly.
+    it('should not backtrack catastrophically on a host with regex metacharacters', () => {
+      // The host comes from feed content. Were it interpolated into a pattern, `(a+)+`
+      // would be a ReDoS; host matching parses tokens instead, so this returns quickly.
       const url = 'http://(a+)+x.com/feed'
       const value = `"https://${'a'.repeat(40)}!"`
 
