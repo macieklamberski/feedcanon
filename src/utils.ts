@@ -1,4 +1,4 @@
-import { decodeHTML } from 'entities'
+import { decodeHTMLStrict } from 'entities'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { MaybePromise, NormalizeOptions, Probe, Rewrite } from './types.js'
 
@@ -24,11 +24,9 @@ const ipv6Regex = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 
 // Characters that are safe in URL path segments and don't need percent encoding.
 const safePathCharsRegex = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
-
 const httpsLetterRegex = /s/i
 const protocolPrefixRegex = /^https?:\/\//
 const wwwPrefixRegex = /^www\./
-
 const httpProtocolRegex = /^http:\/\//i
 const httpsProtocolRegex = /^https:\/\//i
 
@@ -208,8 +206,10 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   let resolvedUrl: string | undefined
 
   // Step 1: Decode HTML entities to recover the intended URL.
-  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &).
-  resolvedUrl = url.includes('&') ? decodeHTML(url) : url
+  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &). Strict decoding only
+  // expands entities with a trailing semicolon, so a query parameter whose name matches an
+  // entity (e.g. `?id=1&copy=2`) is left intact instead of being mangled into `?id=1©=2`.
+  resolvedUrl = url.includes('&') ? decodeHTMLStrict(url) : url
 
   // Step 2: Convert feed-related protocols.
   resolvedUrl = resolveFeedProtocol(resolvedUrl)
@@ -429,42 +429,82 @@ export const createSignature = <T extends Record<string, unknown>>(
   object: T,
   fields: Array<keyof T>,
 ): string => {
-  const saved = fields.map((key) => [key, object[key]] as const)
+  const excluded = new Set(fields)
 
-  for (const key of fields) {
-    object[key] = undefined as T[keyof T]
-  }
-
-  const signature = JSON.stringify(object)
-
-  for (const [key, val] of saved) {
-    object[key] = val as T[keyof T]
-  }
-
-  return signature
+  // Omit the named top-level fields via a replacer instead of mutating the object.
+  // `this` is the holder of each property, so `this === object` matches only the
+  // root's own fields, leaving same-named keys on nested items untouched. This keeps
+  // the input feed object intact even if serialization throws, and adds no copy.
+  return JSON.stringify(object, function (this: unknown, key, value) {
+    return this === object && excluded.has(key as keyof T) ? undefined : value
+  })
 }
 
-// Pre-compiled pattern for trailing slash normalization.
+// Static pattern that locates the start of each absolute HTTP(S) URL in feed text.
+// Fixed and never built from feed input, so it carries no ReDoS risk. A URL token runs
+// from a match to the next delimiter (quote, whitespace, angle bracket, backslash, `}`).
+const urlSchemeRegex = /https?:\/\//gi
+const urlDelimiterRegex = /[\s"'<>\\}]/
+// Strips a trailing slash from any URL or root-relative path before a quote or query.
+// Static and linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
+const neutralizeHost = (url: string): string | undefined => {
+  try {
+    return new URL(url).host.replace(wwwPrefixRegex, '').toLowerCase()
+  } catch {}
+}
+
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
-  // Neutralizes URLs in text to ensure content differing only in URL
-  // forms (http/https, www/non-www, trailing slash) produces identical output.
-
-  const escapeHost = (url: string): string | undefined => {
-    try {
-      return new URL('/', url).host.replace(wwwPrefixRegex, '').replaceAll('.', '\\.')
-    } catch {}
-  }
-
-  const hosts = urls.map(escapeHost).filter(Boolean)
-  if (hosts.length === 0) {
+  // Rewrites each occurrence of a feed's own URL to a root-relative form, so content
+  // differing only in URL form (http/https, www/non-www, trailing slash, host casing)
+  // produces identical output. Each URL is located by scanning for the scheme and parsed
+  // with the URL API for host comparison — the feed-supplied host is never interpolated
+  // into a pattern, which is what previously made this a ReDoS injection point.
+  const hosts = new Set(urls.map(neutralizeHost).filter(Boolean))
+  if (hosts.size === 0) {
     return text
   }
 
-  const hostPattern = hosts.length === 1 ? hosts[0] : `(?:${hosts.join('|')})`
+  let result = ''
+  let lastIndex = 0
+  urlSchemeRegex.lastIndex = 0
 
-  return text
-    .replace(new RegExp(`https?://(?:www\\.)?${hostPattern}(?=[/"]|\\\\")(/)?`, 'g'), '/')
-    .replace(trailingSlashRegex, '$1$2')
+  for (let match = urlSchemeRegex.exec(text); match; match = urlSchemeRegex.exec(text)) {
+    const start = match.index
+
+    // Skip schemes inside a URL that was already rewritten (e.g. a nested URL in a query).
+    if (start < lastIndex) {
+      continue
+    }
+
+    let end = start
+    while (end < text.length && !urlDelimiterRegex.test(text[end])) {
+      end++
+    }
+
+    let parsed: URL
+    try {
+      parsed = new URL(text.slice(start, end))
+    } catch {
+      continue
+    }
+
+    if (!hosts.has(parsed.host.replace(wwwPrefixRegex, '').toLowerCase())) {
+      continue
+    }
+
+    // Root-relative form with the trailing slash collapsed (the root path stays `/`).
+    let path = parsed.pathname
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.slice(0, -1)
+    }
+
+    result += text.slice(lastIndex, start) + path + parsed.search + parsed.hash
+    lastIndex = end
+  }
+
+  result += text.slice(lastIndex)
+
+  return result.replace(trailingSlashRegex, '$1$2')
 }

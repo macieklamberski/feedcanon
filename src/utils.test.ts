@@ -654,6 +654,18 @@ describe('resolveUrl', () => {
 
       expect(resolveUrl(value)).toBe(expected)
     })
+
+    it('should not decode a query parameter whose name matches an entity', () => {
+      const value = 'https://example.com/feed?id=1&copy=2&reg=us'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should not decode an unterminated entity in the query', () => {
+      const value = 'https://example.com/feed?a=1&sect=2&times=3'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
   })
 
   describe('standard HTTP/HTTPS URLs', () => {
@@ -2051,10 +2063,24 @@ describe('createSignature', () => {
     expect(createSignature(value, [])).toBe(expected)
   })
 
-  it.todo('should restore fields when JSON.stringify throws on circular reference', () => {
-    // Object contains a circular reference, so JSON.stringify throws after the fields were already
-    // neutralized. The current implementation has no try/finally around the stringify, so the
-    // saved values are never restored. Potential source bug.
+  it('should omit only top-level fields, not same-named nested keys', () => {
+    const value = {
+      link: 'https://example.com/feed',
+      items: [{ link: 'https://example.com/post' }],
+    }
+    const expected = JSON.stringify({ items: [{ link: 'https://example.com/post' }] })
+
+    expect(createSignature(value, ['link'])).toBe(expected)
+  })
+
+  it('should leave the object intact when serialization throws', () => {
+    // BigInt is not serializable, so JSON.stringify throws. Because no field is mutated,
+    // the input object is unchanged — the prior implementation left it corrupted.
+    const value: Record<string, unknown> = { title: 'Test', big: 1n }
+
+    expect(() => createSignature(value, ['title'])).toThrow()
+    expect(value.title).toBe('Test')
+    expect(value.big).toBe(1n)
   })
 })
 
@@ -2386,26 +2412,28 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve URLs embedded in text (not standalone JSON values)', () => {
+    it('should neutralize own-host URLs embedded in text', () => {
+      // Preserving these would make a feed templating its own www vs non-www host
+      // into prose produce different signatures, so they are neutralized too.
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ description: 'Visit https://example.com for more' })
-      const expected = JSON.stringify({ description: 'Visit https://example.com for more' })
+      const expected = JSON.stringify({ description: 'Visit / for more' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve bare domain followed by space in text', () => {
+    it('should neutralize a bare own-host domain followed by a space', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ text: 'Check https://example.com now' })
-      const expected = JSON.stringify({ text: 'Check https://example.com now' })
+      const expected = JSON.stringify({ text: 'Check / now' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve URLs with authentication', () => {
+    it('should neutralize own-host URLs carrying authentication', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://user:pass@example.com/path' })
-      const expected = JSON.stringify({ link: 'https://user:pass@example.com/path' })
+      const expected = JSON.stringify({ link: '/path' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
@@ -2548,6 +2576,39 @@ describe('neutralizeUrls', () => {
         link: '/post',
         description: '<a href="/other">',
       })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize same-domain URL when host is uppercased in the body', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'http://EXAMPLE.COM/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+  })
+
+  describe('regex injection', () => {
+    it('should not backtrack catastrophically on a host with regex metacharacters', () => {
+      // The host comes from feed content. Were it interpolated into a pattern, `(a+)+`
+      // would be a ReDoS; host matching parses tokens instead, so this returns quickly.
+      const url = 'http://(a+)+x.com/feed'
+      const value = `"https://${'a'.repeat(40)}!"`
+
+      const start = performance.now()
+      const result = neutralizeUrls(value, [url])
+      const elapsed = performance.now() - start
+
+      expect(elapsed).toBeLessThan(1000)
+      // The literal `(a+)+x.com` host is not present in the body, so nothing is neutralized.
+      expect(result).toBe(value)
+    })
+
+    it('should neutralize a host containing regex metacharacters literally', () => {
+      const url = 'http://a+b.example.com/feed'
+      const value = JSON.stringify({ link: 'https://a+b.example.com/post' })
+      const expected = JSON.stringify({ link: '/post' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
