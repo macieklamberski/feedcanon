@@ -1,4 +1,5 @@
 import { decodeHTMLStrict } from 'entities'
+import { parseUrl } from 'trousse'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { MaybePromise, NormalizeOptions, Probe, Rewrite } from './types.js'
 
@@ -135,25 +136,26 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
 
   // Case 1: Protocol-relative URL (//example.com).
   if (url.startsWith('//') && !url.startsWith('///')) {
-    try {
-      const parsed = new URL(`${protocol}:${url}`)
-      const hostname = parsed.hostname
+    const parsed = parseUrl(`${protocol}:${url}`)
 
-      // Valid web hostnames must have at least one of:
-      // Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
-      if (
-        hostname.includes('.') ||
-        hostname === 'localhost' ||
-        ipv4Regex.test(hostname) ||
-        ipv6Regex.test(hostname.replace(/^\[|\]$/g, ''))
-      ) {
-        return parsed.href
-      }
-
-      return url
-    } catch {
+    if (!parsed) {
       return url
     }
+
+    const hostname = parsed.hostname
+
+    // Valid web hostnames must have at least one of:
+    // Note: IPv6 hostnames include brackets (e.g., [::1]), strip them for pattern matching.
+    if (
+      hostname.includes('.') ||
+      hostname === 'localhost' ||
+      ipv4Regex.test(hostname) ||
+      ipv6Regex.test(hostname.replace(/^\[|\]$/g, ''))
+    ) {
+      return parsed.href
+    }
+
+    return url
   }
 
   // Case 2: Bare domain (example.com/feed).
@@ -219,27 +221,26 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 
   // Step 4: Resolve relative URLs if base is provided.
   if (base) {
-    try {
-      resolvedUrl = new URL(resolvedUrl, base).href
-    } catch {
+    const resolved = parseUrl(resolvedUrl, base)?.href
+
+    if (!resolved) {
       return
     }
+
+    resolvedUrl = resolved
   }
 
   // Step 5: Add protocol if missing (handles both // and bare domains).
   resolvedUrl = addMissingProtocol(resolvedUrl)
 
-  // Step 6: Validate using native URL constructor.
-  try {
-    const parsed = new URL(resolvedUrl)
+  // Step 6: Validate and reject non-HTTP(S) protocols.
+  const parsed = parseUrl(resolvedUrl)
 
-    // Reject non-HTTP(S) protocols.
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return
-    }
+  if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+    return
+  }
 
-    return parsed.href
-  } catch {}
+  return parsed.href
 }
 
 const decodeAndNormalizeEncoding = (value: string): string => {
@@ -450,9 +451,7 @@ const urlDelimiterRegex = /[\s"'<>\\}]/
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
 const neutralizeHost = (url: string): string | undefined => {
-  try {
-    return new URL(url).host.replace(wwwPrefixRegex, '').toLowerCase()
-  } catch {}
+  return parseUrl(url)?.host.replace(wwwPrefixRegex, '').toLowerCase()
 }
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
@@ -483,10 +482,9 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       end++
     }
 
-    let parsed: URL
-    try {
-      parsed = new URL(text.slice(start, end))
-    } catch {
+    const parsed = parseUrl(text.slice(start, end))
+
+    if (!parsed) {
       continue
     }
 
