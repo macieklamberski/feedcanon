@@ -90,6 +90,19 @@ export const fixMalformedProtocol = (url: string): string => {
 const feedProtocols = ['feed:', 'rss:', 'podcast:', 'pcast:', 'itpc:']
 
 export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
+  // Feed schemes start with f, r, p, or i — anything else (http/https, the common case)
+  // returns immediately without lowercasing the whole URL. `| 32` lowercases ASCII letters.
+  const firstCharCode = url.charCodeAt(0) | 32
+
+  if (
+    firstCharCode !== 102 && // f
+    firstCharCode !== 114 && // r
+    firstCharCode !== 112 && // p
+    firstCharCode !== 105 // i
+  ) {
+    return url
+  }
+
   const urlLower = url.toLowerCase()
 
   for (const scheme of feedProtocols) {
