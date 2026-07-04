@@ -104,6 +104,14 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol(value)).toBe(value)
   })
 
+  it('should return non-feed URLs starting with feed-scheme letters unchanged', () => {
+    expect(resolveFeedProtocol('ftp://example.com/feed.xml')).toBe('ftp://example.com/feed.xml')
+    expect(resolveFeedProtocol('irc://irc.example.com/feeds')).toBe('irc://irc.example.com/feeds')
+    expect(resolveFeedProtocol('feeds.example.com/rss')).toBe('feeds.example.com/rss')
+    expect(resolveFeedProtocol('podcasts.example.com/feed')).toBe('podcasts.example.com/feed')
+    expect(resolveFeedProtocol('rss.example.com/feed')).toBe('rss.example.com/feed')
+  })
+
   it('should return absolute path URLs unchanged', () => {
     const value = '/path/to/feed'
 
