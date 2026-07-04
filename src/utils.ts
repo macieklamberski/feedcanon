@@ -465,7 +465,7 @@ export const createSignature = <T extends Record<string, unknown>>(
 // Fixed and never built from feed input, so it carries no ReDoS risk. A URL token runs
 // from a match to the next delimiter (quote, whitespace, angle bracket, backslash, `}`).
 const urlSchemeRegex = /https?:\/\//gi
-const urlDelimiterRegex = /[\s"'<>\\}]/
+const urlDelimiterRegex = /[\s"'<>\\}]/g
 // Strips a trailing slash from any URL or root-relative path before a quote or query.
 // Static and linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
@@ -497,10 +497,12 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       continue
     }
 
-    let end = start
-    while (end < text.length && !urlDelimiterRegex.test(text[end])) {
-      end++
-    }
+    // Seek the next delimiter with one global-regex search instead of testing each
+    // character on a fresh one-char string.
+    urlDelimiterRegex.lastIndex = start
+
+    const delimiterMatch = urlDelimiterRegex.exec(text)
+    const end = delimiterMatch ? delimiterMatch.index : text.length
 
     const parsed = parseUrl(text.slice(start, end))
 

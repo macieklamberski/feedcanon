@@ -2457,6 +2457,27 @@ describe('neutralizeUrls', () => {
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
+
+    it('should end the URL token at unicode whitespace', () => {
+      // Built with fromCharCode because literal invisible characters get mangled by tooling.
+      const noBreakSpace = String.fromCharCode(0x00a0)
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ text: `see https://example.com/post/1${noBreakSpace}next` })
+      const expected = JSON.stringify({ text: `see /post/1${noBreakSpace}next` })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should keep non-whitespace invisible characters inside the URL token', () => {
+      // Zero-width space is not regex whitespace, so it stays part of the URL and the
+      // URL API percent-encodes it in the rewritten path.
+      const zeroWidthSpace = String.fromCharCode(0x200b)
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ text: `see https://example.com/post/1${zeroWidthSpace}next` })
+      const expected = JSON.stringify({ text: 'see /post/1%E2%80%8Bnext' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
   })
 
   describe('error handling', () => {
