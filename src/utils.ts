@@ -234,13 +234,20 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 
   // Step 4: Resolve relative URLs if base is provided.
   if (base) {
-    const resolved = parseUrl(resolvedUrl, base)?.href
+    const resolved = parseUrl(resolvedUrl, base)
 
     if (!resolved) {
       return
     }
 
-    resolvedUrl = resolved
+    // Fast path: an absolute http(s) href needs no protocol repair (step 5 leaves
+    // schemed URLs untouched) and reparsing an href is idempotent, so step 6 would
+    // reproduce this exact parse.
+    if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
+      return resolved.href
+    }
+
+    resolvedUrl = resolved.href
   }
 
   // Step 5: Add protocol if missing (handles both // and bare domains).
