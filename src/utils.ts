@@ -233,7 +233,16 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   // Step 4: Resolve relative URLs if base is provided.
   if (base) {
     try {
-      resolvedUrl = new URL(resolvedUrl, base).href
+      const resolved = new URL(resolvedUrl, base)
+
+      // Fast path: an absolute http(s) href needs no protocol repair (step 5 leaves
+      // schemed URLs untouched) and reparsing an href is idempotent, so step 6 would
+      // reproduce this exact parse.
+      if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
+        return resolved.href
+      }
+
+      resolvedUrl = resolved.href
     } catch {
       return
     }

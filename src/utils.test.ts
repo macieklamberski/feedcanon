@@ -825,6 +825,18 @@ describe('resolveUrl', () => {
 
       expect(resolveUrl(value, 'http://example.com/blog/')).toBe(expected)
     })
+
+    it('should return undefined for non-HTTP protocol when base is provided', () => {
+      expect(resolveUrl('mailto:feed@example.com', base)).toBeUndefined()
+      expect(resolveUrl('ftp://example.com/feed.xml', base)).toBeUndefined()
+    })
+
+    it('should add protocol to localhost with port when base is provided', () => {
+      const value = 'localhost:8080/feed.xml'
+      const expected = 'https://localhost:8080/feed.xml'
+
+      expect(resolveUrl(value, base)).toBe(expected)
+    })
   })
 
   describe('URL normalization', () => {
