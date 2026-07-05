@@ -91,6 +91,19 @@ export const fixMalformedProtocol = (url: string): string => {
 const feedProtocols = ['feed:', 'rss:', 'podcast:', 'pcast:', 'itpc:']
 
 export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
+  // Feed schemes start with f, r, p, or i — anything else (http/https, the common case)
+  // returns immediately without lowercasing the whole URL. `| 32` lowercases ASCII letters.
+  const firstCharCode = url.charCodeAt(0) | 32
+
+  if (
+    firstCharCode !== 102 && // f
+    firstCharCode !== 114 && // r
+    firstCharCode !== 112 && // p
+    firstCharCode !== 105 // i
+  ) {
+    return url
+  }
+
   const urlLower = url.toLowerCase()
 
   for (const scheme of feedProtocols) {
@@ -221,13 +234,20 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 
   // Step 4: Resolve relative URLs if base is provided.
   if (base) {
-    const resolved = parseUrl(resolvedUrl, base)?.href
+    const resolved = parseUrl(resolvedUrl, base)
 
     if (!resolved) {
       return
     }
 
-    resolvedUrl = resolved
+    // Fast path: an absolute http(s) href needs no protocol repair (step 5 leaves
+    // schemed URLs untouched) and reparsing an href is idempotent, so step 6 would
+    // reproduce this exact parse.
+    if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
+      return resolved.href
+    }
+
+    resolvedUrl = resolved.href
   }
 
   // Step 5: Add protocol if missing (handles both // and bare domains).
@@ -445,7 +465,7 @@ export const createSignature = <T extends Record<string, unknown>>(
 // Fixed and never built from feed input, so it carries no ReDoS risk. A URL token runs
 // from a match to the next delimiter (quote, whitespace, angle bracket, backslash, `}`).
 const urlSchemeRegex = /https?:\/\//gi
-const urlDelimiterRegex = /[\s"'<>\\}]/
+const urlDelimiterRegex = /[\s"'<>\\}]/g
 // Strips a trailing slash from any URL or root-relative path before a quote or query.
 // Static and linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
@@ -477,10 +497,12 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       continue
     }
 
-    let end = start
-    while (end < text.length && !urlDelimiterRegex.test(text[end])) {
-      end++
-    }
+    // Seek the next delimiter with one global-regex search instead of testing each
+    // character on a fresh one-char string.
+    urlDelimiterRegex.lastIndex = start
+
+    const delimiterMatch = urlDelimiterRegex.exec(text)
+    const end = delimiterMatch ? delimiterMatch.index : text.length
 
     const parsed = parseUrl(text.slice(start, end))
 

@@ -104,6 +104,14 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol(value)).toBe(value)
   })
 
+  it('should return non-feed URLs starting with feed-scheme letters unchanged', () => {
+    expect(resolveFeedProtocol('ftp://example.com/feed.xml')).toBe('ftp://example.com/feed.xml')
+    expect(resolveFeedProtocol('irc://irc.example.com/feeds')).toBe('irc://irc.example.com/feeds')
+    expect(resolveFeedProtocol('feeds.example.com/rss')).toBe('feeds.example.com/rss')
+    expect(resolveFeedProtocol('podcasts.example.com/feed')).toBe('podcasts.example.com/feed')
+    expect(resolveFeedProtocol('rss.example.com/feed')).toBe('rss.example.com/feed')
+  })
+
   it('should return absolute path URLs unchanged', () => {
     const value = '/path/to/feed'
 
@@ -844,6 +852,18 @@ describe('resolveUrl', () => {
       const expected = 'http://example.com/blog/feed.xml'
 
       expect(resolveUrl(value, 'http://example.com/blog/')).toBe(expected)
+    })
+
+    it('should return undefined for non-HTTP protocol when base is provided', () => {
+      expect(resolveUrl('mailto:feed@example.com', base)).toBeUndefined()
+      expect(resolveUrl('ftp://example.com/feed.xml', base)).toBeUndefined()
+    })
+
+    it('should add protocol to localhost with port when base is provided', () => {
+      const value = 'localhost:8080/feed.xml'
+      const expected = 'https://localhost:8080/feed.xml'
+
+      expect(resolveUrl(value, base)).toBe(expected)
     })
   })
 
@@ -2434,6 +2454,27 @@ describe('neutralizeUrls', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://user:pass@example.com/path' })
       const expected = JSON.stringify({ link: '/path' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should end the URL token at unicode whitespace', () => {
+      // Built with fromCharCode because literal invisible characters get mangled by tooling.
+      const noBreakSpace = String.fromCharCode(0x00a0)
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ text: `see https://example.com/post/1${noBreakSpace}next` })
+      const expected = JSON.stringify({ text: `see /post/1${noBreakSpace}next` })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should keep non-whitespace invisible characters inside the URL token', () => {
+      // Zero-width space is not regex whitespace, so it stays part of the URL and the
+      // URL API percent-encodes it in the rewritten path.
+      const zeroWidthSpace = String.fromCharCode(0x200b)
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ text: `see https://example.com/post/1${zeroWidthSpace}next` })
+      const expected = JSON.stringify({ text: 'see /post/1%E2%80%8Bnext' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
