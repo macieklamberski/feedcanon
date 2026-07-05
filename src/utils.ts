@@ -91,8 +91,8 @@ export const fixMalformedProtocol = (url: string): string => {
 const feedProtocols = ['feed:', 'rss:', 'podcast:', 'pcast:', 'itpc:']
 
 export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-  // Feed schemes start with f, r, p, or i — anything else (http/https, the common case)
-  // returns immediately without lowercasing the whole URL. `| 32` lowercases ASCII letters.
+  // Feed schemes start with f, r, p, or i, so anything else returns before lowercasing
+  // the whole URL. `| 32` lowercases an ASCII letter.
   const firstCharCode = url.charCodeAt(0) | 32
 
   if (
@@ -240,9 +240,8 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
       return
     }
 
-    // Fast path: an absolute http(s) href needs no protocol repair (step 5 leaves
-    // schemed URLs untouched) and reparsing an href is idempotent, so step 6 would
-    // reproduce this exact parse.
+    // An absolute http(s) href needs no protocol repair and reparsing it changes
+    // nothing, so return it directly.
     if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
       return resolved.href
     }
@@ -497,8 +496,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       continue
     }
 
-    // Seek the next delimiter with one global-regex search instead of testing each
-    // character on a fresh one-char string.
+    // Find the next delimiter with one regex search instead of a per-character test.
     urlDelimiterRegex.lastIndex = start
 
     const delimiterMatch = urlDelimiterRegex.exec(text)

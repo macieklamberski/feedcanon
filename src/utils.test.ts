@@ -2459,7 +2459,7 @@ describe('neutralizeUrls', () => {
     })
 
     it('should end the URL token at unicode whitespace', () => {
-      // Built with fromCharCode because literal invisible characters get mangled by tooling.
+      // fromCharCode because a literal invisible character gets mangled by tooling.
       const noBreakSpace = String.fromCharCode(0x00a0)
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ text: `see https://example.com/post/1${noBreakSpace}next` })
@@ -2469,8 +2469,8 @@ describe('neutralizeUrls', () => {
     })
 
     it('should keep non-whitespace invisible characters inside the URL token', () => {
-      // Zero-width space is not regex whitespace, so it stays part of the URL and the
-      // URL API percent-encodes it in the rewritten path.
+      // fromCharCode because a literal invisible character gets mangled by tooling.
+      // A zero-width space is not regex whitespace, so it stays inside the URL.
       const zeroWidthSpace = String.fromCharCode(0x200b)
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ text: `see https://example.com/post/1${zeroWidthSpace}next` })
