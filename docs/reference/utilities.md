@@ -109,7 +109,7 @@ Converts feed-related protocols to HTTP(S).
 
 #### Supported Protocols
 
-`feed://`, `feed:https://`, `feed:http://`, `rss://`, `podcast://`, `pcast://`, `itpc://`
+`feed://`, `feed:https://`, `feed:http://`, `rss://`, `podcast://`, `podcasts://`, `pcast://`, `itpc://`, `itms://`, `itms-pcast://`, `itms-pcasts://`, `itms-podcast://`, `itms-podcasts://`
 
 #### Example
 
