@@ -88,7 +88,20 @@ export const fixMalformedProtocol = (url: string): string => {
 // - rss://example.com/feed.xml → https://example.com/feed.xml
 // - pcast://example.com/podcast.xml → https://example.com/podcast.xml
 // - itpc://example.com/podcast.xml → https://example.com/podcast.xml
-const feedProtocols = ['feed:', 'rss:', 'podcast:', 'pcast:', 'itpc:']
+// - itms-podcast://example.com/podcast.xml → https://example.com/podcast.xml
+const feedProtocols = [
+  'feed:',
+  'rss:',
+  'podcast:',
+  'podcasts:',
+  'pcast:',
+  'itpc:',
+  'itms:',
+  'itms-pcast:',
+  'itms-pcasts:',
+  'itms-podcast:',
+  'itms-podcasts:',
+]
 
 export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
   // Feed schemes start with f, r, p, or i, so anything else returns before lowercasing

@@ -92,6 +92,62 @@ describe('resolveFeedProtocol', () => {
     expect(resolveFeedProtocol(value)).toBe(expected)
   })
 
+  it('should convert podcasts:// to https://', () => {
+    const value = 'podcasts://example.com/feed.xml'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should unwrap podcasts:https:// to https://', () => {
+    const value = 'podcasts:https://example.com/feed.xml'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should convert itms:// to https://', () => {
+    const value = 'itms://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should convert itms-pcast:// to https://', () => {
+    const value = 'itms-pcast://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should convert itms-pcasts:// to https://', () => {
+    const value = 'itms-pcasts://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should convert itms-podcast:// to https://', () => {
+    const value = 'itms-podcast://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should convert itms-podcasts:// to https://', () => {
+    const value = 'itms-podcasts://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
+  it('should unwrap itms-podcast:https:// to https://', () => {
+    const value = 'itms-podcast:https://example.com/podcast.xml'
+    const expected = 'https://example.com/podcast.xml'
+
+    expect(resolveFeedProtocol(value)).toBe(expected)
+  })
+
   it('should return https URLs unchanged', () => {
     const value = 'https://example.com/feed.xml'
 
