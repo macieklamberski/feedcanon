@@ -414,9 +414,11 @@ export const normalizeUrl = (
     }
 
     // Sort query parameters. A query holding one pair is already in order, so only a query with a
-    // separator is worth splitting.
+    // separator is worth splitting. Empty pairs go out first, or they sort ahead of everything and
+    // turn `?b=1&` into `?&b=1`.
     if (options.sortQueryParams && parsed.search.includes('&')) {
-      parsed.search = parsed.search.slice(1).split('&').sort(compareQueryPairs).join('&')
+      const pairs = parsed.search.slice(1).split('&').filter(Boolean)
+      parsed.search = pairs.sort(compareQueryPairs).join('&')
     }
 
     // Remove empty query string.
