@@ -1390,6 +1390,43 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
+
+    // Serendipity blogs route on the raw query string, so encoding the slashes or appending the
+    // value separator makes the URL serve the homepage instead of the feed.
+    it('should preserve a path-shaped query when sorting', () => {
+      const value = 'http://example.com/blog/index.php?/feeds/atom10.xml'
+      const expected = 'example.com/blog/index.php?/feeds/atom10.xml'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should preserve raw encoding of the pairs it reorders', () => {
+      const value = 'https://example.com/feed?z=a/b&a=c:d'
+      const expected = 'example.com/feed?a=c:d&z=a/b'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should preserve a space encoded as %20 rather than as a plus', () => {
+      const value = 'https://example.com/feed?q=two%20words'
+      const expected = 'example.com/feed?q=two%20words'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should keep the original order of params sharing a key', () => {
+      const value = 'https://example.com/feed?z=1&a=3&a=1&a=2'
+      const expected = 'example.com/feed?a=3&a=1&a=2&z=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should sort by decoded key', () => {
+      const value = 'https://example.com/feed?b=1&%61=2'
+      const expected = 'example.com/feed?%61=2&b=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
   })
 
   describe('tracking parameter stripping', () => {
@@ -1448,6 +1485,30 @@ describe('normalizeUrl', () => {
       const value = 'https://example.com/feed?utm_source=twitter'
       const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source'] }
       const expected = 'example.com/feed'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve raw encoding of the params it keeps', () => {
+      const value = 'https://example.com/feed?utm_source=twitter&path=a/b&when=12:00'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source'] }
+      const expected = 'example.com/feed?path=a/b&when=12:00'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should keep a valueless param that is not stripped', () => {
+      const value = 'https://example.com/feed?utm_source=twitter&atom'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source'] }
+      const expected = 'example.com/feed?atom'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should match a param for stripping by its decoded key', () => {
+      const value = 'https://example.com/feed?utm%5Fsource=twitter&id=123'
+      const options = { ...defaultNormalizeOptions, stripQueryParams: ['utm_source'] }
+      const expected = 'example.com/feed?id=123'
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
@@ -1547,6 +1608,22 @@ describe('normalizeUrl', () => {
       const value = 'https://example.com/feed?Z=1&A=2'
       const options = { ...defaultNormalizeOptions, lowercaseQuery: true, sortQueryParams: true }
       const expected = 'example.com/feed?a=2&z=1'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should preserve raw encoding while lowercasing', () => {
+      const value = 'https://example.com/feed?Path=A/B&When=12:00'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?path=a/b&when=12:00'
+
+      expect(normalizeUrl(value, options)).toBe(expected)
+    })
+
+    it('should leave percent escapes alone when lowercasing', () => {
+      const value = 'https://example.com/feed?Q=A%2FB'
+      const options = { ...defaultNormalizeOptions, lowercaseQuery: true }
+      const expected = 'example.com/feed?q=a%2Fb'
 
       expect(normalizeUrl(value, options)).toBe(expected)
     })
@@ -1706,7 +1783,7 @@ describe('normalizeUrl', () => {
 
     it('should handle query param with no value', () => {
       const value = 'https://example.com/feed?key'
-      const expected = 'example.com/feed?key='
+      const expected = 'example.com/feed?key'
 
       expect(normalizeUrl(value)).toBe(expected)
     })
@@ -1753,7 +1830,7 @@ describe('normalizeUrl', () => {
     })
 
     it('should encode special characters in query param values', () => {
-      expect(normalizeUrl('https://example.com/feed?expr=a=b')).toBe('example.com/feed?expr=a%3Db')
+      expect(normalizeUrl('https://example.com/feed?expr=a=b')).toBe('example.com/feed?expr=a=b')
       expect(normalizeUrl('https://example.com/feed?q=a%26b')).toBe('example.com/feed?q=a%26b')
       expect(normalizeUrl('https://example.com/feed?q=日本語')).toBe(
         'example.com/feed?q=%E6%97%A5%E6%9C%AC%E8%AA%9E',

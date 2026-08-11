@@ -28,6 +28,8 @@ const safePathCharsRegex = /[a-zA-Z0-9._~!$&'()*+,;=:@-]/
 const httpsLetterRegex = /s/i
 const protocolPrefixRegex = /^https?:\/\//
 const wwwPrefixRegex = /^www\./
+const percentEscapeOrLettersRegex = /%[0-9A-Fa-f]{2}|[A-Z]+/g
+const plusRegex = /\+/g
 const httpProtocolRegex = /^http:\/\//i
 const httpsProtocolRegex = /^https:\/\//i
 
@@ -295,6 +297,42 @@ const decodeAndNormalizeEncoding = (value: string): string => {
   })
 }
 
+// Applies the form-urlencoded rules for a key by hand. `new URLSearchParams(pair)` gives the same
+// answer, but costs about 0.23µs more per pair for building a whole parser around one string.
+const decodeQueryKey = (pair: string): string => {
+  const key = pair.split('=')[0].replace(plusRegex, ' ')
+
+  try {
+    return decodeURIComponent(key)
+  } catch {
+    return key
+  }
+}
+
+// Orders two pairs by their decoded key, comparing code units the way searchParams.sort does.
+const compareQueryPairs = (a: string, b: string): number => {
+  const keyA = decodeQueryKey(a)
+  const keyB = decodeQueryKey(b)
+
+  if (keyA < keyB) {
+    return -1
+  }
+
+  if (keyA > keyB) {
+    return 1
+  }
+
+  return 0
+}
+
+// Lowercases the literal characters of a pair while leaving percent escapes alone, so the raw
+// encoding survives. Escapes keep their uppercase hex, which normalizeEncoding expects.
+const lowercaseQueryPair = (pair: string): string => {
+  return pair.replace(percentEscapeOrLettersRegex, (match) => {
+    return match.startsWith('%') ? match : match.toLowerCase()
+  })
+}
+
 export const normalizeUrl = (
   url: string,
   options: NormalizeOptions = defaultNormalizeOptions,
@@ -354,34 +392,31 @@ export const normalizeUrl = (
       parsed.search = ''
     }
 
-    // Remove tracking/specified parameters (case-insensitive).
-    if (options.stripQueryParams && parsed.search) {
-      const strippedSet = getStrippedParamsSet(options.stripQueryParams)
-      const paramsToDelete: Array<string> = []
+    // Query parameters are edited as raw `key=value` pairs. Going through searchParams instead
+    // would re-serialize the whole query as form data on any write, so a query a server routes on
+    // literally, like `?/feeds/atom10.xml`, would come back as `?%2Ffeeds%2Fatom10.xml=` and stop
+    // resolving to the feed.
+    if (parsed.search && (options.stripQueryParams || options.lowercaseQuery)) {
+      let pairs = parsed.search.slice(1).split('&')
 
-      for (const [key] of parsed.searchParams) {
-        if (strippedSet.has(key.toLowerCase())) {
-          paramsToDelete.push(key)
-        }
+      // Remove tracking/specified parameters (case-insensitive).
+      if (options.stripQueryParams) {
+        const strippedSet = getStrippedParamsSet(options.stripQueryParams)
+        pairs = pairs.filter((pair) => !strippedSet.has(decodeQueryKey(pair).toLowerCase()))
       }
 
-      for (const param of paramsToDelete) {
-        parsed.searchParams.delete(param)
+      // Lowercase query parameters.
+      if (options.lowercaseQuery) {
+        pairs = pairs.map(lowercaseQueryPair)
       }
+
+      parsed.search = pairs.join('&')
     }
 
-    // Lowercase query parameters.
-    if (options.lowercaseQuery && parsed.search) {
-      const entries = [...parsed.searchParams.entries()]
-      parsed.search = ''
-      for (const [key, value] of entries) {
-        parsed.searchParams.append(key.toLowerCase(), value.toLowerCase())
-      }
-    }
-
-    // Sort query parameters.
-    if (options.sortQueryParams && parsed.search) {
-      parsed.searchParams.sort()
+    // Sort query parameters. A query holding one pair is already in order, so only a query with a
+    // separator is worth splitting.
+    if (options.sortQueryParams && parsed.search.includes('&')) {
+      parsed.search = parsed.search.slice(1).split('&').sort(compareQueryPairs).join('&')
     }
 
     // Remove empty query string.
