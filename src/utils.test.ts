@@ -1427,6 +1427,20 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value)).toBe(expected)
     })
+
+    it('should drop a trailing separator instead of sorting it to the front', () => {
+      const value = 'https://example.com/feed?b=1&'
+      const expected = 'example.com/feed?b=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
+
+    it('should drop a doubled separator instead of sorting it to the front', () => {
+      const value = 'https://example.com/feed?b=1&&a=2'
+      const expected = 'example.com/feed?a=2&b=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
   })
 
   describe('tracking parameter stripping', () => {
