@@ -18,9 +18,9 @@ const getStrippedParamsSet = (params: Array<string>): Set<string> => {
 
 const ipv4Regex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 
-// IPv6 addresses have 2-7 colons with hex segments. This is intentionally
-// loose - URL constructor validates the actual format, this just filters
-// obvious non-IPv6 strings like single-label hostnames.
+// IPv6 addresses have 2-7 colons with hex segments. This is intentionally loose - URL constructor
+// validates the actual format, this just filters obvious non-IPv6 strings like single-label
+// hostnames.
 const ipv6Regex = /^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}$/i
 
 // Characters that are safe in URL path segments and don't need percent encoding.
@@ -41,8 +41,8 @@ const validUrlRegex = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
 // Matches: http:http://, https:https://, http://https//, htp://ttps://, etc.
 const doubledProtocolRegex = /^\/?[htps]{2,7}[:\s=.\\/]+([htps]{2,7})[:\s=.\\/]+[.,:/]*(www[./]+)?/i
 
-// Single malformed protocol pattern - for typos, wrong separators, etc.
-// Must start with h (or /h) to be HTTP-like. Allows colons within letters (http:s//).
+// Single malformed protocol pattern - for typos, wrong separators, etc. Must start with h (or /h)
+// to be HTTP-like. Allows colons within letters (http:s//).
 const singleMalformedRegex = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/]*(www[./]+)?/i
 
 // Fix common malformations in HTTP/HTTPS protocols. Handles:
@@ -55,8 +55,8 @@ const singleMalformedRegex = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/
 // - Leading junk after protocol: http://./example.com → http://example.com
 // - Placeholder syntax: http(s):// → https://
 // - Double protocol: http:http://, https:https:// → dedupe
-// - Misplaced www: https:www.// → https://www.
-// - Missing www dot: https://www/ → https://www.
+// - Misplaced www: https:www.// → https://www
+// - Missing www dot: https://www/ → https://www
 export const fixMalformedProtocol = (url: string): string => {
   // Fast path: valid URL without doubled protocol.
   if (validUrlRegex.test(url) && !doubledProtocolRegex.test(url)) {
@@ -106,8 +106,8 @@ const feedProtocols = [
 ]
 
 export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-  // Feed schemes start with f, r, p, or i, so anything else returns before lowercasing
-  // the whole URL. `| 32` lowercases an ASCII letter.
+  // Feed schemes start with f, r, p, or i, so anything else returns before lowercasing the whole
+  // URL. `| 32` lowercases an ASCII letter.
   const firstCharCode = url.charCodeAt(0) | 32
 
   if (
@@ -140,16 +140,16 @@ export const resolveFeedProtocol = (url: string, protocol: 'http' | 'https' = 'h
   return url
 }
 
-// Adds protocol to URLs missing a scheme. Handles both protocol-relative
-// URLs (//example.com) and bare domains (example.com). Examples:
+// Adds protocol to URLs missing a scheme. Handles both protocol-relative URLs (//example.com) and
+// bare domains (example.com). Examples:
 // - //example.com/feed → https://example.com/feed
 // - //localhost/api → https://localhost/api
 // - //Users/file.xml → //Users/file.xml (unchanged, not a valid URL)
 // - example.com/feed → https://example.com/feed
 // - /path/to/feed → /path/to/feed (unchanged, relative path)
 export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
-  // Skip if URL already has a real protocol. No registered IANA scheme contains
-  // a dot or slash, so "example.com:8080" won't false-positive as a scheme.
+  // Skip if URL already has a real protocol. No registered IANA scheme contains a dot or slash, so
+  // "example.com:8080" won't false-positive as a scheme.
   const colonIndex = url.indexOf(':')
 
   if (colonIndex > 0) {
@@ -211,12 +211,11 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
   return `${protocol}://${url}`
 }
 
-// Swaps an existing HTTP(S) protocol on a URL. Unlike `addMissingProtocol`,
-// which only acts when the protocol is absent, this rewrites the scheme
-// when one is already present. Protocol-relative URLs (`//host`) and
-// non-HTTP schemes (`mailto:`, `data:`, `ftp://`) are left unchanged.
-// Case-insensitive on the matched protocol; only the leading scheme is
-// touched, not any later `http://` substring inside the path or query.
+// Swaps an existing HTTP(S) protocol on a URL. Unlike `addMissingProtocol`, which only acts when
+// the protocol is absent, this rewrites the scheme when one is already present. Protocol-relative
+// URLs (`//host`) and non-HTTP schemes (`mailto:`, `data:`, `ftp://`) are left unchanged.
+// Case-insensitive on the matched protocol; only the leading scheme is touched, not any later
+// `http://` substring inside the path or query.
 export const upgradeProtocol = (url: string, protocol: 'http' | 'https' = 'https'): string => {
   if (protocol === 'https') {
     return url.replace(httpProtocolRegex, 'https://')
@@ -225,8 +224,8 @@ export const upgradeProtocol = (url: string, protocol: 'http' | 'https' = 'https
   return url.replace(httpsProtocolRegex, 'http://')
 }
 
-// Resolves a URL by converting feed protocols, resolving relative URLs,
-// and ensuring it's a valid HTTP(S) URL.
+// Resolves a URL by converting feed protocols, resolving relative URLs, and ensuring it's a valid
+// HTTP(S) URL.
 export const resolveUrl = (url: string, base?: string): string | undefined => {
   // Fragment-only URLs can only be resolved against a base URL.
   if (url.startsWith('#') && !base) {
@@ -236,9 +235,9 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   let resolvedUrl: string | undefined
 
   // Step 1: Decode HTML entities to recover the intended URL.
-  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &). Strict decoding only
-  // expands entities with a trailing semicolon, so a query parameter whose name matches an
-  // entity (e.g. `?id=1&copy=2`) is left intact instead of being mangled into `?id=1©=2`.
+  // URLs in XML/HTML are often entity-encoded (e.g., &amp; for &). Strict decoding only expands
+  // entities with a trailing semicolon, so a query parameter whose name matches an entity (e.g.
+  // `?id=1&copy=2`) is left intact instead of being mangled into `?id=1©=2`.
   resolvedUrl = url.includes('&') ? decodeHTMLStrict(url) : url
 
   // Step 2: Convert feed-related protocols.
@@ -255,8 +254,8 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
       return
     }
 
-    // An absolute http(s) href needs no protocol repair and reparsing it changes
-    // nothing, so return it directly.
+    // An absolute http(s) href needs no protocol repair and reparsing it changes nothing, so return
+    // it directly.
     if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
       return resolved.href
     }
@@ -501,22 +500,22 @@ export const createSignature = <T extends Record<string, unknown>>(
 ): string => {
   const excluded = new Set(fields)
 
-  // Omit the named top-level fields via a replacer instead of mutating the object.
-  // `this` is the holder of each property, so `this === object` matches only the
-  // root's own fields, leaving same-named keys on nested items untouched. This keeps
-  // the input feed object intact even if serialization throws, and adds no copy.
+  // Omit the named top-level fields via a replacer instead of mutating the object. `this` is the
+  // holder of each property, so `this === object` matches only the root's own fields, leaving
+  // same-named keys on nested items untouched. This keeps the input feed object intact even if
+  // serialization throws, and adds no copy.
   return JSON.stringify(object, function (this: unknown, key, value) {
     return this === object && excluded.has(key as keyof T) ? undefined : value
   })
 }
 
-// Static pattern that locates the start of each absolute HTTP(S) URL in feed text.
-// Fixed and never built from feed input, so it carries no ReDoS risk. A URL token runs
-// from a match to the next delimiter (quote, whitespace, angle bracket, backslash, `}`).
+// Static pattern that locates the start of each absolute HTTP(S) URL in feed text. Fixed and never
+// built from feed input, so it carries no ReDoS risk. A URL token runs from a match to the next
+// delimiter (quote, whitespace, angle bracket, backslash, `}`).
 const urlSchemeRegex = /https?:\/\//gi
 const urlDelimiterRegex = /[\s"'<>\\}]/g
-// Strips a trailing slash from any URL or root-relative path before a quote or query.
-// Static and linear (the prior ReDoS lived only in the per-host pattern, now removed).
+// Strips a trailing slash from any URL or root-relative path before a quote or query. Static and
+// linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
 const neutralizeHost = (url: string): string | undefined => {
@@ -524,11 +523,11 @@ const neutralizeHost = (url: string): string | undefined => {
 }
 
 export const neutralizeUrls = (text: string, urls: Array<string>): string => {
-  // Rewrites each occurrence of a feed's own URL to a root-relative form, so content
-  // differing only in URL form (http/https, www/non-www, trailing slash, host casing)
-  // produces identical output. Each URL is located by scanning for the scheme and parsed
-  // with the URL API for host comparison — the feed-supplied host is never interpolated
-  // into a pattern, which is what previously made this a ReDoS injection point.
+  // Rewrites each occurrence of a feed's own URL to a root-relative form, so content differing only
+  // in URL form (http/https, www/non-www, trailing slash, host casing) produces identical output.
+  // Each URL is located by scanning for the scheme and parsed with the URL API for host comparison:
+  // the feed-supplied host is never interpolated into a pattern, which is what previously made this
+  // a ReDoS injection point.
   const hosts = new Set(urls.map(neutralizeHost).filter(Boolean))
   if (hosts.size === 0) {
     return text

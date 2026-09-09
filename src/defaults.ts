@@ -58,8 +58,8 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     return parsed.format === 'json' ? parsed.feed.feed_url : retrieveSelfLink(parsed)?.href
   },
   getSignature: (parsed, url) => {
-    // Neutralize dynamic fields before generating signature to ensure feeds
-    // that differ only in self URL or timestamps are considered semantically identical.
+    // Neutralize dynamic fields before generating signature to ensure feeds that differ only in
+    // self URL or timestamps are considered semantically identical.
 
     let signature: string
     let contentUrl: string | undefined
@@ -69,8 +69,8 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       signature = createSignature(parsed.feed, ['feed_url'])
     } else {
       // The self link is nested, so it is temporarily cleared rather than excluded by
-      // createSignature (which only omits top-level fields). The finally restores it even
-      // if serialization throws, so the input feed object is never left mutated.
+      // createSignature (which only omits top-level fields). The finally restores it even if
+      // serialization throws, so the input feed object is never left mutated.
       const selfLink = retrieveSelfLink(parsed)
       const savedSelfHref = selfLink?.href
       if (selfLink) {

@@ -26,8 +26,8 @@ export function findCanonical<
   options: FindCanonicalOptions<TFeed, TResponse, TExisting> & { parser: ParserAdapter<TFeed> },
 ): Promise<string | undefined>
 
-// Implementation uses 'any' for TFeed to avoid variance issues with parser default.
-// Type safety is enforced by the overload signatures above.
+// Implementation uses 'any' for TFeed to avoid variance issues with parser default. Type safety is
+// enforced by the overload signatures above.
 export async function findCanonical(
   inputUrl: string,
   // biome-ignore lint/suspicious/noExplicitAny: Necessary for function overloads.
@@ -46,8 +46,7 @@ export async function findCanonical(
     onExists,
   } = options ?? {}
 
-  // Clean the URL with the injected function (when given), then tidy the
-  // remaining query.
+  // Clean the URL with the injected function (when given), then tidy the remaining query.
   const stripParams = (url: string): string => {
     return normalizeUrl(cleanUrlFn ? cleanUrlFn(url) : url, {
       sortQueryParams: true,
@@ -102,9 +101,9 @@ export async function findCanonical(
     return
   }
 
-  // All onMatch calls receive initialResponseFeed because matched URLs return content
-  // equivalent to the initial response (that's the matching criteria). This allows consumers
-  // to access parsed feed data without redundant parsing.
+  // All onMatch calls receive initialResponseFeed because matched URLs return content equivalent to
+  // the initial response (that's the matching criteria). This allows consumers to access parsed
+  // feed data without redundant parsing.
   onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
 
   const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
@@ -115,8 +114,8 @@ export async function findCanonical(
   }
 
   // Compare initial response against another response using 2-tier matching:
-  // 1. Exact body match (fastest)
-  // 2. Signature match (semantic equality via parser)
+  // 1. Exact body match (fastest).
+  // 2. Signature match (semantic equality via parser).
   const compareWithInitialResponse = async (
     comparedResponseBody: string | undefined,
     comparedResponseUrl: string,
@@ -170,8 +169,8 @@ export async function findCanonical(
   }
 
   // Phase 3: Validate self URL.
-  // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https://
-  // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
+  // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https:// but
+  // only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
   let candidateSourceUrl = initialResponseUrl
 
   if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {

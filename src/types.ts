@@ -1,8 +1,8 @@
 export type MaybePromise<T> = T | Promise<T>
 
-// Default feed type from feedsmith parser. Uses inline typeof import() because
-// tsdown strips `import type` in .d.ts files, breaking type resolution. Can be
-// simplified once feedsmith exports a ParsedFeed type directly.
+// Default feed type from feedsmith parser. Uses inline typeof import() because tsdown strips
+// `import type` in .d.ts files, breaking type resolution. Can be simplified once feedsmith exports
+// a ParsedFeed type directly.
 export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFeed<string>>
 
 // Parser adapter interface for generic feed parser support.
@@ -26,19 +26,19 @@ export type Probe = {
 
 // URL normalization options.
 export type NormalizeOptions = {
-  stripProtocol?: boolean // strip protocol (http ↔ https treated same)
-  stripAuthentication?: boolean // strip user:pass@
-  stripWww?: boolean // strip www. prefix
+  stripProtocol?: boolean // Strip protocol (http ↔ https treated same)
+  stripAuthentication?: boolean // Strip user:pass@
+  stripWww?: boolean // Strip www. prefix
   stripTrailingSlash?: boolean // /feed/ → /feed
   stripRootSlash?: boolean // example.com/ → example.com
   collapseSlashes?: boolean // /// → /
-  stripHash?: boolean // strip #fragment
-  sortQueryParams?: boolean // sort query params alphabetically
-  stripQueryParams?: Array<string> // query params to strip
-  stripQuery?: boolean // strip entire query string
+  stripHash?: boolean // Strip #fragment
+  sortQueryParams?: boolean // Sort query params alphabetically
+  stripQueryParams?: Array<string> // Query params to strip
+  stripQuery?: boolean // Strip entire query string
   stripEmptyQuery?: boolean // /feed? → /feed
-  lowercaseQuery?: boolean // lowercase query param names and values
-  normalizeEncoding?: boolean // normalize %XX encoding
+  lowercaseQuery?: boolean // Lowercase query param names and values
+  normalizeEncoding?: boolean // Normalize %XX encoding
   normalizeUnicode?: boolean // NFC normalization
 }
 
@@ -66,16 +66,21 @@ export type FindCanonicalOptions<
   TResponse extends FetchFnResponse = FetchFnResponse,
   TExisting = unknown,
 > = {
-  parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed.
+  parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed
   fetchFn?: FetchFn<TResponse>
-  cleanUrlFn?: (url: string) => string // Clean URLs before candidate generation (e.g., strip tracking params).
-  existsFn?: ExistsFn<TExisting> // Check if URLs exist in database.
-  rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner).
-  probes?: Array<Probe> // URL probes (e.g., WordPress query param → path).
-  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean).
-  onFetch?: OnFetchFn<TResponse> // Called after each fetch operation.
-  onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response.
-  onExists?: OnExistsFn<TExisting> // Called when existsFn finds a URL.
+  // Clean URLs before candidate generation (e.g., strip tracking params).
+  cleanUrlFn?: (url: string) => string
+  existsFn?: ExistsFn<TExisting> // Check if URLs exist in database
+  rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner)
+  probes?: Array<Probe> // URL probes (e.g., WordPress query param → path)
+  // Normalization tiers (cleanest to least clean).
+  tiers?: Array<Tier>
+  // Called after each fetch operation.
+  onFetch?: OnFetchFn<TResponse>
+  // Called when a URL matches the initial response.
+  onMatch?: OnMatchFn<TFeed, TResponse>
+  // Called when existsFn finds a URL.
+  onExists?: OnExistsFn<TExisting>
 }
 
 // Options for fetch function.
@@ -84,15 +89,15 @@ export type FetchFnOptions = {
   headers?: Record<string, string>
 }
 
-// Callback to check if URLs exist in database (early termination).
-// Returns data if URL exists, undefined otherwise.
+// Callback to check if URLs exist in database (early termination). Returns data if URL exists,
+// undefined otherwise.
 export type ExistsFn<T = unknown> = (url: string) => MaybePromise<T | undefined>
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {
   headers: Headers
   body: string
-  url: string // Final URL after redirects.
+  url: string // Final URL after redirects
   status: number
 }
 

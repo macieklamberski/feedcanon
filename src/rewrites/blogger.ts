@@ -49,9 +49,9 @@ export const bloggerRewrite: Rewrite = {
     // Strip v param (GData API version, deprecated and now ignored).
     rewritten.searchParams.delete('v')
 
-    // Strip pagination and date filter params. Feed readers subscribe to full
-    // feeds, not filtered views. Stripping these ensures subscriptions to the
-    // same blog with different limits or date ranges canonicalize to one URL.
+    // Strip pagination and date filter params. Feed readers subscribe to full feeds, not filtered
+    // views. Stripping these ensures subscriptions to the same blog with different limits or date
+    // ranges canonicalize to one URL.
     rewritten.searchParams.delete('max-results')
     rewritten.searchParams.delete('start-index')
     rewritten.searchParams.delete('published-min')
