@@ -68,19 +68,14 @@ export type FindCanonicalOptions<
 > = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed
   fetchFn?: FetchFn<TResponse>
-  // Clean URLs before candidate generation (e.g., strip tracking params).
-  cleanUrlFn?: (url: string) => string
+  cleanUrlFn?: (url: string) => string // Clean URLs before candidate generation (e.g., strip tracking params)
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database
   rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner)
   probes?: Array<Probe> // URL probes (e.g., WordPress query param → path)
-  // Normalization tiers (cleanest to least clean).
-  tiers?: Array<Tier>
-  // Called after each fetch operation.
-  onFetch?: OnFetchFn<TResponse>
-  // Called when a URL matches the initial response.
-  onMatch?: OnMatchFn<TFeed, TResponse>
-  // Called when existsFn finds a URL.
-  onExists?: OnExistsFn<TExisting>
+  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean)
+  onFetch?: OnFetchFn<TResponse> // Called after each fetch operation
+  onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response
+  onExists?: OnExistsFn<TExisting> // Called when existsFn finds a URL
 }
 
 // Options for fetch function.
