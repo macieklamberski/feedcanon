@@ -3,6 +3,7 @@ import { normalizeUrl } from '../utils.js'
 
 const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
 
+// FeedBurner serves one feed from three hosts and uses the query only for tracking.
 export const feedburnerRewrite: Rewrite = {
   match: (url) => {
     return hosts.includes(url.hostname)
@@ -11,10 +12,8 @@ export const feedburnerRewrite: Rewrite = {
   rewrite: (url) => {
     const rewritten = new URL(url)
 
-    // Normalize domain to feeds.feedburner.com.
     rewritten.hostname = 'feeds.feedburner.com'
 
-    // Strip all query params (FeedBurner uses them for tracking only).
     rewritten.search = ''
 
     const normalized = normalizeUrl(rewritten.href, {

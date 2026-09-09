@@ -7,6 +7,7 @@ const optionalTrailingSlashRegex = /\/?$/
 
 const feedTypes = ['atom', 'rss2', 'rss', 'rdf']
 
+// WordPress serves the same feed at ?feed=rss2 and under /feed/, so the query form is an alias.
 export const wordpressProbe: Probe = {
   match: (url) => {
     const feed = url.searchParams.get('feed')?.toLowerCase()
@@ -31,7 +32,6 @@ export const wordpressProbe: Probe = {
     const isComment = feed.startsWith('comments-')
     const type = isComment ? feed.slice(9) : feed
 
-    // Path already contains feed segment - param is redundant, just strip it.
     const pathRegex = isComment ? commentsFeedPathRegex : feedPathRegex
     if (pathRegex.test(url.pathname)) {
       const withoutSlash = new URL(url)
@@ -47,7 +47,6 @@ export const wordpressProbe: Probe = {
       return candidates
     }
 
-    // Convert ?feed=X to path-based URL.
     const basePath = url.pathname.replace(trailingSlashRegex, '')
     const feedSegment = type === 'atom' ? '/feed/atom' : '/feed'
     const feedPath = isComment ? `/comments${feedSegment}` : feedSegment
