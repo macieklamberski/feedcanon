@@ -400,6 +400,18 @@ describe('fixMalformedProtocol', () => {
   })
 
   it.each([
+    ['https://tp.srgssr.ch/p/srf/embed'],
+    ['https://ps.w.org/plugin/icon.png'],
+    ['http://tp.media/x'],
+    ['https://tps.org/a'],
+    ['https://https.example.com/feed'],
+    ['tp.media/x'],
+    ['https://ps.tp.example.com/a'],
+  ])('should not mistake a leading hostname label for a protocol (%s)', (value) => {
+    expect(fixMalformedProtocol(value)).toBe(value)
+  })
+
+  it.each([
     ['ftp://example.com/file'],
     ['mailto:user@example.com'],
     ['file:///path/to/file'],
@@ -802,6 +814,33 @@ describe('resolveUrl', () => {
     it('should convert rss:// to https://', () => {
       const value = 'rss://example.com/feed.xml'
       const expected = 'https://example.com/feed.xml'
+
+      expect(resolveUrl(value)).toBe(expected)
+    })
+  })
+
+  describe('hostname labels spelled like protocols', () => {
+    it('should keep a label that is a suffix of https', () => {
+      const value = 'https://tp.srgssr.ch/p/srf/embed'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should keep an apex domain spelled like a protocol', () => {
+      const value = 'https://tps.org/a'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should not downgrade https to http', () => {
+      const value = 'https://tp.media/x'
+
+      expect(resolveUrl(value)).toBe(value)
+    })
+
+    it('should keep the label on a bare domain', () => {
+      const value = 'ps.w.org/plugin/icon.png'
+      const expected = 'https://ps.w.org/plugin/icon.png'
 
       expect(resolveUrl(value)).toBe(expected)
     })

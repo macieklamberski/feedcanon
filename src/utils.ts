@@ -37,13 +37,23 @@ const httpsProtocolRegex = /^https:\/\//i
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
 const validUrlRegex = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
 
+// A separator between a scheme and the rest carries at least one character that cannot appear in a
+// hostname. A run of dots alone is a label boundary, so the host `tp.media` is not `tp://media`.
+const schemeSeparator = String.raw`\.*[:\s=\\/][:\s=.\\/]*`
+
 // Doubled/nested protocol pattern - captures the INNER protocol which takes precedence.
 // Matches: http:http://, https:https://, http://https//, htp://ttps://, etc.
-const doubledProtocolRegex = /^\/?[htps]{2,7}[:\s=.\\/]+([htps]{2,7})[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+const doubledProtocolRegex = new RegExp(
+  String.raw`^\/?[htps]{2,7}${schemeSeparator}([htps]{2,7})${schemeSeparator}[.,:/]*(www[./]+)?`,
+  'i',
+)
 
 // Single malformed protocol pattern - for typos, wrong separators, etc. Must start with h (or /h)
 // to be HTTP-like. Allows colons within letters (http:s//).
-const singleMalformedRegex = /^\/?(?:h[htps():]{1,10}|t{1,2}ps?)[:\s=.\\/]+[.,:/]*(www[./]+)?/i
+const singleMalformedRegex = new RegExp(
+  String.raw`^\/?(?:h[htps():]{1,10}|t{1,2}ps?)${schemeSeparator}[.,:/]*(www[./]+)?`,
+  'i',
+)
 
 // Fix common malformations in HTTP/HTTPS protocols. Handles:
 // - Excess slashes: http:////example.com → http://example.com
