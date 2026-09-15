@@ -1,3 +1,5 @@
+import { vitepress } from 'ogier/adapters'
+import { dark } from 'ogier/themes'
 import { defineConfig } from 'vitepress'
 
 const indexMdRegex = /index\.md$/
@@ -5,6 +7,20 @@ const mdRegex = /\.md$/
 const trailingSlashRegex = /\/$/
 
 const hostname = 'https://feedcanon.dev'
+const og = vitepress({
+  site: { hostname, favicon: { file: new URL('../public/favicon.svg', import.meta.url) } },
+  card: {
+    header: {
+      text: 'feedcanon',
+      icon: { file: new URL('../public/favicon.svg', import.meta.url) },
+    },
+    footer: {
+      text: 'macieklamberski/feedcanon',
+      icon: { file: new URL('./github.svg', import.meta.url) },
+    },
+  },
+  style: { theme: { ...dark, accent: '#4d9fff' }, background: { pattern: 'dots' } },
+})
 
 export default defineConfig({
   title: 'Feedcanon',
@@ -16,15 +32,17 @@ export default defineConfig({
   sitemap: {
     hostname,
   },
-  transformHead: ({ pageData }) => {
-    const canonicalUrl = `${hostname}/${pageData.relativePath}`
+  buildEnd: og.buildEnd,
+  transformHead: (context) => {
+    const canonicalUrl = `${hostname}/${context.pageData.relativePath}`
       .replace(indexMdRegex, '')
       .replace(mdRegex, '')
       .replace(trailingSlashRegex, '')
 
-    return [['link', { rel: 'canonical', href: canonicalUrl }]]
+    return [['link', { rel: 'canonical', href: canonicalUrl }], ...og.transformHead(context)]
   },
   head: [
+    ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
     ['meta', { property: 'og:site_name', content: 'Feedcanon' }],
     [
       'script',
