@@ -1155,7 +1155,6 @@ describe('findCanonical', () => {
           }),
           existsFn: (url) => {
             checkedUrls.push(url)
-            return
           },
         })
 
@@ -1540,7 +1539,6 @@ describe('findCanonical', () => {
             if (url === 'https://example.com/feed') {
               return existingData
             }
-            return
           },
           onExists: ({ url, data }) => {
             existsCallData = { url, data }
