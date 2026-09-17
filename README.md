@@ -63,7 +63,7 @@ Basic installation and common usage patterns. For a full overview, visit the [do
 ### Installation
 
 ```bash
-npm install feedcanon
+npm install feedcanon feedsmith
 ```
 
 ### Basic Usage

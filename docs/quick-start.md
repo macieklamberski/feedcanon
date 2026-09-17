@@ -8,26 +8,24 @@ Basic installation and common usage patterns.
 
 ## Installation
 
-Feedcanon works in both Node and modern browsers as an ES module.
-
-Install the package using your preferred package manager:
+Feedcanon works in both Node and modern browsers as an ES module. It uses Feedsmith to parse feeds, so install both packages using your preferred package manager:
 
 ::: code-group
 
 ```bash [npm]
-npm install feedcanon
+npm install feedcanon feedsmith
 ```
 
 ```bash [yarn]
-yarn add feedcanon
+yarn add feedcanon feedsmith
 ```
 
 ```bash [pnpm]
-pnpm add feedcanon
+pnpm add feedcanon feedsmith
 ```
 
 ```bash [bun]
-bun add feedcanon
+bun add feedcanon feedsmith
 ```
 
 :::
