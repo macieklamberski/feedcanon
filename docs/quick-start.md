@@ -8,7 +8,7 @@ Basic installation and common usage patterns.
 
 ## Installation
 
-Feedcanon works in both Node and modern browsers as either CommonJS or ES module.
+Feedcanon works in both Node and modern browsers as an ES module.
 
 Install the package using your preferred package manager:
 

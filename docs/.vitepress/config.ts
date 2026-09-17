@@ -101,6 +101,10 @@ export default defineConfig({
           { text: 'Utilities', link: '/reference/utilities' },
         ],
       },
+      {
+        text: 'Migration',
+        items: [{ text: 'From 1.x to 2.x', link: '/migration/v1-to-v2' }],
+      },
     ],
     search: {
       provider: 'local',

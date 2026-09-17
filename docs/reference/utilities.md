@@ -39,7 +39,7 @@ Normalizes a URL by applying transformation options.
 | `collapseSlashes` | `true` | Collapse multiple slashes `///` → `/` |
 | `stripHash` | `true` | Remove `#fragment` |
 | `sortQueryParams` | `true` | Sort query params alphabetically |
-| `stripQueryParams` | `string[]` | Array of params to strip |
+| `stripQueryParams` | `[]` | Array of params to strip |
 | `stripQuery` | `false` | Remove entire query string |
 | `stripEmptyQuery` | `true` | Remove empty `?` |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
