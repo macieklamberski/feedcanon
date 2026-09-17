@@ -68,6 +68,15 @@ export default defineConfig({
     outline: {
       level: [2, 3],
     },
+    nav: [
+      {
+        text: 'v2.x',
+        items: [
+          { text: 'v2.x (Latest)', link: 'https://feedcanon.dev', target: '_self' },
+          { text: 'v1.x', link: 'https://v1.feedcanon.dev', target: '_self' },
+        ],
+      },
+    ],
     sidebar: [
       {
         text: 'Get Started',
