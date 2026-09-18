@@ -40,7 +40,7 @@ The parser extracts this self URL from the feed content. This declared URL often
 
 ### 3. Self URL Validation
 
-If a self URL exists and differs from the request URL, Feedcanon validates it:
+If a self URL exists and differs from the response URL, Feedcanon validates it:
 
 1. Fetch the self URL
 2. Compare the response with the initial fetch
