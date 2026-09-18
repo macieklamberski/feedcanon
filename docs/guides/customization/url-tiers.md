@@ -19,23 +19,23 @@ Tracking parameters are stripped separately via the `stripQueryParams` option in
 
 ## Normalization Options
 
-Each tier accepts all `NormalizeOptions` except `stripQueryParams`, which is handled at the top level. A tier is not merged with any defaults: an option you leave out is off for that tier.
+Each tier accepts all `NormalizeOptions` except `stripQueryParams`, which is handled at the top level. A tier is not merged with any defaults: an option you leave out is off for that tier. The middle column shows the value the default Tier 2 uses, as a reference point:
 
-| Option | Description |
-|--------|-------------|
-| `stripProtocol` | Remove protocol (not recommended for feed URLs) |
-| `stripAuthentication` | Remove `user:pass@` |
-| `stripWww` | Remove `www.` prefix |
-| `stripTrailingSlash` | Remove trailing `/` from paths |
-| `stripRootSlash` | Remove `/` from root paths |
-| `collapseSlashes` | `///` → `/` |
-| `stripHash` | Remove `#fragment` |
-| `sortQueryParams` | Sort params alphabetically |
-| `stripQuery` | Remove entire query string |
-| `stripEmptyQuery` | Remove empty `?` |
-| `lowercaseQuery` | Lowercase query param names and values |
-| `normalizeEncoding` | Normalize `%XX` encoding |
-| `normalizeUnicode` | NFC normalization |
+| Option | Default Tier 2 | Description |
+|--------|----------------|-------------|
+| `stripProtocol` | `false` | Remove protocol (not recommended for feed URLs) |
+| `stripAuthentication` | `false` | Remove `user:pass@` |
+| `stripWww` | `true` | Remove `www.` prefix |
+| `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
+| `stripRootSlash` | `true` | Remove `/` from root paths |
+| `collapseSlashes` | `true` | `///` → `/` |
+| `stripHash` | `true` | Remove `#fragment` |
+| `sortQueryParams` | `true` | Sort params alphabetically |
+| `stripQuery` | `false` | Remove entire query string |
+| `stripEmptyQuery` | `true` | Remove empty `?` |
+| `lowercaseQuery` | `false` | Lowercase query param names and values |
+| `normalizeEncoding` | `true` | Normalize `%XX` encoding |
+| `normalizeUnicode` | `true` | NFC normalization |
 
 ## Examples
 
