@@ -1480,6 +1480,13 @@ describe('normalizeUrl', () => {
 
       expect(normalizeUrl(value)).toBe(expected)
     })
+
+    it('should sort a key with a malformed percent escape by its raw form', () => {
+      const value = 'https://example.com/feed?z=1&%zz=2&a=3'
+      const expected = 'example.com/feed?%zz=2&a=3&z=1'
+
+      expect(normalizeUrl(value)).toBe(expected)
+    })
   })
 
   describe('tracking parameter stripping', () => {
