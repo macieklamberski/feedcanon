@@ -79,13 +79,15 @@ Using the validated base URL, Feedcanon generates URL candidates by applying URL
 https://www.example.com/feed/?id=123&utm_source=twitter
   ↓ Tier 1: Strip query, www, trailing slash
 https://example.com/feed
-  ↓ Tier 2: Strip www, trailing slash, tracking params
-https://example.com/feed?id=123
-  ↓ Tier 3: Strip trailing slash, tracking params
-https://www.example.com/feed?id=123
-  ↓ Tier 4: Strip tracking params only
-https://www.example.com/feed/?id=123
+  ↓ Tier 2: Strip www, trailing slash
+https://example.com/feed?id=123&utm_source=twitter
+  ↓ Tier 3: Strip trailing slash
+https://www.example.com/feed?id=123&utm_source=twitter
+  ↓ Tier 4: Keep www and trailing slash
+https://www.example.com/feed/?id=123&utm_source=twitter
 ```
+
+Only Tier 1 drops the query. To remove tracking params from the other tiers too, pass a `cleanUrlFn`, which runs once before the tiers (see [URL Tiers](/guides/customization/url-tiers#strip-tracking-params)).
 
 ### 6. Candidate Testing
 
