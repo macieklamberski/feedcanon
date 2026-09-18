@@ -11,6 +11,7 @@ import {
   normalizeUrl,
   resolveUrl,
   resolveFeedProtocol,
+  fixMalformedProtocol,
   addMissingProtocol,
   upgradeProtocol,
 } from 'feedcanon'
@@ -31,7 +32,7 @@ Normalizes a URL by applying transformation options.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `stripProtocol` | `false` | Remove protocol from URL |
+| `stripProtocol` | `true` | Remove protocol from URL |
 | `stripAuthentication` | `false` | Remove `user:pass@` |
 | `stripWww` | `true` | Remove `www.` prefix |
 | `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
@@ -39,15 +40,18 @@ Normalizes a URL by applying transformation options.
 | `collapseSlashes` | `true` | Collapse multiple slashes `///` → `/` |
 | `stripHash` | `true` | Remove `#fragment` |
 | `sortQueryParams` | `true` | Sort query params alphabetically |
-| `stripQueryParams` | `[]` | Array of params to strip |
+| `stripQueryParams` | — | Array of params to strip |
 | `stripQuery` | `false` | Remove entire query string |
 | `stripEmptyQuery` | `true` | Remove empty `?` |
+| `lowercaseQuery` | `false` | Lowercase query param names and values |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
 | `normalizeUnicode` | `true` | NFC normalization for Unicode |
 
+The defaults apply only when `options` is omitted. Passing an options object replaces the whole default set, so any option you leave out is off.
+
 #### Returns
 
-`string` — The normalized URL, or the original URL if parsing fails.
+`string`: The normalized URL, or the original URL if parsing fails.
 
 #### Example
 
@@ -59,6 +63,9 @@ normalizeUrl('https://WWW.EXAMPLE.COM/feed/', {
   stripTrailingSlash: true,
 })
 // 'https://example.com/feed'
+
+normalizeUrl('https://www.example.com/feed/?b=2&a=1#top')
+// 'example.com/feed?a=1&b=2'
 ```
 
 ---
@@ -76,7 +83,7 @@ Resolves a URL by converting feed protocols, resolving relative URLs, and ensuri
 
 #### Returns
 
-`string | undefined` — The resolved HTTP(S) URL, or `undefined` if invalid.
+`string | undefined`: The resolved HTTP(S) URL, or `undefined` if invalid.
 
 #### Example
 
@@ -105,7 +112,7 @@ Converts feed-related protocols to HTTP(S).
 
 #### Returns
 
-`string` — The URL with converted protocol, or unchanged if not a feed protocol.
+`string`: The URL with converted protocol, or unchanged if not a feed protocol.
 
 #### Supported Protocols
 
@@ -125,6 +132,40 @@ resolveFeedProtocol('itpc://example.com/podcast.xml')
 
 ---
 
+### `fixMalformedProtocol()`
+
+Fixes common malformations in HTTP(S) protocols, such as typos, wrong separators and doubled protocols.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | `string` | The URL to fix |
+
+#### Returns
+
+`string`: The URL with the protocol fixed, or unchanged if the protocol is valid or not HTTP-like.
+
+#### Example
+
+```typescript
+import { fixMalformedProtocol } from 'feedcanon'
+
+fixMalformedProtocol('http:/example.com/feed')
+// 'http://example.com/feed'
+
+fixMalformedProtocol('htp://example.com/feed')
+// 'http://example.com/feed'
+
+fixMalformedProtocol('http:http://example.com/feed')
+// 'http://example.com/feed'
+
+fixMalformedProtocol('http(s)://example.com/feed')
+// 'https://example.com/feed'
+```
+
+---
+
 ### `addMissingProtocol()`
 
 Adds protocol to URLs missing a scheme.
@@ -138,7 +179,7 @@ Adds protocol to URLs missing a scheme.
 
 #### Returns
 
-`string` — The URL with protocol added, or unchanged if not applicable.
+`string`: The URL with protocol added, or unchanged if not applicable.
 
 #### Example
 
@@ -167,7 +208,7 @@ Swaps an existing HTTP(S) protocol on a URL. Unlike `addMissingProtocol`, which 
 
 #### Returns
 
-`string` — The URL with the protocol swapped, or unchanged if no matching HTTP(S) scheme is present.
+`string`: The URL with the protocol swapped, or unchanged if no matching HTTP(S) scheme is present.
 
 #### Notes
 

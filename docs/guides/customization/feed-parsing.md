@@ -14,7 +14,7 @@ The `parser` option must implement `ParserAdapter<T>`:
 type ParserAdapter<T> = {
   parse: (body: string) => MaybePromise<T | undefined>
   getSelfUrl: (parsed: T) => string | undefined
-  getSignature: (parsed: T) => object
+  getSignature: (parsed: T, url: string) => string
 }
 ```
 
@@ -36,17 +36,20 @@ getSelfUrl: (feed: Feed) => string | undefined
 
 ### getSignature
 
-Return an object representing the feed's identity. Used to compare feeds when exact body matching fails:
+Return a string representing the feed's identity. Two feeds are treated as the same when their signatures are equal. Used to compare feeds when exact body matching fails:
 
 ```typescript
-getSignature: (feed: Feed) => object
+getSignature: (feed: Feed, url: string) => string
 ```
 
-The signature should include stable identifiers like:
+The `url` argument is the URL the feed was fetched from. The default parser uses it to neutralize the feed's own URLs, so two copies that differ only in protocol, `www` or trailing slash still match. A custom parser can ignore it.
+
+Build the signature from fields that stay the same between requests:
 - Feed title and description
-- Feed URL
 - Item GUIDs or URLs
 - Item timestamps
+
+Leave out fields that change with every request or with the URL the feed was fetched from, such as the build date or the self URL.
 
 ## Examples
 
@@ -62,10 +65,12 @@ const url = await findCanonical('https://example.com/feed', {
   parser: {
     parse: (body) => rssParser.parseString(body).catch(() => undefined),
     getSelfUrl: (feed) => feed.feedUrl,
-    getSignature: (feed) => ({
-      title: feed.title,
-      items: feed.items?.map((i) => i.guid),
-    }),
+    getSignature: (feed) => {
+      return JSON.stringify({
+        title: feed.title,
+        items: feed.items?.map((item) => item.guid),
+      })
+    },
   },
 })
 ```

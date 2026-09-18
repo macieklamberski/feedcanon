@@ -8,10 +8,10 @@ Feedcanon applies URL normalization tiers to generate candidates, ordered from c
 
 Default tiers:
 
-1. **Tier 1** — Strip query, www, and trailing slash
-2. **Tier 2** — Strip www and trailing slash, keep query
-3. **Tier 3** — Keep www, strip trailing slash, keep query
-4. **Tier 4** — Keep www and trailing slash, keep query
+1. **Tier 1**: Strip query, www, and trailing slash
+2. **Tier 2**: Strip www and trailing slash, keep query
+3. **Tier 3**: Keep www, strip trailing slash, keep query
+4. **Tier 4**: Keep www and trailing slash, keep query
 
 ::: info
 In addition to the structural tiers, you can plug extra cleaning into the `cleanUrlFn` option in `FindCanonicalOptions`: strip tracking params, unwrap redirect wrappers, or apply any custom rewrite. It runs on every response URL before candidates are generated, so the cleanup stays consistent across all tiers. The [urlpurify](https://github.com/macieklamberski/urlpurify) package provides ready-made functions for this.
@@ -19,10 +19,10 @@ In addition to the structural tiers, you can plug extra cleaning into the `clean
 
 ## Normalization Options
 
-Each tier accepts all `NormalizeOptions` except `stripQueryParams`:
+Each tier accepts all `NormalizeOptions` except `stripQueryParams`. Tier options are not merged with any defaults: an option left out of a tier is off. The middle column shows the value the default Tier 2 uses, as a reference point:
 
-| Option | Default | Description |
-|--------|---------|-------------|
+| Option | Default Tier 2 | Description |
+|--------|----------------|-------------|
 | `stripProtocol` | `false` | Remove protocol (not recommended for feed URLs) |
 | `stripAuthentication` | `false` | Remove `user:pass@` |
 | `stripWww` | `true` | Remove `www.` prefix |
@@ -33,6 +33,7 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`:
 | `sortQueryParams` | `true` | Sort params alphabetically |
 | `stripQuery` | `false` | Remove entire query string |
 | `stripEmptyQuery` | `true` | Remove empty `?` |
+| `lowercaseQuery` | `false` | Lowercase query param names and values |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
 | `normalizeUnicode` | `true` | NFC normalization |
 
@@ -46,13 +47,13 @@ Use a single tier with minimal normalization:
 import { findCanonical } from 'feedcanon'
 
 const url = await findCanonical('https://example.com/feed', {
-  tiers: [{}], // No URL transformations, only query param stripping
+  tiers: [{}], // No URL transformations beyond sorting the query
 })
 ```
 
 ### Aggressive Tiers
 
-Strip everything possible with a single tier:
+Strip the query, `www`, trailing slash and hash with a single tier:
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -65,8 +66,7 @@ const url = await findCanonical('https://example.com/feed', {
       stripRootSlash: true,
       collapseSlashes: true,
       stripHash: true,
-      sortQueryParams: true,
-      stripEmptyQuery: true,
+      stripQuery: true,
       normalizeEncoding: true,
       normalizeUnicode: true,
     },
