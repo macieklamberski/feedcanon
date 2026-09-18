@@ -52,7 +52,7 @@ const aliases = []
 
 const url = await findCanonical('https://example.com/feed', {
   onMatch: ({ url, feed }) => {
-    console.log(`Match: ${url} (${feed.feed.title})`)
+    console.log(`Match: ${url}`)
     aliases.push(url)
   },
 })

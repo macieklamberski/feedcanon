@@ -56,6 +56,12 @@ describe('bloggerRewrite', () => {
 
       expect(bloggerRewrite.match(value)).toBe(false)
     })
+
+    it('should not match bare blogspot.com', () => {
+      const value = new URL('https://blogspot.com/feeds/posts/default')
+
+      expect(bloggerRewrite.match(value)).toBe(false)
+    })
   })
 
   describe('rewrite', () => {
@@ -212,6 +218,20 @@ describe('bloggerRewrite', () => {
 
     it('should rewrite /rss.xml to /feeds/posts/default?alt=rss', () => {
       const value = new URL('https://example.blogspot.com/rss.xml')
+      const expected = 'https://example.blogspot.com/feeds/posts/default?alt=rss'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should rewrite /atom.xml on country TLD to .blogspot.com feed', () => {
+      const value = new URL('https://example.blogspot.in/atom.xml')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should rewrite /rss.xml and replace existing alt param', () => {
+      const value = new URL('https://example.blogspot.com/rss.xml?alt=json')
       const expected = 'https://example.blogspot.com/feeds/posts/default?alt=rss'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)

@@ -1,7 +1,6 @@
 export {
   defaultFetch,
   defaultParser,
-  defaultStrippedParams,
   defaultTiers,
 } from './defaults.js'
 export { findCanonical } from './index.js'

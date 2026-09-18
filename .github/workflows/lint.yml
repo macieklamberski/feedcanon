@@ -1,4 +1,4 @@
-name: Test
+name: Lint
 
 on:
   push:
@@ -6,6 +6,6 @@ on:
   pull_request:
 
 jobs:
-  test:
-    uses: macieklamberski/kvalita/.github/workflows/shared-test.yml@main
+  lint:
+    uses: macieklamberski/kvalita/.github/workflows/shared-lint.yml@main
     secrets: inherit

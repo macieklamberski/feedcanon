@@ -68,6 +68,15 @@ export default defineConfig({
     outline: {
       level: [2, 3],
     },
+    nav: [
+      {
+        text: 'v2.x',
+        items: [
+          { text: 'v2.x (Latest)', link: 'https://feedcanon.dev', target: '_self' },
+          { text: 'v1.x', link: 'https://v1.feedcanon.dev', target: '_self' },
+        ],
+      },
+    ],
     sidebar: [
       {
         text: 'Get Started',
@@ -100,6 +109,10 @@ export default defineConfig({
           { text: 'findCanonical', link: '/reference/find-canonical' },
           { text: 'Utilities', link: '/reference/utilities' },
         ],
+      },
+      {
+        text: 'Migration',
+        items: [{ text: 'From 1.x to 2.x', link: '/migration/v1-to-v2' }],
       },
     ],
     search: {

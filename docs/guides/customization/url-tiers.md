@@ -14,7 +14,7 @@ Default tiers:
 4. **Tier 4** — Keep www and trailing slash, keep query
 
 ::: info
-Tracking parameters are stripped separately via the `stripQueryParams` option in `FindCanonicalOptions`, not per-tier. This ensures consistent param stripping across all tiers.
+In addition to the structural tiers, you can plug extra cleaning into the `cleanUrlFn` option in `FindCanonicalOptions`: strip tracking params, unwrap redirect wrappers, or apply any custom rewrite. It runs on every response URL before candidates are generated, so the cleanup stays consistent across all tiers. The [urlpurify](https://github.com/macieklamberski/urlpurify) package provides ready-made functions for this.
 :::
 
 ## Normalization Options
@@ -31,7 +31,6 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`:
 | `collapseSlashes` | `true` | `///` → `/` |
 | `stripHash` | `true` | Remove `#fragment` |
 | `sortQueryParams` | `true` | Sort params alphabetically |
-| ~~`stripQueryParams`~~ | ~~—~~ | ~~Handled at top level, not per-tier~~ |
 | `stripQuery` | `false` | Remove entire query string |
 | `stripEmptyQuery` | `true` | Remove empty `?` |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
@@ -75,20 +74,16 @@ const url = await findCanonical('https://example.com/feed', {
 })
 ```
 
-### Custom Stripped Params
+### Strip Tracking Params
 
-Add your own tracking parameters (at the top level, not per-tier):
+Clean tracking params before candidate generation (at the top level, not per-tier):
 
 ```typescript
 import { findCanonical } from 'feedcanon'
-import { defaultStrippedParams } from 'feedcanon/defaults'
+import { stripTrackingParams } from 'urlpurify'
 
 const url = await findCanonical('https://example.com/feed', {
-  stripQueryParams: [
-    ...defaultStrippedParams,
-    'my_tracking_param',
-    'internal_ref',
-  ],
+  cleanUrlFn: stripTrackingParams,
   tiers: [
     { stripWww: true, stripTrailingSlash: true },
     { stripTrailingSlash: true },
@@ -96,19 +91,17 @@ const url = await findCanonical('https://example.com/feed', {
 })
 ```
 
+A `cleanUrlFn` that only edits the query is trusted: Feedcanon uses its result without fetching it, so it should remove only params that do not change which feed the URL serves. A result with a different host or path, such as an unwrapped redirect link, is a URL nobody fetched yet. Feedcanon uses it only when `existsFn` already knows it or when it serves the same feed, which costs one extra request. Otherwise it keeps the URL the response came from.
+
 ### Preserve Query Params
 
 Keep all query parameters (no stripping):
 
 ```typescript
 const url = await findCanonical('https://example.com/feed', {
-  stripQueryParams: [], // Keep all params
   tiers: [
     { stripWww: true, stripTrailingSlash: true },
   ],
 })
 ```
 
-## Default Stripped Parameters
-
-Feedcanon strips 100+ tracking parameters by default. See [`defaultStrippedParams`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts#L16) for the complete list.
