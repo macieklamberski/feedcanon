@@ -84,7 +84,7 @@ npm install feedcanon feedsmith@3
 
 In 1.x, `findCanonical` removed over 150 tracking parameters by default, and the `stripQueryParams` option replaced that list. In 2.x, both are gone. Feedcanon removes no query parameters unless you pass a `cleanUrlFn`. It receives a URL and returns the cleaned URL. Feedcanon applies it to the initial response URL, the self URL and every candidate URL before comparing them.
 
-`cleanUrlFn` is not limited to tracking parameters. It can also unwrap redirect links or apply any other rewrite. The `stripTrackingParams` and `cleanUrl` functions from urlpurify fit it directly.
+`cleanUrlFn` is not limited to tracking parameters. It can also unwrap redirect links or apply any other rewrite. The `stripTrackingParams` and `cleanUrl` functions from urlpurify fit it directly. Feedcanon trusts a result that only edits the query, as 1.x trusted its list. A result with a different host or path is fetched and compared first, and used only if it serves the same feed.
 
 #### Before (1.x)
 ```typescript

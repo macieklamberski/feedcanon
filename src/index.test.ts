@@ -1582,6 +1582,158 @@ describe('findCanonical', () => {
     })
 
     describe('cleanUrlFn', () => {
+      // Stand-in for an unwrapping cleaner: returns the URL a click tracker carries in `url`.
+      const unwrapTracker = (url: string): string => {
+        return new URL(url).searchParams.get('url') ?? url
+      }
+
+      it('should not fetch again when cleaning only changes the query', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=123'
+        const expected = ['https://example.com/feed?doing_wp_cron=123']
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should use an unwrapped URL when it serves the same feed', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should report a verified unwrapped URL through onMatch', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
+        const matchCalls: Array<string> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
+      })
+
+      it('should keep the response URL when the unwrapped URL serves a different feed', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+            },
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch an unwrapped URL that existsFn already knows', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = ['https://track.example.org/click?url=https://example.com/feed']
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed></feed>',
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should not fetch an unwrapped URL that was the requested URL', async () => {
+        const value = 'https://example.com/feed'
+        const expected = ['https://example.com/feed']
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body: '<feed></feed>',
+              url: 'https://track.example.org/click?url=https://example.com/feed',
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should skip a candidate that redirects back to a response URL kept unwrapped', async () => {
+        const value = 'https://www.track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://www.track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+            },
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+              url: 'https://www.track.example.org/click?url=https://example.com/feed',
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it.todo('should propagate error when cleanUrlFn throws', () => {
         // cleanUrlFn throws when cleaning the initial response URL. Expected: the error propagates
         // to the caller since URL cleaning is not wrapped in try/catch.

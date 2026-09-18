@@ -87,7 +87,7 @@ https://www.example.com/feed?id=123&utm_source=twitter
 https://www.example.com/feed/?id=123&utm_source=twitter
 ```
 
-Only Tier 1 drops the query. To remove tracking params from the other tiers too, pass a `cleanUrlFn`, which runs once before the tiers (see [URL Tiers](/guides/customization/url-tiers#strip-tracking-params)).
+Only Tier 1 drops the query. To remove tracking params from the other tiers too, pass a `cleanUrlFn`, which runs on the response URL before the tiers (see [URL Tiers](/guides/customization/url-tiers#strip-tracking-params)).
 
 ### 6. Candidate Testing
 
