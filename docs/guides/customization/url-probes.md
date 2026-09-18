@@ -14,7 +14,7 @@ Probes are useful for:
 - Testing platform-specific URL patterns
 - Finding cleaner URL forms that serve identical content
 
-Unlike platform handlers which transform URLs before fetching, probes generate candidates that are tested against the original response.
+Unlike rewrites, which transform URLs before fetching, probes generate candidates that are tested against the original response.
 
 ## Interface
 
@@ -56,7 +56,7 @@ getCandidates: (url) => {
 4. First candidate returning equivalent content becomes the new base URL
 5. If no candidates work, the original URL is kept
 
-Only the first matching probe is used—subsequent probes are skipped.
+Only the first matching probe is used. Subsequent probes are skipped.
 
 ## Built-in
 
@@ -67,9 +67,7 @@ Only the first matching probe is used—subsequent probes are skipped.
 
 Converts WordPress query parameter feeds to path-based URLs:
 
-```typescript
-import { wordpressProbe } from 'feedcanon'
-
+```text
 // Regular feeds
 'https://example.com/?feed=rss2'  → 'https://example.com/feed'
 'https://example.com/?feed=atom'  → 'https://example.com/feed/atom'
@@ -84,7 +82,7 @@ import { wordpressProbe } from 'feedcanon'
 
 The probe also handles redundant parameters when the path already contains `/feed`:
 
-```typescript
+```text
 'https://example.com/feed/?feed=rss2' → 'https://example.com/feed'
 ```
 
@@ -125,7 +123,7 @@ const url = await findCanonical('https://example.com/feed.rss', {
 
 ### Combining Probes
 
-Use multiple probes together—the first matching probe is used:
+Use multiple probes together. The first matching probe is used:
 
 ```typescript
 import { findCanonical, wordpressProbe } from 'feedcanon'

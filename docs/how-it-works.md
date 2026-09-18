@@ -8,7 +8,7 @@ Feedcanon finds the canonical URL for a feed through a multi-phase process. Each
 
 ## Phases
 
-Below is an overview of the default behavior. Many aspects can be customized—see the [Guides](/guides/callbacks) for available options.
+Below is an overview of the default behavior. Many aspects can be customized. See the [Guides](/guides/callbacks) for available options.
 
 ### 1. Initial Fetch
 
@@ -40,15 +40,15 @@ The parser extracts this self URL from the feed content. This declared URL often
 
 ### 3. Self URL Validation
 
-If a self URL exists and differs from the request URL, Feedcanon validates it:
+If a self URL exists and differs from the response URL, Feedcanon validates it:
 
 1. Fetch the self URL
 2. Compare the response with the initial fetch
 3. If it matches, use the self URL as the base for URL normalization
 
 The comparison uses a two-tier matching strategy:
-- **Exact match** — responses are byte-for-byte identical
-- **Signature match** — feeds have the same structure (title, items, etc.)
+- **Exact match**: responses are byte-for-byte identical
+- **Signature match**: the parsed feeds are the same once volatile fields are ignored
 
 If the self URL fails (e.g., wrong protocol), Feedcanon tries the alternate protocol (`https://` ↔ `http://`).
 
@@ -115,31 +115,35 @@ Feedcanon uses two methods to compare feed responses:
 
 ### Exact Body Match
 
-The fastest comparison—responses must be byte-for-byte identical. This catches most cases where servers return the same content for different URLs.
+The fastest comparison: responses must be byte-for-byte identical. This catches most cases where servers return the same content for different URLs.
 
 ### Signature Match
 
-When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls back to comparing feed signatures. The default parser extracts:
+When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls back to comparing feed signatures. The default parser serializes the whole parsed feed to a JSON string, with these changes:
 
-- Feed title and description
-- Feed URL and site URL
-- Items with their GUIDs, URLs, and timestamps
+- The self URL is left out (`atom:link rel="self"`, or `feed_url` in JSON Feed)
+- RSS: `lastBuildDate`, `pubDate`, `link` and `generator` of the channel are left out
+- Atom: `updated` and `generator` of the feed are left out
+- RDF: `link` of the channel is left out
+- URLs pointing at the feed's own host or the site's host are reduced to their path, so `http`/`https`, `www` and trailing slash differences do not matter
+
+Everything else, including all items, must be equal.
 
 If signatures match, the feeds are considered equivalent even if the raw content differs.
 
 ## Example Flow
 
+With `rewrites: [feedburnerRewrite]`:
+
 ```
 Input: https://feedproxy.google.com/example?utm_source=rss
 
-Phase 1: Fetch → normalized to feeds.feedburner.com/example?utm_source=rss
+Phase 1: Rewrite → https://feeds.feedburner.com/example (domain normalized, query cleared), fetch
 Phase 2: Extract self URL → https://feeds.feedburner.com/example
-Phase 3: Validate self URL → matches ✓
+Phase 3: Validate self URL → same as fetched URL, skip
 Phase 4: URL probes → no probes configured, skip
-Phase 5: Generate candidates:
-  - https://feeds.feedburner.com/example (cleanest)
-  - https://feeds.feedburner.com/example?utm_source=rss
-Phase 6: Test candidates → https://feeds.feedburner.com/example works ✓
+Phase 5: Generate candidates → every tier gives https://feeds.feedburner.com/example
+Phase 6: Test candidates → already verified by the initial fetch, no extra requests
 Phase 7: HTTPS upgrade → already HTTPS ✓
 
 Result: https://feeds.feedburner.com/example
