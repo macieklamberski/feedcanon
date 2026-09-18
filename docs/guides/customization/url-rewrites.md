@@ -66,7 +66,7 @@ Transforms Blogger and Blogspot URLs to canonical form. Since Blogger/Blogspot U
 
 Transformations applied:
 - Country-specific TLDs (`.blogspot.co.uk`, `.blogspot.de`) → `.blogspot.com`
-- Legacy paths (`/atom.xml`, `/rss.xml`) → `/feeds/posts/default`
+- Legacy paths: `/atom.xml` → `/feeds/posts/default`, `/rss.xml` → `/feeds/posts/default?alt=rss`
 - HTTP → HTTPS
 - `blogger.com` → `www.blogger.com`
 - Strips Blogger API params that do not change which feed is served: `redirect`, `alt=atom`, `alt=json`, an empty `alt`, `v`, `orderby`, pagination (`max-results`, `start-index`) and date filters (`published-min`, `published-max`, `updated-min`, `updated-max`)
