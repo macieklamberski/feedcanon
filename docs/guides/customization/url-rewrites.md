@@ -4,7 +4,7 @@ title: "Customization: URL Rewrites"
 
 # Customize URL Rewrites
 
-Rewrites transform known URLs before any other processing. They're useful for:
+Rewrites transform known URLs right after they are resolved and before they are fetched or compared. They're useful for:
 
 - Consolidating domain aliases to a single canonical domain
 - Transforming platform-specific URL patterns
@@ -66,10 +66,11 @@ Transforms Blogger and Blogspot URLs to canonical form. Since Blogger/Blogspot U
 
 Transformations applied:
 - Country-specific TLDs (`.blogspot.co.uk`, `.blogspot.de`) → `.blogspot.com`
-- Legacy paths (`/atom.xml`, `/rss.xml`) → `/feeds/posts/default`
+- Legacy paths: `/atom.xml` → `/feeds/posts/default`, `/rss.xml` → `/feeds/posts/default?alt=rss`
 - HTTP → HTTPS
 - `blogger.com` → `www.blogger.com`
-- Strips tracking params (`redirect`, `alt=atom`, `v`, pagination params)
+- Strips Blogger API params that do not change which feed is served: `redirect`, `alt=atom`, `alt=json`, an empty `alt`, `v`, `orderby`, pagination (`max-results`, `start-index`) and date filters (`published-min`, `published-max`, `updated-min`, `updated-max`)
+- Keeps `alt=rss`, which selects the RSS version of the feed
 
 ## Examples
 
