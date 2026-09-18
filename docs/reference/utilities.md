@@ -13,6 +13,7 @@ import {
   resolveFeedProtocol,
   addMissingProtocol,
   upgradeProtocol,
+  fixMalformedProtocol,
 } from 'feedcanon'
 ```
 
@@ -25,13 +26,15 @@ Normalizes a URL by applying transformation options.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `url` | `string` | The URL to normalize |
-| `options` | `object` | Normalization options |
+| `options` | `object` | Normalization options. Defaults to `defaultNormalizeOptions` |
 
 #### Options
 
+The Default column shows the values used when `options` is omitted. A passed `options` object replaces the defaults, it is not merged with them: any option you leave out is off.
+
 | Option | Default | Description |
 |--------|---------|-------------|
-| `stripProtocol` | `false` | Remove protocol from URL |
+| `stripProtocol` | `true` | Remove protocol from URL |
 | `stripAuthentication` | `false` | Remove `user:pass@` |
 | `stripWww` | `true` | Remove `www.` prefix |
 | `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
@@ -39,15 +42,16 @@ Normalizes a URL by applying transformation options.
 | `collapseSlashes` | `true` | Collapse multiple slashes `///` → `/` |
 | `stripHash` | `true` | Remove `#fragment` |
 | `sortQueryParams` | `true` | Sort query params alphabetically |
-| `stripQueryParams` | `string[]` | Array of params to strip |
+| `stripQueryParams` | [`defaultStrippedParams`](https://github.com/macieklamberski/feedcanon/blob/1.x/src/defaults.ts) | Array of params to strip |
 | `stripQuery` | `false` | Remove entire query string |
 | `stripEmptyQuery` | `true` | Remove empty `?` |
+| `lowercaseQuery` | `false` | Lowercase query param names and values |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
 | `normalizeUnicode` | `true` | NFC normalization for Unicode |
 
 #### Returns
 
-`string` — The normalized URL, or the original URL if parsing fails.
+`string`: The normalized URL, or the original URL if parsing fails.
 
 #### Example
 
@@ -59,6 +63,9 @@ normalizeUrl('https://WWW.EXAMPLE.COM/feed/', {
   stripTrailingSlash: true,
 })
 // 'https://example.com/feed'
+
+normalizeUrl('https://WWW.EXAMPLE.COM/feed/?utm_source=rss&b=2&a=1#x')
+// 'example.com/feed?a=1&b=2' (default options)
 ```
 
 ---
@@ -76,7 +83,7 @@ Resolves a URL by converting feed protocols, resolving relative URLs, and ensuri
 
 #### Returns
 
-`string | undefined` — The resolved HTTP(S) URL, or `undefined` if invalid.
+`string | undefined`: The resolved HTTP(S) URL, or `undefined` if invalid.
 
 #### Example
 
@@ -105,7 +112,7 @@ Converts feed-related protocols to HTTP(S).
 
 #### Returns
 
-`string` — The URL with converted protocol, or unchanged if not a feed protocol.
+`string`: The URL with converted protocol, or unchanged if not a feed protocol.
 
 #### Supported Protocols
 
@@ -138,7 +145,7 @@ Adds protocol to URLs missing a scheme.
 
 #### Returns
 
-`string` — The URL with protocol added, or unchanged if not applicable.
+`string`: The URL with protocol added, or unchanged if not applicable.
 
 #### Example
 
@@ -167,7 +174,7 @@ Swaps an existing HTTP(S) protocol on a URL. Unlike `addMissingProtocol`, which 
 
 #### Returns
 
-`string` — The URL with the protocol swapped, or unchanged if no matching HTTP(S) scheme is present.
+`string`: The URL with the protocol swapped, or unchanged if no matching HTTP(S) scheme is present.
 
 #### Notes
 
@@ -188,4 +195,38 @@ upgradeProtocol('https://example.com/feed', 'http')
 
 upgradeProtocol('//example.com/feed')
 // '//example.com/feed' (unchanged)
+```
+
+---
+
+### `fixMalformedProtocol()`
+
+Fixes common malformations in HTTP(S) protocols, such as typos, missing colons and extra slashes. `resolveUrl` calls it internally.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | `string` | The URL to fix |
+
+#### Returns
+
+`string`: The URL with the protocol fixed, or unchanged if nothing matches.
+
+#### Example
+
+```typescript
+import { fixMalformedProtocol } from 'feedcanon'
+
+fixMalformedProtocol('http:////example.com/feed')
+// 'http://example.com/feed'
+
+fixMalformedProtocol('htps://example.com/feed')
+// 'https://example.com/feed'
+
+fixMalformedProtocol('http//example.com/feed')
+// 'http://example.com/feed'
+
+fixMalformedProtocol('https://example.com/feed')
+// 'https://example.com/feed' (unchanged)
 ```

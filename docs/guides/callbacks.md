@@ -9,7 +9,7 @@ Feedcanon provides callbacks to track progress and hook into the resolution flow
 | Callback | Fires when | Data |
 |----------|------------|------|
 | `onFetch` | After each HTTP request | `{ url, response }` |
-| `onMatch` | URL matches initial response | `{ url, response, feed }` |
+| `onMatch` | Input URL is parsed, then each time a URL matches the initial response | `{ url, response, feed }` |
 | `onExists` | `existsFn` finds URL in database | `{ url, data }` |
 
 ## onFetch
@@ -43,7 +43,7 @@ The `response` object contains:
 
 ## onMatch
 
-Fires when a URL candidate produces content matching the initial response.
+Fires first for the input URL, right after its response is parsed as a feed. Then fires for every URL (self URL, probe candidate, tier candidate, HTTPS upgrade) whose content matches the initial response.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -127,7 +127,7 @@ const url = await findCanonical('http://www.example.com/feed/', {
 // url: 'https://example.com/feed'
 // aliases: [
 //   'http://www.example.com/feed/',
-//   'https://www.example.com/feed/',
+//   'http://example.com/feed',
 //   'https://example.com/feed',
 // ]
 ```
