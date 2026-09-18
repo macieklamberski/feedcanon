@@ -11,10 +11,10 @@ This guide covers all breaking changes when upgrading from Feedcanon 1.x to 2.x.
 
 ## Installation
 
-Feedsmith is now a peer dependency, so install it next to Feedcanon:
+Update your package to the latest 2.x version:
 
 ```bash
-npm install feedcanon@latest feedsmith@3
+npm install feedcanon@latest
 ```
 
 If you want to keep stripping tracking parameters, also install urlpurify:
@@ -28,7 +28,7 @@ npm install urlpurify
 Use this checklist to ensure a complete migration:
 
 - Replace `require('feedcanon')` with `import` (the package is ESM-only)
-- Install `feedsmith@3` as a direct dependency
+- Upgrade Feedsmith to 3.x if your project uses it directly
 - Replace the `stripQueryParams` option of `findCanonical` with `cleanUrlFn`
 - Add `cleanUrlFn` if you relied on the default tracking parameter stripping
 - Remove imports of `defaultStrippedParams`
@@ -64,21 +64,10 @@ const { findCanonical } = await import('feedcanon')
 
 ### Feedsmith Is a Peer Dependency
 
-Feedcanon 1.x installed Feedsmith 2 as its own dependency. In 2.x, Feedsmith is a peer dependency and must be version 3. Your project installs it, so Feedcanon and your code share one copy.
-
-#### Before (1.x)
-```bash
-npm install feedcanon
-```
-
-#### After (2.x)
-```bash
-npm install feedcanon feedsmith@3
-```
+Feedcanon 1.x installed Feedsmith 2 as its own dependency. In 2.x, Feedsmith is a peer dependency and must be version 3, so Feedcanon and your code share one copy. npm, pnpm and Bun install it for you. You only need to act if your project uses Feedsmith 2 directly, because that version no longer satisfies the peer range.
 
 #### Migration Steps
-1. Add `feedsmith` at `^3.0.0` to your `dependencies`
-2. If your own code uses Feedsmith 2, follow the [Feedsmith 2.x to 3.x migration guide](https://feedsmith.dev/migration/v2-to-v3)
+1. If your own code uses Feedsmith 2, upgrade it to 3.x by following the [Feedsmith 2.x to 3.x migration guide](https://feedsmith.dev/migration/v2-to-v3)
 
 ### `stripQueryParams` Option Replaced by `cleanUrlFn`
 
