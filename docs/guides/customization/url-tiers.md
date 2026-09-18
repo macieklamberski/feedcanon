@@ -14,7 +14,7 @@ Default tiers:
 4. **Tier 4** — Keep www and trailing slash, keep query
 
 ::: info
-In addition to the structural tiers, you can plug extra cleaning into the `cleanUrlFn` option in `FindCanonicalOptions`: strip tracking params, unwrap redirect wrappers, or apply any custom rewrite. It runs once before candidate generation, so the cleanup stays consistent across all tiers. The [urlpurify](https://github.com/macieklamberski/urlpurify) package provides ready-made functions for this.
+In addition to the structural tiers, you can plug extra cleaning into the `cleanUrlFn` option in `FindCanonicalOptions`: strip tracking params, unwrap redirect wrappers, or apply any custom rewrite. It runs on every response URL before candidates are generated, so the cleanup stays consistent across all tiers. The [urlpurify](https://github.com/macieklamberski/urlpurify) package provides ready-made functions for this.
 :::
 
 ## Normalization Options
@@ -90,6 +90,8 @@ const url = await findCanonical('https://example.com/feed', {
   ],
 })
 ```
+
+A `cleanUrlFn` that only edits the query is trusted: Feedcanon uses its result without fetching it, so it should remove only params that do not change which feed the URL serves. A result with a different host or path, such as an unwrapped redirect link, is a URL nobody fetched yet. Feedcanon uses it only when `existsFn` already knows it or when it serves the same feed, which costs one extra request. Otherwise it keeps the URL the response came from.
 
 ### Preserve Query Params
 

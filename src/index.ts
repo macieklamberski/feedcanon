@@ -1,3 +1,4 @@
+import { parseUrl } from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -46,12 +47,13 @@ export async function findCanonical(
     onExists,
   } = options ?? {}
 
+  const tidyQuery = (url: string): string => {
+    return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
+  }
+
   // Clean the URL with the injected function (when given), then tidy the remaining query.
   const stripParams = (url: string): string => {
-    return normalizeUrl(cleanUrlFn ? cleanUrlFn(url) : url, {
-      sortQueryParams: true,
-      stripEmptyQuery: true,
-    })
+    return tidyQuery(cleanUrlFn ? cleanUrlFn(url) : url)
   }
 
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
@@ -84,7 +86,7 @@ export async function findCanonical(
   if (!initialResponseUrlRaw) {
     return
   }
-  const initialResponseUrl = stripParams(initialResponseUrlRaw)
+  let initialResponseUrl = tidyQuery(initialResponseUrlRaw)
 
   const initialResponseBody = initialResponse.body
   if (!initialResponseBody) {
@@ -168,6 +170,38 @@ export async function findCanonical(
     return response
   }
 
+  // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
+  // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once known to
+  // existsFn or verified to serve the same feed. Otherwise the response URL is kept.
+  const adoptCleanedUrl = async (responseUrl: string, requestUrl: string): Promise<string> => {
+    const tidiedUrl = tidyQuery(responseUrl)
+    const cleanedUrl = stripParams(responseUrl)
+    const tidied = parseUrl(tidiedUrl)
+    const cleaned = parseUrl(cleanedUrl)
+    const isSameLocation =
+      tidied?.origin === cleaned?.origin && tidied?.pathname === cleaned?.pathname
+
+    if (isSameLocation || cleanedUrl === tidyQuery(requestUrl)) {
+      return cleanedUrl
+    }
+
+    if (existsFn && (await existsFn(cleanedUrl)) !== undefined) {
+      return cleanedUrl
+    }
+
+    const response = await fetchAndCompare(cleanedUrl)
+
+    if (!response) {
+      return tidiedUrl
+    }
+
+    onMatch?.({ url: cleanedUrl, response, feed: initialResponseFeed })
+
+    return cleanedUrl
+  }
+
+  initialResponseUrl = await adoptCleanedUrl(initialResponseUrlRaw, initialRequestUrl)
+
   // Phase 3: Validate self URL.
   // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https:// but
   // only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
@@ -188,8 +222,10 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        candidateSourceUrl = resolveAndApplyRewrites(response.url) ?? initialResponseUrl
-        candidateSourceUrl = stripParams(candidateSourceUrl)
+        candidateSourceUrl = await adoptCleanedUrl(
+          resolveAndApplyRewrites(response.url) ?? initialResponseUrl,
+          urlToTry,
+        )
         break
       }
     }
@@ -203,7 +239,7 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
-        return stripParams(resolveAndApplyRewrites(response.url) ?? candidateUrl)
+        return adoptCleanedUrl(resolveAndApplyRewrites(response.url) ?? candidateUrl, candidateUrl)
       }
     })
   }
@@ -244,17 +280,19 @@ export async function findCanonical(
 
     const candidateResponse = await fetchAndCompare(candidateUrl)
     if (candidateResponse) {
-      let candidateResponseUrl = resolveAndApplyRewrites(candidateResponse.url)
-      if (candidateResponseUrl) {
-        candidateResponseUrl = stripParams(candidateResponseUrl)
-      }
+      const candidateResponseUrl = resolveAndApplyRewrites(candidateResponse.url)
 
-      // Skip candidate if it redirects to a URL we already have as canonical.
-      if (
-        candidateResponseUrl === candidateSourceUrl ||
-        candidateResponseUrl === initialResponseUrl
-      ) {
-        continue
+      // Skip candidate if it redirects to a URL we already have as canonical. A response URL kept
+      // because its cleaned form failed verification matches only in its uncleaned form.
+      if (candidateResponseUrl) {
+        const knownUrls = [candidateSourceUrl, initialResponseUrl]
+        const isKnownUrl =
+          knownUrls.includes(stripParams(candidateResponseUrl)) ||
+          knownUrls.includes(tidyQuery(candidateResponseUrl))
+
+        if (isKnownUrl) {
+          continue
+        }
       }
 
       onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
