@@ -127,7 +127,7 @@ const url = await findCanonical('http://www.example.com/feed/', {
 // url: 'https://example.com/feed'
 // aliases: [
 //   'http://www.example.com/feed/',
-//   'http://example.com/feed',
+//   'https://www.example.com/feed/',
 //   'https://example.com/feed',
 // ]
 ```
