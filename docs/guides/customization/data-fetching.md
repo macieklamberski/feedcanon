@@ -8,6 +8,8 @@ By default, Feedcanon uses native `fetch` to perform HTTP requests. You can use 
 
 Below are copy-paste examples for popular HTTP clients. See the [`FetchFnResponse`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) type for the full interface.
 
+The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself sends only GET and HEAD. The type also allows POST, so one fetch function can serve Feedcanon and any other code that posts a request body.
+
 ## Axios
 
 [Axios](https://axios-http.com) throws errors for non-2xx responses by default. Use `validateStatus: () => true` to prevent this, since Feedcanon handles HTTP errors internally. Axios also parses JSON responses into objects, so set `responseType: 'text'` to keep a JSON Feed body as a string.

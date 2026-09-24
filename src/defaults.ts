@@ -28,6 +28,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
   const response = await fetch(url, {
     method: options?.method ?? 'GET',
     headers: options?.headers,
+    body: options?.body,
   })
 
   return {
