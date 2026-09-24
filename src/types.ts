@@ -80,8 +80,9 @@ export type FindCanonicalOptions<
 
 // Options for fetch function.
 export type FetchFnOptions = {
-  method?: 'GET' | 'HEAD'
+  method?: 'GET' | 'HEAD' | 'POST'
   headers?: Record<string, string>
+  body?: string
 }
 
 // Callback to check if URLs exist in database (early termination). Returns data if URL exists,

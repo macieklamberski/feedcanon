@@ -85,6 +85,25 @@ describe('defaultFetch', () => {
     expect(capturedOptions).toEqual(expected)
   })
 
+  it('should pass POST method and body to fetch', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock((_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', {
+      method: 'POST',
+      body: '{"key":"value"}',
+    })
+
+    const expected: RequestInit = { method: 'POST', body: '{"key":"value"}' }
+
+    expect(capturedOptions).toEqual(expected)
+  })
+
   it('should pass headers to fetch', async () => {
     let capturedOptions: RequestInit | undefined
     fetchSpy.mockImplementation(
