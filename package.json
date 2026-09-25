@@ -24,12 +24,12 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/exports.d.ts",
-      "default": "./dist/exports.js"
+      "types": "./dist/exports.d.mts",
+      "default": "./dist/exports.mjs"
     },
     "./defaults": {
-      "types": "./dist/defaults.d.ts",
-      "default": "./dist/defaults.js"
+      "types": "./dist/defaults.d.mts",
+      "default": "./dist/defaults.mjs"
     }
   },
   "files": [
@@ -37,7 +37,7 @@
   ],
   "scripts": {
     "prepare": "lefthook install",
-    "build": "tsdown src/exports.ts src/defaults.ts --format esm --dts --clean --unbundle --no-fixed-extension",
+    "build": "tsdown src/exports.ts src/defaults.ts --format esm --dts --clean --unbundle",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs"
   },
