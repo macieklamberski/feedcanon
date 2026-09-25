@@ -199,7 +199,7 @@ describe('defaultFetch', () => {
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
   })
 
-  it('should propagate error when native fetch throws', () => {
+  it('should propagate error when native fetch throws', async () => {
     fetchSpy.mockImplementation(
       createFetchMock(() => {
         throw new TypeError('Failed to fetch')
@@ -207,7 +207,7 @@ describe('defaultFetch', () => {
     )
     const throwing = () => defaultFetch('https://example.com/feed.xml')
 
-    expect(throwing()).rejects.toThrow('Failed to fetch')
+    await expect(throwing()).rejects.toThrow('Failed to fetch')
   })
 
   it.todo('should propagate error when response.text() rejects', () => {
