@@ -1224,7 +1224,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should propagate error when existsFn throws', () => {
+      it('should propagate error when existsFn throws', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1238,7 +1238,7 @@ describe('findCanonical', () => {
         })
         const throwing = () => findCanonical(value, options)
 
-        expect(throwing()).rejects.toThrow('DB connection failed')
+        await expect(throwing()).rejects.toThrow('DB connection failed')
       })
     })
 
@@ -1374,7 +1374,7 @@ describe('findCanonical', () => {
         ])
       })
 
-      it('should propagate error when onFetch throws', () => {
+      it('should propagate error when onFetch throws', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1388,7 +1388,7 @@ describe('findCanonical', () => {
         })
         const throwing = () => findCanonical(value, options)
 
-        expect(throwing()).rejects.toThrow('Callback error')
+        await expect(throwing()).rejects.toThrow('Callback error')
       })
     })
 
@@ -1518,7 +1518,7 @@ describe('findCanonical', () => {
         })
       })
 
-      it('should propagate error when onMatch throws', () => {
+      it('should propagate error when onMatch throws', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1532,7 +1532,7 @@ describe('findCanonical', () => {
         })
         const throwing = () => findCanonical(value, options)
 
-        expect(throwing()).rejects.toThrow('Callback error')
+        await expect(throwing()).rejects.toThrow('Callback error')
       })
     })
 
@@ -1562,7 +1562,7 @@ describe('findCanonical', () => {
         expect(existsCallData).toEqual({ url: 'https://example.com/feed', data: existingData })
       })
 
-      it('should propagate error when onExists throws', () => {
+      it('should propagate error when onExists throws', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1577,7 +1577,7 @@ describe('findCanonical', () => {
         })
         const throwing = () => findCanonical(value, options)
 
-        expect(throwing()).rejects.toThrow('Callback error')
+        await expect(throwing()).rejects.toThrow('Callback error')
       })
     })
 
