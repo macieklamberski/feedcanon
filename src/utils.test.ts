@@ -255,103 +255,137 @@ describe('resolveFeedProtocol', () => {
 })
 
 describe('fixMalformedProtocol', () => {
-  it.each([
+  const leadingSlashCases: Array<[string, string]> = [
     ['/http://example.com', 'http://example.com'],
     ['/https://example.com', 'https://example.com'],
-  ])('should strip leading slash before protocol (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
+  it.each(leadingSlashCases)(
+    'should strip leading slash before protocol (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const protocolTypoCases: Array<[string, string]> = [
     ['htp://example.com', 'http://example.com'],
     ['htps://example.com', 'https://example.com'],
     ['hhttps://example.com', 'https://example.com'],
     ['httpss://example.com', 'https://example.com'],
     ['ttp://example.com', 'http://example.com'],
-  ])('should fix protocol typos (%s)', (value, expected) => {
+  ]
+
+  it.each(protocolTypoCases)('should fix protocol typos (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const wrongSeparatorCases: Array<[string, string]> = [
     ['http=//example.com', 'http://example.com'],
     ['http.//example.com', 'http://example.com'],
     ['http\\//example.com', 'http://example.com'],
     ['https=//example.com', 'https://example.com'],
-  ])('should fix wrong separators after protocol (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
+  it.each(wrongSeparatorCases)(
+    'should fix wrong separators after protocol (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const singleSlashCases: Array<[string, string]> = [
     ['http:/example.com', 'http://example.com'],
     ['https:/example.com', 'https://example.com'],
     ['http:/www.example.com', 'http://www.example.com'],
     ['https:/example.com/feed', 'https://example.com/feed'],
-  ])('should fix single slash after protocol (%s)', (value, expected) => {
+  ]
+
+  it.each(singleSlashCases)('should fix single slash after protocol (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const repeatedColonAndSlashCases: Array<[string, string]> = [
     ['http:://example.com', 'http://example.com'],
     ['http:///example.com', 'http://example.com'],
     ['http:////example.com', 'http://example.com'],
     ['https:::///example.com', 'https://example.com'],
     ['http://///example.com', 'http://example.com'],
     ['https://////www.example.com', 'https://www.example.com'],
-  ])('should fix multiple colons and slashes (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
+  it.each(repeatedColonAndSlashCases)(
+    'should fix multiple colons and slashes (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const leadingJunkCases: Array<[string, string]> = [
     ['http://./example.com', 'http://example.com'],
     ['http://,example.com', 'http://example.com'],
     ['https://...example.com', 'https://example.com'],
-  ])('should remove leading junk after protocol (%s)', (value, expected) => {
+  ]
+
+  it.each(leadingJunkCases)('should remove leading junk after protocol (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const placeholderCases: Array<[string, string]> = [
     ['http(s)://example.com', 'https://example.com'],
     ['HTTP(S)://example.com/feed', 'https://example.com/feed'],
-  ])('should fix placeholder syntax (%s)', (value, expected) => {
+  ]
+
+  it.each(placeholderCases)('should fix placeholder syntax (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const splitProtocolCases: Array<[string, string]> = [
     ['http:s//example.com', 'https://example.com'],
     ['https:s//example.com', 'https://example.com'],
     ['ht:tps//example.com', 'https://example.com'],
     ['htt:p//example.com', 'http://example.com'],
     ['h:ttp//example.com', 'http://example.com'],
     ['ht:tp//example.com', 'http://example.com'],
-  ])('should fix colon within protocol letters (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
+  it.each(splitProtocolCases)(
+    'should fix colon within protocol letters (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const doubledPrefixCases: Array<[string, string]> = [
     ['http:http://example.com', 'http://example.com'],
     ['https:https://example.com', 'https://example.com'],
     ['http:https://example.com', 'https://example.com'],
     ['https:http://example.com', 'http://example.com'],
     ['http::http://example.com', 'http://example.com'],
-  ])('should fix double protocol prefix (%s)', (value, expected) => {
+  ]
+
+  it.each(doubledPrefixCases)('should fix double protocol prefix (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const misplacedWwwCases: Array<[string, string]> = [
     ['http:www.//example.com', 'http://www.example.com'],
     ['https:www.//example.com', 'https://www.example.com'],
-  ])('should fix misplaced www after protocol (%s)', (value, expected) => {
+  ]
+
+  it.each(misplacedWwwCases)('should fix misplaced www after protocol (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const missingWwwDotCases: Array<[string, string]> = [
     ['http://www/example.com', 'http://www.example.com'],
     ['https://www/example.com/feed', 'https://www.example.com/feed'],
-  ])('should fix missing dot after www (%s)', (value, expected) => {
+  ]
+
+  it.each(missingWwwDotCases)('should fix missing dot after www (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const nestedProtocolCases: Array<[string, string]> = [
     ['http://https//example.com', 'https://example.com'],
     ['http://https/example.com', 'https://example.com'],
     ['https://https//example.com', 'https://example.com'],
@@ -363,73 +397,101 @@ describe('fixMalformedProtocol', () => {
     ['htps://ttp://example.com', 'http://example.com'],
     ['hs://hp://example.com', 'http://example.com'],
     ['httpss://htps://example.com', 'https://example.com'],
-  ])('should fix nested double protocols (%s)', (value, expected) => {
+  ]
+
+  it.each(nestedProtocolCases)('should fix nested double protocols (%s)', (value, expected) => {
     expect(fixMalformedProtocol(value)).toBe(expected)
   })
 
-  it.each([
+  const strayColonCases: Array<[string, string]> = [
     ['http://:/example.com', 'http://example.com'],
     ['https://:/example.com', 'https://example.com'],
     ['http://:/path/to/feed', 'http://path/to/feed'],
-  ])('should fix stray colon after protocol slashes (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
+  it.each(strayColonCases)(
+    'should fix stray colon after protocol slashes (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const portCases: Array<[string, string]> = [
     ['htp://example.com:8080', 'http://example.com:8080'],
     ['htps://example.com:443/feed', 'https://example.com:443/feed'],
     ['hhttps://example.com:3000', 'https://example.com:3000'],
-  ])('should preserve port numbers when fixing protocol typos (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
+  it.each(portCases)(
+    'should preserve port numbers when fixing protocol typos (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const queryStringCases: Array<[string, string]> = [
     ['htp://example.com?a=1', 'http://example.com?a=1'],
     ['htps://example.com/feed?format=rss&id=123', 'https://example.com/feed?format=rss&id=123'],
     ['hhttps://example.com?foo=bar#anchor', 'https://example.com?foo=bar#anchor'],
-  ])('should preserve query strings when fixing protocol typos (%s)', (value, expected) => {
-    expect(fixMalformedProtocol(value)).toBe(expected)
-  })
+  ]
 
-  it.each([
-    ['http://example.com/path/http://file'],
-    ['https://example.com/redirect?url=http://other.com'],
-    ['http://example.com/api/https://callback'],
-  ])('should not modify protocol-like strings in path (%s)', (value) => {
+  it.each(queryStringCases)(
+    'should preserve query strings when fixing protocol typos (%s)',
+    (value, expected) => {
+      expect(fixMalformedProtocol(value)).toBe(expected)
+    },
+  )
+
+  const protocolInPathUrls: Array<string> = [
+    'http://example.com/path/http://file',
+    'https://example.com/redirect?url=http://other.com',
+    'http://example.com/api/https://callback',
+  ]
+
+  it.each(protocolInPathUrls)('should not modify protocol-like strings in path (%s)', (value) => {
     expect(fixMalformedProtocol(value)).toBe(value)
   })
 
-  it.each([
-    ['https://tp.srgssr.ch/p/srf/embed'],
-    ['https://ps.w.org/plugin/icon.png'],
-    ['http://tp.media/x'],
-    ['https://tps.org/a'],
-    ['https://https.example.com/feed'],
-    ['tp.media/x'],
-    ['https://ps.tp.example.com/a'],
-  ])('should not mistake a leading hostname label for a protocol (%s)', (value) => {
+  const protocolLikeHostnameUrls: Array<string> = [
+    'https://tp.srgssr.ch/p/srf/embed',
+    'https://ps.w.org/plugin/icon.png',
+    'http://tp.media/x',
+    'https://tps.org/a',
+    'https://https.example.com/feed',
+    'tp.media/x',
+    'https://ps.tp.example.com/a',
+  ]
+
+  it.each(protocolLikeHostnameUrls)(
+    'should not mistake a leading hostname label for a protocol (%s)',
+    (value) => {
+      expect(fixMalformedProtocol(value)).toBe(value)
+    },
+  )
+
+  const nonHttpUrls: Array<string> = [
+    'ftp://example.com/file',
+    'mailto:user@example.com',
+    'file:///path/to/file',
+    'data:text/plain;base64,SGVsbG8=',
+    'tel:+1234567890',
+  ]
+
+  it.each(nonHttpUrls)('should preserve non-HTTP protocols unchanged (%s)', (value) => {
     expect(fixMalformedProtocol(value)).toBe(value)
   })
 
-  it.each([
-    ['ftp://example.com/file'],
-    ['mailto:user@example.com'],
-    ['file:///path/to/file'],
-    ['data:text/plain;base64,SGVsbG8='],
-    ['tel:+1234567890'],
-  ])('should preserve non-HTTP protocols unchanged (%s)', (value) => {
-    expect(fixMalformedProtocol(value)).toBe(value)
-  })
+  const validUrls: Array<string> = [
+    'http://example.com',
+    'https://example.com',
+    'http://example.com/path/to/feed',
+    'https://example.com/feed?format=rss',
+    'http://example.com:8080/feed',
+    'ftp://example.com/file',
+    '/path/to/feed',
+  ]
 
-  it.each([
-    ['http://example.com'],
-    ['https://example.com'],
-    ['http://example.com/path/to/feed'],
-    ['https://example.com/feed?format=rss'],
-    ['http://example.com:8080/feed'],
-    ['ftp://example.com/file'],
-    ['/path/to/feed'],
-  ])('should preserve valid URLs unchanged (%s)', (value) => {
+  it.each(validUrls)('should preserve valid URLs unchanged (%s)', (value) => {
     expect(fixMalformedProtocol(value)).toBe(value)
   })
 

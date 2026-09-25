@@ -6,6 +6,8 @@ const bloggerRegex = /^(www\.|beta\.)?blogger\.com$/
 // Matches *.blogspot.com and country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
 const blogspotRegex = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
 
+const redundantAltValues: Array<string | null> = ['atom', 'json', '']
+
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
     return bloggerRegex.test(url.hostname) || blogspotRegex.test(url.hostname)
@@ -42,7 +44,7 @@ export const bloggerRewrite: Rewrite = {
 
     // Strip alt=atom and alt=json (Atom is the default, JSON is same content).
     const alt = rewritten.searchParams.get('alt')
-    if (alt === 'atom' || alt === 'json' || alt === '') {
+    if (redundantAltValues.includes(alt)) {
       rewritten.searchParams.delete('alt')
     }
 

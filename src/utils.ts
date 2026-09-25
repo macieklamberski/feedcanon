@@ -33,6 +33,9 @@ const plusRegex = /\+/g
 const httpProtocolRegex = /^http:\/\//i
 const httpsProtocolRegex = /^https:\/\//i
 
+const leadingWhitespaceChars = [' ', '\t', '\n']
+const httpProtocols = ['http:', 'https:']
+
 // Pre-compiled patterns for fixMalformedProtocol.
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
 const validUrlRegex = /^https?:\/\/(?:www\.|[a-vx-z0-9])/i
@@ -214,7 +217,7 @@ export const addMissingProtocol = (url: string, protocol: 'http' | 'https' = 'ht
 
   // Check if it looks like a domain (no spaces or special chars at start).
   const firstChar = url.charAt(0)
-  if (firstChar === ' ' || firstChar === '\t' || firstChar === '\n') {
+  if (leadingWhitespaceChars.includes(firstChar)) {
     return url
   }
 
@@ -266,7 +269,7 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 
     // An absolute http(s) href needs no protocol repair and reparsing it changes nothing, so return
     // it directly.
-    if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
+    if (httpProtocols.includes(resolved.protocol)) {
       return resolved.href
     }
 
