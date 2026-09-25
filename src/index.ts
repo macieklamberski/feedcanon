@@ -135,7 +135,7 @@ export async function findCanonical(
     const comparedResponseFeed = await parser.parse(comparedResponseBody)
 
     if (comparedResponseFeed) {
-      initialResponseSignature ||= parser.getSignature(initialResponseFeed, initialResponseUrl)
+      initialResponseSignature ??= parser.getSignature(initialResponseFeed, initialResponseUrl)
       const comparedResponseSignature = parser.getSignature(
         comparedResponseFeed,
         comparedResponseUrl,
