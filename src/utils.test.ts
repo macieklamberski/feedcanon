@@ -2290,8 +2290,9 @@ describe('createSignature', () => {
     // BigInt is not serializable, so JSON.stringify throws. Because no field is mutated,
     // the input object is unchanged — the prior implementation left it corrupted.
     const value: Record<string, unknown> = { title: 'Test', big: 1n }
+    const throwing = () => createSignature(value, ['title'])
 
-    expect(() => createSignature(value, ['title'])).toThrow()
+    expect(throwing).toThrow()
     expect(value.title).toBe('Test')
     expect(value.big).toBe(1n)
   })
