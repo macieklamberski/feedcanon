@@ -1,5 +1,5 @@
 import { decodeHTMLStrict } from 'entities'
-import { parseUrl } from 'trousse'
+import { isHttpUrl, parseUrl } from 'trousse'
 import { defaultNormalizeOptions } from './defaults.js'
 import type { MaybePromise, NormalizeOptions, Probe, Rewrite } from './types.js'
 
@@ -34,7 +34,6 @@ const httpProtocolRegex = /^http:\/\//i
 const httpsProtocolRegex = /^https:\/\//i
 
 const leadingWhitespaceChars = [' ', '\t', '\n']
-const httpProtocols = ['http:', 'https:']
 
 // Pre-compiled patterns for fixMalformedProtocol.
 // Fast path: valid http(s):// followed by hostname char (excludes lone 'w' to avoid partial 'www').
@@ -269,7 +268,7 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
 
     // An absolute http(s) href needs no protocol repair and reparsing it changes nothing, so return
     // it directly.
-    if (httpProtocols.includes(resolved.protocol)) {
+    if (isHttpUrl(resolved)) {
       return resolved.href
     }
 
@@ -282,7 +281,7 @@ export const resolveUrl = (url: string, base?: string): string | undefined => {
   // Step 6: Validate and reject non-HTTP(S) protocols.
   const parsed = parseUrl(resolvedUrl)
 
-  if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+  if (!parsed || !isHttpUrl(parsed)) {
     return
   }
 
