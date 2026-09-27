@@ -64,7 +64,7 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml')
 
-    const expected: RequestInit = { method: 'GET' }
+    const expected: RequestInit = { method: 'GET', signal: expect.any(AbortSignal) }
 
     expect(capturedOptions).toEqual(expected)
   })
@@ -80,7 +80,7 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml', { method: 'HEAD' })
 
-    const expected: RequestInit = { method: 'HEAD' }
+    const expected: RequestInit = { method: 'HEAD', signal: expect.any(AbortSignal) }
 
     expect(capturedOptions).toEqual(expected)
   })
@@ -99,7 +99,11 @@ describe('defaultFetch', () => {
       body: '{"key":"value"}',
     })
 
-    const expected: RequestInit = { method: 'POST', body: '{"key":"value"}' }
+    const expected: RequestInit = {
+      method: 'POST',
+      body: '{"key":"value"}',
+      signal: expect.any(AbortSignal),
+    }
 
     expect(capturedOptions).toEqual(expected)
   })
@@ -117,7 +121,11 @@ describe('defaultFetch', () => {
       headers: { 'X-Custom': 'value' },
     })
 
-    const expected: RequestInit = { method: 'GET', headers: { 'X-Custom': 'value' } }
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: { 'X-Custom': 'value' },
+      signal: expect.any(AbortSignal),
+    }
 
     expect(capturedOptions).toEqual(expected)
   })
