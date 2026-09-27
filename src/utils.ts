@@ -1,5 +1,5 @@
 import type { MaybePromise } from 'trousse'
-import { parseUrl, stripWww } from 'trousse'
+import { addMissingProtocol, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
@@ -112,8 +112,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     const delimiterMatch = urlDelimiterRegex.exec(text)
     const end = delimiterMatch ? delimiterMatch.index : text.length
 
-    const token = text.slice(start, end)
-    const parsed = parseUrl(token.startsWith('//') ? `https:${token}` : token)
+    const parsed = parseUrl(addMissingProtocol(text.slice(start, end)))
 
     if (!parsed) {
       continue
