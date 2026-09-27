@@ -288,7 +288,7 @@ describe('createSignature', () => {
     const value = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
     const expected = JSON.stringify({ title: 'Test', link: 'https://example.com' })
 
-    expect(createSignature(value, ['generator'])).toBe(expected)
+    expect(createSignature(value, [[value, 'generator']])).toBe(expected)
   })
 
   it('should neutralize multiple fields', () => {
@@ -300,14 +300,19 @@ describe('createSignature', () => {
     }
     const expected = JSON.stringify({ title: 'Test', link: 'https://example.com' })
 
-    expect(createSignature(value, ['generator', 'pubDate'])).toBe(expected)
+    expect(
+      createSignature(value, [
+        [value, 'generator'],
+        [value, 'pubDate'],
+      ]),
+    ).toBe(expected)
   })
 
   it('should restore original values after creating signature', () => {
     const value = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
     const expected = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
 
-    createSignature(value, ['generator'])
+    createSignature(value, [[value, 'generator']])
 
     expect(value).toEqual(expected)
   })
@@ -316,28 +321,28 @@ describe('createSignature', () => {
     const value = { title: 'Test', meta: { author: 'John', date: '2024-01-01' } }
     const expected = JSON.stringify({ title: 'Test' })
 
-    expect(createSignature(value, ['meta'])).toBe(expected)
+    expect(createSignature(value, [[value, 'meta']])).toBe(expected)
   })
 
   it('should handle arrays', () => {
     const value = { title: 'Test', items: [1, 2, 3] }
     const expected = JSON.stringify({ title: 'Test' })
 
-    expect(createSignature(value, ['items'])).toBe(expected)
+    expect(createSignature(value, [[value, 'items']])).toBe(expected)
   })
 
   it('should handle undefined fields', () => {
     const value: Record<string, unknown> = { title: 'Test', link: undefined }
     const expected = JSON.stringify({ title: 'Test' })
 
-    expect(createSignature(value, ['link'])).toBe(expected)
+    expect(createSignature(value, [[value, 'link']])).toBe(expected)
   })
 
   it('should handle field missing from object', () => {
     const value: Record<string, unknown> = { title: 'Test' }
     const expected = JSON.stringify({ title: 'Test' })
 
-    expect(createSignature(value, ['link'])).toBe(expected)
+    expect(createSignature(value, [[value, 'link']])).toBe(expected)
   })
 
   it('should handle empty fields array', () => {
@@ -351,7 +356,7 @@ describe('createSignature', () => {
     const value: Record<string, unknown> = { title: 'Test', link: null }
     const expected = JSON.stringify({ title: 'Test' })
 
-    expect(createSignature(value, ['link'])).toBe(expected)
+    expect(createSignature(value, [[value, 'link']])).toBe(expected)
   })
 
   it('should handle empty object', () => {
@@ -368,14 +373,41 @@ describe('createSignature', () => {
     }
     const expected = JSON.stringify({ items: [{ link: 'https://example.com/post' }] })
 
-    expect(createSignature(value, ['link'])).toBe(expected)
+    expect(createSignature(value, [[value, 'link']])).toBe(expected)
+  })
+
+  it('should omit a key on a nested object', () => {
+    const value = { title: 'Test', dc: { creator: 'John', dates: ['2024-01-01'] } }
+    const expected = JSON.stringify({ title: 'Test', dc: { creator: 'John' } })
+
+    expect(createSignature(value, [[value.dc, 'dates']])).toBe(expected)
+  })
+
+  it('should omit a key only on the given array element', () => {
+    const value = {
+      links: [
+        { rel: 'self', href: 'https://example.com/feed' },
+        { rel: 'alternate', href: 'https://example.com/' },
+      ],
+    }
+    const expected = JSON.stringify({
+      links: [{ rel: 'self' }, { rel: 'alternate', href: 'https://example.com/' }],
+    })
+
+    expect(createSignature(value, [[value.links[0], 'href']])).toBe(expected)
+  })
+
+  it('should ignore an exclusion whose object is undefined', () => {
+    const value = { title: 'Test' }
+    const expected = JSON.stringify({ title: 'Test' })
+
+    expect(createSignature(value, [[undefined, 'title']])).toBe(expected)
   })
 
   it('should leave the object intact when serialization throws', () => {
-    // BigInt is not serializable, so JSON.stringify throws. Because no field is mutated,
-    // the input object is unchanged — the prior implementation left it corrupted.
+    // BigInt is not serializable, so JSON.stringify throws.
     const value: Record<string, unknown> = { title: 'Test', big: 1n }
-    const throwing = () => createSignature(value, ['title'])
+    const throwing = () => createSignature(value, [[value, 'title']])
 
     expect(throwing).toThrow()
     expect(value.title).toBe('Test')
@@ -836,6 +868,22 @@ describe('neutralizeUrls', () => {
       const expected = JSON.stringify({ content: '<img src=/image.png>' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize URLs on the host of a protocol-relative site URL', () => {
+      const urls = ['https://feeds.example.org/feed', '//example.com/']
+      const value = JSON.stringify({ link: 'https://example.com/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, urls)).toBe(expected)
+    })
+
+    it('should normalize URLs on the host of a scheme-less site URL', () => {
+      const urls = ['https://feeds.example.org/feed', 'example.com']
+      const value = JSON.stringify({ link: 'https://example.com/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, urls)).toBe(expected)
     })
 
     it('should not treat doubled slash in path as protocol-relative URL', () => {
