@@ -8,6 +8,20 @@ const blogspotRegex = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
 
 const redundantAltValues: Array<string | null> = ['atom', 'json', '']
 
+const strippedParams = [
+  'redirect', // Controls redirect behavior, not content.
+  'v', // GData API version, deprecated and now ignored.
+  // Pagination and date filters. Feed readers subscribe to full feeds, not filtered views, so
+  // subscriptions with different limits or date ranges canonicalize to one URL.
+  'max-results',
+  'start-index',
+  'published-min',
+  'published-max',
+  'updated-min',
+  'updated-max',
+  'orderby',
+]
+
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
     return bloggerRegex.test(url.hostname) || blogspotRegex.test(url.hostname)
@@ -39,30 +53,15 @@ export const bloggerRewrite: Rewrite = {
       }
     }
 
-    // Strip redirect param (controls redirect behavior, not content).
-    rewritten.searchParams.delete('redirect')
+    for (const param of strippedParams) {
+      rewritten.searchParams.delete(param)
+    }
 
     // Strip alt=atom and alt=json (Atom is the default, JSON is same content).
     const alt = rewritten.searchParams.get('alt')
     if (redundantAltValues.includes(alt)) {
       rewritten.searchParams.delete('alt')
     }
-
-    // Strip v param (GData API version, deprecated and now ignored).
-    rewritten.searchParams.delete('v')
-
-    // Strip pagination and date filter params. Feed readers subscribe to full feeds, not filtered
-    // views. Stripping these ensures subscriptions to the same blog with different limits or date
-    // ranges canonicalize to one URL.
-    rewritten.searchParams.delete('max-results')
-    rewritten.searchParams.delete('start-index')
-    rewritten.searchParams.delete('published-min')
-    rewritten.searchParams.delete('published-max')
-    rewritten.searchParams.delete('updated-min')
-    rewritten.searchParams.delete('updated-max')
-
-    // Strip orderby param.
-    rewritten.searchParams.delete('orderby')
 
     const normalized = normalizeUrl(rewritten.href, {
       stripTrailingSlash: true,
