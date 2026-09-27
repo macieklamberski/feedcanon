@@ -1,5 +1,5 @@
 import type { MaybePromise } from 'trousse'
-import { parseUrl, stripWww } from 'trousse'
+import { addMissingProtocol, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
@@ -64,10 +64,10 @@ export const createSignature = <T extends Record<string, unknown>>(
   })
 }
 
-// Static pattern that locates the start of each absolute HTTP(S) URL in feed text. Fixed and never
-// built from feed input, so it carries no ReDoS risk. A URL token runs from a match to the next
-// delimiter (quote, whitespace, angle bracket, backslash, `}`).
-const urlSchemeRegex = /https?:\/\//gi
+// Static, so no ReDoS risk. A URL token runs to the next quote, whitespace, angle bracket, backslash
+// or `}`. A `//` after a word character is a doubled slash in a path, and after a colon another
+// scheme, so neither starts a protocol-relative URL.
+const urlSchemeRegex = /(?:https?:|(?<![\w:]))\/\//gi
 const urlDelimiterRegex = /[\s"'<>\\}]/g
 // Strips a trailing slash from any URL or root-relative path before a quote or query. Static and
 // linear (the prior ReDoS lived only in the per-host pattern, now removed).
@@ -112,7 +112,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     const delimiterMatch = urlDelimiterRegex.exec(text)
     const end = delimiterMatch ? delimiterMatch.index : text.length
 
-    const parsed = parseUrl(text.slice(start, end))
+    const parsed = parseUrl(addMissingProtocol(text.slice(start, end)))
 
     if (!parsed) {
       continue

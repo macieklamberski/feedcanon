@@ -821,10 +821,37 @@ describe('neutralizeUrls', () => {
     })
   })
 
-  describe.todo('potential normalizations', () => {
-    it.todo('should normalize protocol-relative URLs', () => {
-      // Signature contains a protocol-relative link like //example.com/post/1 on the feed host.
-      // Expected: normalized to /post/1 like the absolute forms.
+  describe('protocol-relative URLs', () => {
+    it('should normalize protocol-relative URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: '//example.com/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize protocol-relative URLs in HTML attributes', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ content: '<img src=//example.com/image.png>' })
+      const expected = JSON.stringify({ content: '<img src=/image.png>' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should not treat doubled slash in path as protocol-relative URL', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'https://example.org/archive//example.com/post' })
+      const expected = JSON.stringify({ link: 'https://example.org/archive//example.com/post' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should not treat other schemes as protocol-relative URL', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'ftp://example.com/post/1' })
+      const expected = JSON.stringify({ link: 'ftp://example.com/post/1' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
     })
   })
 
