@@ -720,6 +720,43 @@ describe('defaultParser', () => {
       expect(signature1).toBe(signature2)
     })
 
+    it('should neutralize channel dc:date in RDF feed signature', () => {
+      const value1: DefaultParserResult = {
+        format: 'rdf',
+        feed: {
+          title: 'Test',
+          dc: { dates: ['2024-12-30T10:00:00Z'] },
+        },
+      }
+      const value2: DefaultParserResult = {
+        format: 'rdf',
+        feed: {
+          title: 'Test',
+          dc: { dates: ['2024-12-30T11:00:00Z'] },
+        },
+      }
+
+      const signature1 = defaultParser.getSignature(value1, 'https://example.com/feed.rdf')
+      const signature2 = defaultParser.getSignature(value2, 'https://example.com/feed.rdf')
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should restore channel dc:date after generating RDF signature', () => {
+      const value: DefaultParserResult = {
+        format: 'rdf',
+        feed: {
+          title: 'Test',
+          dc: { dates: ['2024-12-30T10:00:00Z'] },
+        },
+      }
+      const expected = { dates: ['2024-12-30T10:00:00Z'] }
+
+      defaultParser.getSignature(value, 'https://example.com/feed.rdf')
+
+      expect(value.feed.dc).toEqual(expected)
+    })
+
     it('should restore link after generating RDF signature', () => {
       const value: DefaultParserResult = {
         format: 'rdf',

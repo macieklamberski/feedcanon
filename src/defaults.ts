@@ -90,7 +90,9 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
           ])
         } else if (parsed.format === 'rdf') {
           contentUrl = parsed.feed.link
-          signature = createSignature(parsed.feed, ['link'])
+          // The channel dc:date is the RDF counterpart of the RSS lastBuildDate.
+          const feed = { ...parsed.feed, dc: { ...parsed.feed.dc, dates: undefined } }
+          signature = createSignature(feed, ['link'])
         } else {
           contentUrl = retrieveAlternateLink(parsed.feed)?.href
           signature = createSignature(parsed.feed, ['updated', 'generator'])
