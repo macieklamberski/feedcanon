@@ -79,6 +79,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
           [parsed.feed, 'pubDate'],
           [parsed.feed, 'link'],
           [parsed.feed, 'generator'],
+          [parsed.feed.dc, 'dates'],
           [selfLink, 'href'],
         ])
       } else if (parsed.format === 'rdf') {

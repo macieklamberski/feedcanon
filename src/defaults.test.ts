@@ -720,6 +720,34 @@ describe('defaultParser', () => {
       expect(signature1).toBe(signature2)
     })
 
+    it('should neutralize channel dc:date in RSS feed signature', async () => {
+      const value1 = `
+        <?xml version="1.0"?>
+        <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <channel>
+            <title>Test</title>
+            <dc:date>2024-12-30T10:00:00Z</dc:date>
+          </channel>
+        </rss>
+      `
+      const value2 = `
+        <?xml version="1.0"?>
+        <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <channel>
+            <title>Test</title>
+            <dc:date>2024-12-30T11:00:00Z</dc:date>
+          </channel>
+        </rss>
+      `
+      const parsed1 = await parseOrThrow(value1)
+      const parsed2 = await parseOrThrow(value2)
+
+      const signature1 = defaultParser.getSignature(parsed1, 'https://example.com/feed.rss')
+      const signature2 = defaultParser.getSignature(parsed2, 'https://example.com/feed.rss')
+
+      expect(signature1).toBe(signature2)
+    })
+
     it('should neutralize channel dc:date in RDF feed signature', () => {
       const value1: DefaultParserResult = {
         format: 'rdf',
