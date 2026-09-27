@@ -48,14 +48,14 @@
     "entities": "^8.1.0"
   },
   "peerDependencies": {
-    "feedsmith": "^3.0.0"
+    "feedsmith": "^3.0.1"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
-    "feedsmith": "^3.0.0",
+    "feedsmith": "^3.0.1",
     "kvalita": "^1.24.3",
-    "ogier": "^1.4.0",
-    "trousse": "^2.6.0",
+    "ogier": "^1.5.0",
+    "trousse": "^2.6.1",
     "tsdown": "^0.23.0",
     "vitepress": "^2.0.0-alpha.20"
   }
