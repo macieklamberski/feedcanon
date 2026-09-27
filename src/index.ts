@@ -98,7 +98,14 @@ export async function findCanonical(
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
 
-  const initialResponseFeed = await parser.parse(initialResponseBody)
+  let initialResponseFeed: Awaited<ReturnType<typeof parser.parse>>
+
+  try {
+    initialResponseFeed = await parser.parse(initialResponseBody)
+  } catch {
+    return
+  }
+
   if (!initialResponseFeed) {
     return
   }
@@ -132,7 +139,13 @@ export async function findCanonical(
     }
 
     // Tier 2: Signature match via parser.
-    const comparedResponseFeed = await parser.parse(comparedResponseBody)
+    let comparedResponseFeed: Awaited<ReturnType<typeof parser.parse>>
+
+    try {
+      comparedResponseFeed = await parser.parse(comparedResponseBody)
+    } catch {
+      return false
+    }
 
     if (comparedResponseFeed) {
       initialResponseSignature ??= parser.getSignature(initialResponseFeed, initialResponseUrl)
