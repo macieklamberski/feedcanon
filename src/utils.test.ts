@@ -884,11 +884,18 @@ describe('neutralizeUrls', () => {
     it('should normalize multiple URLs with escaped quotes in same content', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({
-        description:
-          '<a href="https://example.com/a">A</a> and <a href="https://example.com/b">B</a>',
+        description: `
+          <a href="https://example.com/a">A</a>
+          and
+          <a href="https://example.com/b">B</a>
+        `,
       })
       const expected = JSON.stringify({
-        description: '<a href="/a">A</a> and <a href="/b">B</a>',
+        description: `
+          <a href="/a">A</a>
+          and
+          <a href="/b">B</a>
+        `,
       })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
