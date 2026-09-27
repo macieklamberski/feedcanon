@@ -1,11 +1,6 @@
 import { parseFeed } from 'feedsmith'
-import type {
-  DefaultParserResult,
-  FetchFn,
-  NormalizeOptions,
-  ParserAdapter,
-  Tier,
-} from './types.js'
+import type { NormalizeOptions } from 'trousse'
+import type { DefaultParserResult, FetchFn, ParserAdapter, Tier } from './types.js'
 import { createSignature, neutralizeUrls } from './utils.js'
 
 export const defaultNormalizeOptions: NormalizeOptions = {

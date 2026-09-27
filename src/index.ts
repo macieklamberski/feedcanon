@@ -1,4 +1,4 @@
-import { parseUrl } from 'trousse'
+import { normalizeUrl, parseUrl, resolveUrl } from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -6,7 +6,7 @@ import type {
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import { applyProbes, applyRewrites, normalizeUrl, resolveUrl } from './utils.js'
+import { applyProbes, applyRewrites } from './utils.js'
 
 // Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<

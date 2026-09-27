@@ -1,11 +1,11 @@
+import { isHostOf, normalizeUrl } from 'trousse'
 import type { Rewrite } from '../types.js'
-import { normalizeUrl } from '../utils.js'
 
 const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
 
 export const feedburnerRewrite: Rewrite = {
   match: (url) => {
-    return hosts.includes(url.hostname)
+    return isHostOf(url, hosts)
   },
 
   rewrite: (url) => {
