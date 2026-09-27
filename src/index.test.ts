@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { afterAll, describe, expect, it, spyOn } from 'bun:test'
 import { findCanonical } from './index.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
@@ -1814,9 +1814,25 @@ describe('findCanonical', () => {
     })
 
     describe('defaults', () => {
-      it.todo('should use defaultParser and defaultFetch when options are omitted', () => {
-        // findCanonical(url) with no options falls back to defaultParser and defaultFetch, which
-        // performs real network requests. Needs global fetch interception to test.
+      const fetchSpy = spyOn(globalThis, 'fetch')
+
+      afterAll(() => {
+        fetchSpy.mockRestore()
+      })
+
+      it('should use defaultParser and defaultFetch when options are omitted', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body =
+          '<rss version="2.0"><channel><title>Example</title><link>https://example.com</link></channel></rss>'
+        // @ts-expect-error: This is for testing purposes.
+        fetchSpy.mockImplementation((url: string) => {
+          const response = new Response(body)
+          Object.defineProperty(response, 'url', { value: url })
+          return response
+        })
+
+        expect(await findCanonical(value)).toBe(expected)
       })
     })
   })
