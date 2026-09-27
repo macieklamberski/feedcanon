@@ -242,14 +242,37 @@ describe('applyProbes', () => {
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 
-  it.todo('should await async testCandidate results', () => {
-    // testCandidate returns a Promise that resolves to the candidate URL after a delay.
-    // Expected: applyProbes awaits it and returns the resolved candidate.
+  it('should await async testCandidate results', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes = [createProbe('feed', '/feed')]
+    const testCandidate = async (url: string) => {
+      await Bun.sleep(1)
+
+      if (url === 'https://example.com/feed') {
+        return url
+      }
+    }
+    const expected = 'https://example.com/feed'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 
-  it.todo('should return original URL when getCandidates throws', () => {
-    // Probe matches but getCandidates throws. Expected: the surrounding try/catch returns
-    // the original URL instead of propagating the error.
+  it('should return original URL when getCandidates throws', async () => {
+    const value = 'https://example.com/?feed=rss2'
+    const probes: Array<Probe> = [
+      {
+        match: (url) => url.searchParams.has('feed'),
+        getCandidates: () => {
+          throw new Error('Candidates failed')
+        },
+      },
+    ]
+    const testCandidate = () => {
+      throw new Error('Should not be called')
+    }
+    const expected = 'https://example.com/?feed=rss2'
+
+    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 })
 
@@ -803,15 +826,23 @@ describe('neutralizeUrls', () => {
       // Signature contains a protocol-relative link like //example.com/post/1 on the feed host.
       // Expected: normalized to /post/1 like the absolute forms.
     })
+  })
 
-    it.todo('should normalize uppercase protocol URLs', () => {
-      // Signature contains HTTPS://EXAMPLE.COM/post/1 (uppercase scheme and host) for the
-      // feed host. Expected: normalized to /post/1 case-insensitively.
+  describe('letter case', () => {
+    it('should normalize uppercase protocol URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'HTTPS://EXAMPLE.COM/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it.todo('should normalize uppercase domain URLs', () => {
-      // Signature contains https://EXAMPLE.COM/post/1 (uppercase host only) for the feed host.
-      // Expected: normalized to /post/1 case-insensitively.
+    it('should normalize uppercase domain URLs', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'https://EXAMPLE.COM/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
     })
   })
 
