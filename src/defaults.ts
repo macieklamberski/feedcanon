@@ -24,7 +24,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
     method: options?.method ?? 'GET',
     headers: options?.headers,
     body: options?.body,
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(30_000),
   })
 
   return {
