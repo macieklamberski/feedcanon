@@ -2346,5 +2346,26 @@ describe('findCanonical', () => {
 
       expect(await findCanonical(value, options)).toBe(expected)
     })
+
+    it('should propagate error when onMatch throws for probe candidate', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body },
+          'https://example.com/feed': { body },
+        }),
+        onMatch: ({ url }) => {
+          if (url === 'https://example.com/feed') {
+            throw new Error('Callback failed')
+          }
+        },
+        parser: createMockParser(undefined),
+        probes: [createProbe('feed', '/feed')],
+      })
+      const throwing = () => findCanonical(value, options)
+
+      await expect(throwing()).rejects.toThrow('Callback failed')
+    })
   })
 })
