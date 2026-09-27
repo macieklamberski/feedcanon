@@ -1,4 +1,4 @@
-import { normalizeUrl, parseUrl, resolveUrl } from 'trousse'
+import { normalizeUrl, parseUrl, resolveUrl, upgradeProtocol } from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -225,9 +225,9 @@ export async function findCanonical(
     const urlsToTry = [selfRequestUrl]
 
     if (selfRequestUrl.startsWith('https://')) {
-      urlsToTry.push(selfRequestUrl.replace('https://', 'http://'))
+      urlsToTry.push(upgradeProtocol(selfRequestUrl, 'http'))
     } else if (selfRequestUrl.startsWith('http://')) {
-      urlsToTry.push(selfRequestUrl.replace('http://', 'https://'))
+      urlsToTry.push(upgradeProtocol(selfRequestUrl))
     }
 
     for (const urlToTry of urlsToTry) {
@@ -246,7 +246,7 @@ export async function findCanonical(
 
   // Phase 4: Apply URL probes.
   // Test alternate URL forms (e.g., WordPress query param -> path conversion).
-  if (probes && probes?.length > 0) {
+  if (probes?.length) {
     candidateSourceUrl = await applyProbes(candidateSourceUrl, probes, async (candidateUrl) => {
       const response = await fetchAndCompare(candidateUrl)
 
@@ -277,7 +277,7 @@ export async function findCanonical(
       let isCandidateMismatch = false
 
       if (candidateUrl.startsWith('https://')) {
-        lookupUrls.push(candidateUrl.replace('https://', 'http://'))
+        lookupUrls.push(upgradeProtocol(candidateUrl, 'http'))
       }
 
       for (const lookupUrl of lookupUrls) {
@@ -350,7 +350,7 @@ export async function findCanonical(
 
   // Phase 7: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
-    const httpsUrl = winningUrl.replace('http://', 'https://')
+    const httpsUrl = upgradeProtocol(winningUrl)
     const response = await fetchAndCompare(httpsUrl)
 
     if (response) {
