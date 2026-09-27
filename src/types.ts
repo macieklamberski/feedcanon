@@ -24,7 +24,7 @@ export type Probe = {
   getCandidates: (url: URL) => Array<string>
 }
 
-// Normalization tier options for findCanonical (stripQueryParams handled at top level).
+// Normalization tier options for findCanonical. Removing query params is left to cleanUrlFn.
 export type Tier = Omit<NormalizeOptions, 'stripQueryParams'>
 
 // Callback fired after each fetch operation.
