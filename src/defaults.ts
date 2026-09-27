@@ -87,6 +87,11 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
           contentUrl = parsed.feed.link
           signature = createSignature(parsed.feed, ['link'])
         } else {
+          // A link without rel is an alternate link per RFC 4287.
+          const alternateLink = parsed.feed.links?.find((link) => {
+            return (link.rel ?? 'alternate') === 'alternate'
+          })
+          contentUrl = alternateLink?.href
           signature = createSignature(parsed.feed, ['updated', 'generator'])
         }
       } finally {
