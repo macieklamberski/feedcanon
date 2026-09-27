@@ -1795,9 +1795,21 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it.todo('should propagate error when cleanUrlFn throws', () => {
-        // cleanUrlFn throws when cleaning the initial response URL. Expected: the error propagates
-        // to the caller since URL cleaning is not wrapped in try/catch.
+      it('should propagate error when cleanUrlFn throws', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: () => {
+            throw new Error('Cleaner failed')
+          },
+        })
+        const throwing = () => findCanonical(value, options)
+
+        await expect(throwing()).rejects.toThrow('Cleaner failed')
       })
     })
 
@@ -2340,9 +2352,21 @@ describe('findCanonical', () => {
       })
     })
 
-    it.todo('should return the same URL when re-run on its own result', () => {
-      // Run findCanonical, then run it again on the returned canonical URL with the same mocks.
-      // Expected: the second run returns the identical URL (idempotency).
+    it('should return the same URL when re-run on its own result', async () => {
+      const value = 'http://www.example.com/feed/?utm_source=rss'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'http://www.example.com/feed/?utm_source=rss': { body },
+          'http://example.com/feed': { body },
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+      expect(await findCanonical(expected, options)).toBe(expected)
     })
   })
 
