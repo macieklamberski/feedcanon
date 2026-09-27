@@ -838,6 +838,22 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
+    it('should normalize URLs on the host of a protocol-relative site URL', () => {
+      const urls = ['https://feeds.example.org/feed', '//example.com/']
+      const value = JSON.stringify({ link: 'https://example.com/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, urls)).toBe(expected)
+    })
+
+    it('should normalize URLs on the host of a scheme-less site URL', () => {
+      const urls = ['https://feeds.example.org/feed', 'example.com']
+      const value = JSON.stringify({ link: 'https://example.com/post/1' })
+      const expected = JSON.stringify({ link: '/post/1' })
+
+      expect(neutralizeUrls(value, urls)).toBe(expected)
+    })
+
     it('should not treat doubled slash in path as protocol-relative URL', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://example.org/archive//example.com/post' })

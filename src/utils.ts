@@ -74,7 +74,7 @@ const urlDelimiterRegex = /[\s"'<>\\}]/g
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
 
 const neutralizeHost = (url: string): string | undefined => {
-  const host = parseUrl(url)?.host
+  const host = parseUrl(addMissingProtocol(url))?.host
 
   if (!host) {
     return
