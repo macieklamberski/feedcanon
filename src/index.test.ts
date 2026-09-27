@@ -283,6 +283,21 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep HTTP when HTTPS redirects back to it', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'http://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'http://example.com/feed' },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should keep HTTP when HTTPS returns different content', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'

@@ -353,7 +353,8 @@ export async function findCanonical(
     const httpsUrl = upgradeProtocol(winningUrl)
     const response = await fetchAndCompare(httpsUrl)
 
-    if (response) {
+    // An https URL that redirects back to http is not served over https.
+    if (response && !resolveAndApplyRewrites(response.url)?.startsWith('http://')) {
       onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
       return httpsUrl
     }
