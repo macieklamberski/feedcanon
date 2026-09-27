@@ -268,6 +268,7 @@ export async function findCanonical(
 
   // Phase 6: Test Candidates (in tier order, first match wins).
   let winningUrl = candidateSourceUrl
+  const hasSourceQuery = !!parseUrl(candidateSourceUrl)?.search
 
   for (const candidateUrl of candidateUrls) {
     // Check if candidate exists in database.
@@ -275,6 +276,20 @@ export async function findCanonical(
       const data = await existsFn(candidateUrl)
 
       if (data !== undefined) {
+        // A query can select a different feed, so a known URL without it must serve the same feed.
+        const isQueryStripped =
+          hasSourceQuery && !parseUrl(candidateUrl)?.search && candidateUrl !== initialResponseUrl
+
+        if (isQueryStripped) {
+          const response = await fetchAndCompare(candidateUrl)
+
+          if (!response) {
+            continue
+          }
+
+          onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
+        }
+
         onExists?.({ url: candidateUrl, data })
         return candidateUrl
       }

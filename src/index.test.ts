@@ -1240,6 +1240,37 @@ describe('findCanonical', () => {
 
         await expect(throwing()).rejects.toThrow('DB connection failed')
       })
+
+      it('should skip existing URL without query when it serves a different feed', async () => {
+        const value = 'https://example.com/feed.php?cat=1'
+        const expected = 'https://example.com/feed.php?cat=1'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed.php?cat=1': { body: '<feed>category</feed>' },
+            'https://example.com/feed.php': { body: '<feed>all</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed.php' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return existing URL without query when it serves the same feed', async () => {
+        const value = 'https://example.com/feed.php?utm_source=rss'
+        const expected = 'https://example.com/feed.php'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed.php?utm_source=rss': { body },
+            'https://example.com/feed.php': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed.php' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
     })
 
     describe('parser', () => {
