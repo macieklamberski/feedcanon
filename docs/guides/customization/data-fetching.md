@@ -10,7 +10,7 @@ The default fetch gives up after 30 seconds, and the timeout covers reading the 
 
 Below are copy-paste examples for popular HTTP clients. See the [`FetchFnResponse`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) type for the full interface.
 
-The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself sends only GET and HEAD. The type also allows POST, so one fetch function can serve Feedcanon and any other code that posts a request body.
+The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself never passes it, so every request it makes is a GET. The type also allows HEAD and POST, so one fetch function can serve Feedcanon and any other code that sends those requests.
 
 ## Axios
 
