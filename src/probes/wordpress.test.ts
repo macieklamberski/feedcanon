@@ -91,16 +91,16 @@ describe('wordpressProbe', () => {
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
 
-    it('should return /feed path for feed=rss', () => {
+    it('should return /feed/rss path for feed=rss', () => {
       const value = new URL('https://example.com/?feed=rss')
-      const expected = ['https://example.com/feed', 'https://example.com/feed/']
+      const expected = ['https://example.com/feed/rss', 'https://example.com/feed/rss/']
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
 
-    it('should return /feed path for feed=rdf', () => {
+    it('should return /feed/rdf path for feed=rdf', () => {
       const value = new URL('https://example.com/?feed=rdf')
-      const expected = ['https://example.com/feed', 'https://example.com/feed/']
+      const expected = ['https://example.com/feed/rdf', 'https://example.com/feed/rdf/']
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
@@ -224,16 +224,22 @@ describe('wordpressProbe', () => {
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
 
-    it('should return /comments/feed path for feed=comments-rss', () => {
+    it('should return /comments/feed/rss path for feed=comments-rss', () => {
       const value = new URL('https://example.com/?feed=comments-rss')
-      const expected = ['https://example.com/comments/feed', 'https://example.com/comments/feed/']
+      const expected = [
+        'https://example.com/comments/feed/rss',
+        'https://example.com/comments/feed/rss/',
+      ]
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })
 
-    it('should return /comments/feed path for feed=comments-rdf', () => {
+    it('should return /comments/feed/rdf path for feed=comments-rdf', () => {
       const value = new URL('https://example.com/?feed=comments-rdf')
-      const expected = ['https://example.com/comments/feed', 'https://example.com/comments/feed/']
+      const expected = [
+        'https://example.com/comments/feed/rdf',
+        'https://example.com/comments/feed/rdf/',
+      ]
 
       expect(wordpressProbe.getCandidates(value)).toEqual(expected)
     })

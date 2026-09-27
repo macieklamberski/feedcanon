@@ -71,6 +71,8 @@ Only the first matching probe is used. Subsequent probes are skipped.
 // Regular feeds
 'https://example.com/?feed=rss2'  → 'https://example.com/feed'
 'https://example.com/?feed=atom'  → 'https://example.com/feed/atom'
+'https://example.com/?feed=rss'   → 'https://example.com/feed/rss'
+'https://example.com/?feed=rdf'   → 'https://example.com/feed/rdf'
 
 // Comment feeds
 'https://example.com/?feed=comments-rss2' → 'https://example.com/comments/feed'

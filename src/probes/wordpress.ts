@@ -64,7 +64,8 @@ export const wordpressProbe: Probe = {
 
     // Convert ?feed=X to path-based URL.
     const basePath = url.pathname.replace(trailingSlashRegex, '')
-    const feedSegment = feedParam.type === 'atom' ? '/feed/atom' : '/feed'
+    // WordPress serves RSS2 at /feed and every other type at /feed/<type>.
+    const feedSegment = feedParam.type === 'rss2' ? '/feed' : `/feed/${feedParam.type}`
     const feedPath = feedParam.isComment ? `/comments${feedSegment}` : feedSegment
 
     return [
