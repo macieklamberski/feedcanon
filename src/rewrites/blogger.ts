@@ -3,8 +3,8 @@ import type { Rewrite } from '../types.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
 const bloggerRegex = /^(www\.|beta\.)?blogger\.com$/
-// Matches *.blogspot.com and country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
-const blogspotRegex = /\.blogspot\.[a-z]{2,3}(\.[a-z]{2})?$/i
+// Matches *.blogspot.com and the country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
+const blogspotRegex = /\.blogspot\.(com|(co|com)\.[a-z]{2}|[a-z]{2})$/i
 
 const redundantAltValues: Array<string | null> = ['atom', 'json', '']
 

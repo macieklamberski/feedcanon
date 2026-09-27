@@ -76,7 +76,7 @@ The callback receives:
 
 ## onExists
 
-Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned immediately without further testing.
+Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned immediately without further testing. The one exception is a URL that exists only once the query is dropped. A query can select a different feed, so Feedcanon fetches that URL first and returns it only if it serves the same feed.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -92,7 +92,7 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 The `existsFn` function:
-- Receives each URL candidate being tested
+- Receives each URL candidate being tested, then the http form of an https candidate
 - Returns your data if URL exists, `undefined` otherwise
 - Triggers early termination when a match is found
 

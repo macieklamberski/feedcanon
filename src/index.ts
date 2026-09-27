@@ -98,7 +98,14 @@ export async function findCanonical(
   // Phase 2: Extract and normalize self URL.
   let selfRequestUrl: string | undefined
 
-  const initialResponseFeed = await parser.parse(initialResponseBody)
+  let initialResponseFeed: Awaited<ReturnType<typeof parser.parse>>
+
+  try {
+    initialResponseFeed = await parser.parse(initialResponseBody)
+  } catch {
+    return
+  }
+
   if (!initialResponseFeed) {
     return
   }
@@ -132,7 +139,13 @@ export async function findCanonical(
     }
 
     // Tier 2: Signature match via parser.
-    const comparedResponseFeed = await parser.parse(comparedResponseBody)
+    let comparedResponseFeed: Awaited<ReturnType<typeof parser.parse>>
+
+    try {
+      comparedResponseFeed = await parser.parse(comparedResponseBody)
+    } catch {
+      return false
+    }
 
     if (comparedResponseFeed) {
       initialResponseSignature ??= parser.getSignature(initialResponseFeed, initialResponseUrl)
@@ -255,15 +268,49 @@ export async function findCanonical(
 
   // Phase 6: Test Candidates (in tier order, first match wins).
   let winningUrl = candidateSourceUrl
+  const hasSourceQuery = !!parseUrl(candidateSourceUrl)?.search
 
   for (const candidateUrl of candidateUrls) {
-    // Check if candidate exists in database.
+    // Check if candidate exists in database, including the http form stored for an https feed.
     if (existsFn) {
-      const data = await existsFn(candidateUrl)
+      const lookupUrls = [candidateUrl]
+      let isCandidateMismatch = false
 
-      if (data !== undefined) {
-        onExists?.({ url: candidateUrl, data })
-        return candidateUrl
+      if (candidateUrl.startsWith('https://')) {
+        lookupUrls.push(candidateUrl.replace('https://', 'http://'))
+      }
+
+      for (const lookupUrl of lookupUrls) {
+        const data = await existsFn(lookupUrl)
+
+        if (data === undefined) {
+          continue
+        }
+
+        // A query can select a different feed, so a known URL without it must serve the same feed.
+        const isQueryStripped =
+          hasSourceQuery && !parseUrl(lookupUrl)?.search && lookupUrl !== initialResponseUrl
+
+        if (isQueryStripped) {
+          const response = await fetchAndCompare(lookupUrl)
+
+          if (!response) {
+            if (lookupUrl === candidateUrl) {
+              isCandidateMismatch = true
+            }
+
+            continue
+          }
+
+          onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
+        }
+
+        onExists?.({ url: lookupUrl, data })
+        return lookupUrl
+      }
+
+      if (isCandidateMismatch) {
+        continue
       }
     }
 

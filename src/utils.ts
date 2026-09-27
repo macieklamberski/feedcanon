@@ -26,30 +26,27 @@ export const applyProbes = async (
   probes: Array<Probe>,
   testCandidate: (url: string) => MaybePromise<string | undefined>,
 ): Promise<string> => {
+  let candidates: Array<string>
+
+  // Only probe errors are swallowed. Errors from testCandidate carry the caller's callbacks.
   try {
     const parsed = new URL(url)
-
-    for (const probe of probes) {
-      if (!probe.match(parsed)) {
-        continue
-      }
-
-      for (const candidate of probe.getCandidates(parsed)) {
-        const result = await testCandidate(candidate)
-
-        if (result) {
-          return result
-        }
-      }
-
-      // First matching probe wins.
-      break
-    }
-
-    return url
+    // First matching probe wins.
+    const probe = probes.find((probe) => probe.match(parsed))
+    candidates = probe ? probe.getCandidates(parsed) : []
   } catch {
     return url
   }
+
+  for (const candidate of candidates) {
+    const result = await testCandidate(candidate)
+
+    if (result) {
+      return result
+    }
+  }
+
+  return url
 }
 
 export const createSignature = <T extends Record<string, unknown>>(

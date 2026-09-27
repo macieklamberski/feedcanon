@@ -95,6 +95,7 @@ Each candidate is tested in order:
 
 1. Check if the URL exists in your database (via `existsFn`)
    - If found, return immediately with that URL
+   - If found only with the query dropped, fetch it first and return it only if it serves the same feed
 2. Fetch the candidate URL
 3. Compare with the initial response using the two-tier matching
 4. Return the first candidate that matches

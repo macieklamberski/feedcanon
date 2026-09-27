@@ -62,6 +62,18 @@ describe('bloggerRewrite', () => {
 
       expect(bloggerRewrite.match(value)).toBe(false)
     })
+
+    it('should not match blogspot subdomain of unrelated domain', () => {
+      const value = new URL('https://example.blogspot.xyz.de/feeds/posts/default')
+
+      expect(bloggerRewrite.match(value)).toBe(false)
+    })
+
+    it('should not match blogspot under generic TLD', () => {
+      const value = new URL('https://example.blogspot.xyz/feeds/posts/default')
+
+      expect(bloggerRewrite.match(value)).toBe(false)
+    })
   })
 
   describe('rewrite', () => {

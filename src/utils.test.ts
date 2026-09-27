@@ -211,15 +211,14 @@ describe('applyProbes', () => {
     expect(secondProbeCalled).toBe(false)
   })
 
-  it('should return original URL when testCandidate throws', async () => {
+  it('should propagate testCandidate errors', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = () => {
-      throw new Error('Network timeout')
+      throw new Error('Callback failed')
     }
-    const expected = 'https://example.com/?feed=rss2'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    await expect(applyProbes(value, probes, testCandidate)).rejects.toThrow('Callback failed')
   })
 
   it('should try second probe when first does not match', async () => {

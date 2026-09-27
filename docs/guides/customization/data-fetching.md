@@ -6,6 +6,8 @@ title: "Customization: Data Fetching"
 
 By default, Feedcanon uses native `fetch` to perform HTTP requests. You can use any HTTP client by providing a custom `fetchFn` that handles requests and returns responses.
 
+The default fetch gives up after 30 seconds, and the timeout covers reading the body too. It fetches any http or https URL it's given, including the self URL a feed declares. That URL can point at a private address, like `localhost` or a cloud metadata endpoint. If you run Feedcanon on URLs from untrusted sources, pass a `fetchFn` that blocks private addresses and caps the body size.
+
 Below are copy-paste examples for popular HTTP clients. See the [`FetchFnResponse`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) type for the full interface.
 
 The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself sends only GET and HEAD. The type also allows POST, so one fetch function can serve Feedcanon and any other code that posts a request body.
