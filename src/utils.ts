@@ -49,18 +49,19 @@ export const applyProbes = async (
   return url
 }
 
-export const createSignature = <T extends Record<string, unknown>>(
-  object: T,
-  fields: Array<keyof T>,
+export const createSignature = (
+  object: object,
+  exclusions: Array<[holder: object | undefined, key: string]>,
 ): string => {
-  const excluded = new Set(fields)
-
-  // Omit the named top-level fields via a replacer instead of mutating the object. `this` is the
-  // holder of each property, so `this === object` matches only the root's own fields, leaving
-  // same-named keys on nested items untouched. This keeps the input feed object intact even if
-  // serialization throws, and adds no copy.
+  // `this` is the holder of each property, so a pair omits the key only on its own object, never a
+  // same-named key elsewhere. Nothing is mutated, so the input stays intact even if serialization
+  // throws.
   return JSON.stringify(object, function (this: unknown, key, value) {
-    return this === object && excluded.has(key as keyof T) ? undefined : value
+    const isExcluded = exclusions.some(([holder, excludedKey]) => {
+      return holder === this && excludedKey === key
+    })
+
+    return isExcluded ? undefined : value
   })
 }
 
