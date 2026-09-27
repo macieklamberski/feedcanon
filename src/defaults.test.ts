@@ -735,6 +735,44 @@ describe('defaultParser', () => {
       expect(value.feed.link).toBe(expected)
     })
 
+    it('should neutralize alternate link host in Atom feed signature', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link href="https://example.com/"/>
+          <entry>
+            <link href="https://example.com/post/1"/>
+          </entry>
+        </feed>
+      `
+      const parsed = await parseOrThrow(value)
+
+      const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
+      const signature2 = defaultParser.getSignature(parsed, 'https://feeds.example.com/atom')
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should neutralize link with rel="alternate" in Atom feed signature', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="alternate" href="https://example.com/"/>
+          <entry>
+            <link href="https://example.com/post/1"/>
+          </entry>
+        </feed>
+      `
+      const parsed = await parseOrThrow(value)
+
+      const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
+      const signature2 = defaultParser.getSignature(parsed, 'https://feeds.example.com/atom')
+
+      expect(signature1).toBe(signature2)
+    })
+
     it('should neutralize updated in Atom feed signature', async () => {
       const value1 = `
         <?xml version="1.0"?>

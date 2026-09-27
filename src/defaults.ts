@@ -45,6 +45,11 @@ const retrieveSelfLink = (parsed: DefaultParserResult) => {
   }
 }
 
+const retrieveAlternateLink = (feed: Extract<DefaultParserResult, { format: 'atom' }>['feed']) => {
+  // A link without rel is an alternate link per RFC 4287.
+  return feed.links?.find((link) => (link.rel ?? 'alternate') === 'alternate')
+}
+
 export const defaultParser: ParserAdapter<DefaultParserResult> = {
   parse: (body) => {
     try {
@@ -87,6 +92,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
           contentUrl = parsed.feed.link
           signature = createSignature(parsed.feed, ['link'])
         } else {
+          contentUrl = retrieveAlternateLink(parsed.feed)?.href
           signature = createSignature(parsed.feed, ['updated', 'generator'])
         }
       } finally {
