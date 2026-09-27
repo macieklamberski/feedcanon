@@ -1427,6 +1427,33 @@ describe('findCanonical', () => {
         expect(fetchCalls).toEqual(['https://www.example.com/feed/', 'https://example.com/feed'])
       })
 
+      it('should fetch a URL tried in two phases only once', async () => {
+        const value = 'http://example.com/feed?source=home'
+        const body = '<feed></feed>'
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser('https://example.com/feed'),
+          fetchFn: (url: string) => {
+            fetchCalls.push(url)
+
+            if (url.startsWith('https://')) {
+              throw new Error('SSL handshake failed')
+            }
+
+            return { status: 200, url, body, headers: new Headers() }
+          },
+        })
+        const expected = [
+          'http://example.com/feed?source=home',
+          'https://example.com/feed',
+          'http://example.com/feed',
+        ]
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
       it('should call onFetch for failed requests', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
