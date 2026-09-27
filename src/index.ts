@@ -271,27 +271,46 @@ export async function findCanonical(
   const hasSourceQuery = !!parseUrl(candidateSourceUrl)?.search
 
   for (const candidateUrl of candidateUrls) {
-    // Check if candidate exists in database.
+    // Check if candidate exists in database, including the http form stored for an https feed.
     if (existsFn) {
-      const data = await existsFn(candidateUrl)
+      const lookupUrls = [candidateUrl]
+      let isCandidateMismatch = false
 
-      if (data !== undefined) {
+      if (candidateUrl.startsWith('https://')) {
+        lookupUrls.push(candidateUrl.replace('https://', 'http://'))
+      }
+
+      for (const lookupUrl of lookupUrls) {
+        const data = await existsFn(lookupUrl)
+
+        if (data === undefined) {
+          continue
+        }
+
         // A query can select a different feed, so a known URL without it must serve the same feed.
         const isQueryStripped =
-          hasSourceQuery && !parseUrl(candidateUrl)?.search && candidateUrl !== initialResponseUrl
+          hasSourceQuery && !parseUrl(lookupUrl)?.search && lookupUrl !== initialResponseUrl
 
         if (isQueryStripped) {
-          const response = await fetchAndCompare(candidateUrl)
+          const response = await fetchAndCompare(lookupUrl)
 
           if (!response) {
+            if (lookupUrl === candidateUrl) {
+              isCandidateMismatch = true
+            }
+
             continue
           }
 
-          onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
+          onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
         }
 
-        onExists?.({ url: candidateUrl, data })
-        return candidateUrl
+        onExists?.({ url: lookupUrl, data })
+        return lookupUrl
+      }
+
+      if (isCandidateMismatch) {
+        continue
       }
     }
 

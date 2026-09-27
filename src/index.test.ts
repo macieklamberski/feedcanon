@@ -1271,6 +1271,36 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
+
+      it('should return existing http URL for https input', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'http://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+          }),
+          existsFn: (url) => (url === 'http://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should prefer existing https URL over its http form', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+          }),
+          existsFn: () => ({ id: 42 }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
     })
 
     describe('parser', () => {
