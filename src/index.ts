@@ -161,7 +161,7 @@ export async function findCanonical(
   }
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
-  const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
+  const fetchAndCompareOnce = async (url: string): Promise<FetchFnResponse | undefined> => {
     let response: FetchFnResponse
 
     try {
@@ -181,6 +181,20 @@ export async function findCanonical(
     }
 
     return response
+  }
+
+  // Phases can try the same URL again, so each URL is fetched once and its result reused.
+  const comparedResponses = new Map<string, Promise<FetchFnResponse | undefined>>()
+
+  const fetchAndCompare = (url: string): Promise<FetchFnResponse | undefined> => {
+    let comparedResponse = comparedResponses.get(url)
+
+    if (!comparedResponse) {
+      comparedResponse = fetchAndCompareOnce(url)
+      comparedResponses.set(url, comparedResponse)
+    }
+
+    return comparedResponse
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
