@@ -1,4 +1,4 @@
-export type MaybePromise<T> = T | Promise<T>
+import type { MaybePromise, NormalizeOptions } from 'trousse'
 
 // Default feed type from feedsmith parser. Uses inline typeof import() because tsdown strips
 // `import type` in .d.ts files, breaking type resolution. Can be simplified once feedsmith exports
@@ -22,24 +22,6 @@ export type Rewrite = {
 export type Probe = {
   match: (url: URL) => boolean
   getCandidates: (url: URL) => Array<string>
-}
-
-// URL normalization options.
-export type NormalizeOptions = {
-  stripProtocol?: boolean // Strip protocol (http ↔ https treated same)
-  stripAuthentication?: boolean // Strip user:pass@
-  stripWww?: boolean // Strip www. prefix
-  stripTrailingSlash?: boolean // /feed/ → /feed
-  stripRootSlash?: boolean // example.com/ → example.com
-  collapseSlashes?: boolean // /// → /
-  stripHash?: boolean // Strip #fragment
-  sortQueryParams?: boolean // Sort query params alphabetically
-  stripQueryParams?: Array<string> // Query params to strip
-  stripQuery?: boolean // Strip entire query string
-  stripEmptyQuery?: boolean // /feed? → /feed
-  lowercaseQuery?: boolean // Lowercase query param names and values
-  normalizeEncoding?: boolean // Normalize %XX encoding
-  normalizeUnicode?: boolean // NFC normalization
 }
 
 // Normalization tier options for findCanonical (stripQueryParams handled at top level).

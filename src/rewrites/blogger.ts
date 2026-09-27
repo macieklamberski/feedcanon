@@ -1,5 +1,5 @@
+import { normalizeUrl } from 'trousse'
 import type { Rewrite } from '../types.js'
-import { normalizeUrl } from '../utils.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
 const bloggerRegex = /^(www\.|beta\.)?blogger\.com$/

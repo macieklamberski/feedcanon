@@ -1,3 +1,14 @@
+import type { NormalizeOptions as TrousseNormalizeOptions } from 'trousse'
+import {
+  addMissingProtocol as trousseAddMissingProtocol,
+  fixMalformedProtocol as trousseFixMalformedProtocol,
+  normalizeUrl as trousseNormalizeUrl,
+  resolveFeedProtocol as trousseResolveFeedProtocol,
+  resolveUrl as trousseResolveUrl,
+  upgradeProtocol as trousseUpgradeProtocol,
+} from 'trousse'
+import { defaultNormalizeOptions } from './defaults.js'
+
 export {
   defaultFetch,
   defaultParser,
@@ -14,7 +25,6 @@ export type {
   FetchFnOptions,
   FetchFnResponse,
   FindCanonicalOptions,
-  NormalizeOptions,
   OnExistsFn,
   OnFetchFn,
   OnMatchFn,
@@ -23,11 +33,29 @@ export type {
   Rewrite,
   Tier,
 } from './types.js'
-export {
-  addMissingProtocol,
-  fixMalformedProtocol,
-  normalizeUrl,
-  resolveFeedProtocol,
-  resolveUrl,
-  upgradeProtocol,
-} from './utils.js'
+
+/** @deprecated Import from trousse. */
+export const addMissingProtocol = trousseAddMissingProtocol
+
+/** @deprecated Import from trousse. */
+export const fixMalformedProtocol = trousseFixMalformedProtocol
+
+/** @deprecated Import from trousse. */
+export const normalizeUrl = (
+  url: string,
+  options: TrousseNormalizeOptions = defaultNormalizeOptions,
+): string => {
+  return trousseNormalizeUrl(url, options)
+}
+
+/** @deprecated Import from trousse. */
+export const resolveFeedProtocol = trousseResolveFeedProtocol
+
+/** @deprecated Import from trousse. */
+export const resolveUrl = trousseResolveUrl
+
+/** @deprecated Import from trousse. */
+export const upgradeProtocol = trousseUpgradeProtocol
+
+/** @deprecated Import from trousse. */
+export type NormalizeOptions = TrousseNormalizeOptions

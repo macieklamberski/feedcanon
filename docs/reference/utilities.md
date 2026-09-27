@@ -6,6 +6,10 @@ title: "Reference: Utilities"
 
 Low-level utility functions for URL resolution and normalization. Used internally by `findCanonical` but exported for direct use.
 
+::: warning Deprecated
+These functions and the `NormalizeOptions` type now live in [trousse](https://github.com/macieklamberski/trousse). Import them from there. The trousse `normalizeUrl` takes no default options, so pass `defaultNormalizeOptions` from `feedcanon/defaults` to keep the current behavior.
+:::
+
 ```typescript
 import {
   normalizeUrl,
