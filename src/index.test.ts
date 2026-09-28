@@ -421,9 +421,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should use candidate URL even when it redirects', async () => {
+      it('should use the redirect target of a candidate', async () => {
         const value = 'https://www.example.com/feed'
-        const expected = 'https://example.com/feed'
+        const expected = 'https://canonical.example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -579,6 +579,260 @@ describe('findCanonical', () => {
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
+      })
+    })
+
+    describe('same result from every entry URL', () => {
+      type Route = { redirectTo: string } | { body: string }
+
+      const body = '<feed></feed>'
+
+      const createSiteFetch = (routes: Record<string, Route>) => {
+        return (url: string): FetchFnResponse => {
+          let currentUrl = url
+
+          for (let hop = 0; hop < 5; hop++) {
+            const route = routes[currentUrl]
+
+            if (!route) {
+              throw new Error(`No route for ${currentUrl}`)
+            }
+
+            if ('body' in route) {
+              return { status: 200, url: currentUrl, body: route.body, headers: new Headers() }
+            }
+
+            currentUrl = route.redirectTo
+          }
+
+          throw new Error(`Too many redirects from ${url}`)
+        }
+      }
+
+      describe('non-www redirecting to www', () => {
+        const routes: Record<string, Route> = {
+          'https://example.com/feed': { redirectTo: 'https://www.example.com/feed' },
+          'https://www.example.com/feed': { body },
+        }
+        const expected = 'https://www.example.com/feed'
+
+        const entryUrls: Array<string> = [
+          'https://example.com/feed',
+          'https://www.example.com/feed',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the www URL', async (value) => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
+      })
+
+      describe('www redirecting to non-www', () => {
+        const routes: Record<string, Route> = {
+          'https://www.example.com/feed': { redirectTo: 'https://example.com/feed' },
+          'https://example.com/feed': { body },
+        }
+        const expected = 'https://example.com/feed'
+
+        const entryUrls: Array<string> = [
+          'https://example.com/feed',
+          'https://www.example.com/feed',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the non-www URL', async (value) => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
+      })
+
+      describe('http redirecting to https', () => {
+        const routes: Record<string, Route> = {
+          'http://example.com/feed': { redirectTo: 'https://example.com/feed' },
+          'https://example.com/feed': { body },
+        }
+        const expected = 'https://example.com/feed'
+
+        const entryUrls: Array<string> = ['http://example.com/feed', 'https://example.com/feed']
+
+        it.each(entryUrls)('should resolve %s to the https URL', async (value) => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
+      })
+
+      describe('trailing slash added by a redirect', () => {
+        const routes: Record<string, Route> = {
+          'https://example.com/feed': { redirectTo: 'https://example.com/feed/' },
+          'https://example.com/feed/': { body },
+        }
+        const expected = 'https://example.com/feed/'
+
+        const entryUrls: Array<string> = ['https://example.com/feed', 'https://example.com/feed/']
+
+        it.each(entryUrls)(
+          'should resolve %s to the URL with the trailing slash',
+          async (value) => {
+            const options = toOptions({
+              fetchFn: createSiteFetch(routes),
+              parser: createMockParser(undefined),
+            })
+
+            expect(await findCanonical(value, options)).toBe(expected)
+          },
+        )
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
+      })
+
+      describe('self URL with a query and a shorter URL redirecting to www', () => {
+        const routes: Record<string, Route> = {
+          'https://example.com/rss': { redirectTo: 'https://www.example.com/rss' },
+          'https://example.com/rss?section=news': {
+            redirectTo: 'https://www.example.com/rss?section=news',
+          },
+          'https://www.example.com/rss': { body },
+          'https://www.example.com/rss?section=news': { body },
+        }
+        const selfUrl = 'https://www.example.com/rss?section=news'
+        const expected = 'https://www.example.com/rss'
+
+        const entryUrls: Array<string> = [
+          'https://example.com/rss',
+          'https://www.example.com/rss',
+          'https://www.example.com/rss?section=news',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the www URL without the query', async (value) => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(selfUrl),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(selfUrl),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
+      })
+
+      describe('shorter URL redirecting to another host', () => {
+        const routes: Record<string, Route> = {
+          'https://www.example.com/feed': { body },
+          'https://example.com/feed': { redirectTo: 'https://feeds.example.org/feed' },
+          'https://feeds.example.org/feed': { body },
+        }
+        const expected = 'https://feeds.example.org/feed'
+
+        const entryUrls: Array<string> = [
+          'https://example.com/feed',
+          'https://www.example.com/feed',
+          'https://feeds.example.org/feed',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the redirect target', async (value) => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
+      })
+
+      describe('every URL serving the feed without a redirect', () => {
+        const routes: Record<string, Route> = {
+          'https://example.com/feed': { body },
+          'https://example.com/feed/': { body },
+          'https://www.example.com/feed': { body },
+          'https://www.example.com/feed/': { body },
+        }
+        const expected = 'https://example.com/feed'
+
+        const entryUrls: Array<string> = [
+          'https://example.com/feed',
+          'https://example.com/feed/',
+          'https://www.example.com/feed',
+          'https://www.example.com/feed/',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the shortest URL', async (value) => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve the result to itself', async () => {
+          const options = toOptions({
+            fetchFn: createSiteFetch(routes),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(expected, options)).toBe(expected)
+        })
       })
     })
 
