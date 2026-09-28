@@ -339,23 +339,22 @@ export async function findCanonical(
 
     const candidateResponse = await fetchAndCompare(candidateUrl)
     if (candidateResponse) {
+      onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
+
       const candidateResponseUrl = resolveAndApplyRewrites(candidateResponse.url)
 
-      // Skip candidate if it redirects to a URL we already have as canonical. A response URL kept
-      // because its cleaned form failed verification matches only in its uncleaned form.
-      if (candidateResponseUrl) {
-        const knownUrls = [candidateSourceUrl, initialResponseUrl]
-        const isKnownUrl =
-          knownUrls.includes(stripParams(candidateResponseUrl)) ||
-          knownUrls.includes(tidyQuery(candidateResponseUrl))
-
-        if (isKnownUrl) {
-          continue
-        }
+      if (!candidateResponseUrl || tidyQuery(candidateResponseUrl) === tidyQuery(candidateUrl)) {
+        winningUrl = candidateUrl
+        break
       }
 
-      onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
-      winningUrl = candidateUrl
+      // A candidate that redirects is not where the feed lives, so its target is the result, known
+      // or not. A response URL kept because its cleaned form failed verification matches uncleaned.
+      const knownUrl = [candidateSourceUrl, initialResponseUrl].find((url) => {
+        return url === stripParams(candidateResponseUrl) || url === tidyQuery(candidateResponseUrl)
+      })
+
+      winningUrl = knownUrl ?? (await adoptCleanedUrl(candidateResponseUrl, candidateUrl))
       break
     }
   }
