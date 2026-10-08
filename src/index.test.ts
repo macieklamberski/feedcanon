@@ -2003,6 +2003,53 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return existing https URL for http input when https fails', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': { status: 503 },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return existing https URL for http input when https serves the feed', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should prefer existing http URL over its https form', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'http://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+          }),
+          existsFn: () => ({ id: 42 }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should return existing URL when a candidate redirects to a known URL', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'http://www.example.com/feed'

@@ -403,8 +403,8 @@ const resolveCanonical = async (
   let winningUrl = candidateSourceUrl
   const hasSourceQuery = !!parseUrl(candidateSourceUrl)?.search
 
-  // Look a URL up in existsFn, including the http form stored for an https feed. Returns the known
-  // URL, or false when the URL itself is known but serves a different feed.
+  // Look a URL up in existsFn, including its form under the other protocol. Returns the known URL,
+  // or false when the URL itself is known but serves a different feed.
   const findExistingUrl = async (url: string): Promise<string | false | undefined> => {
     if (!existsFn) {
       return
@@ -415,6 +415,10 @@ const resolveCanonical = async (
 
     if (url.startsWith('https://')) {
       lookupUrls.push(upgradeProtocol(url, 'http'))
+    }
+
+    if (url.startsWith('http://')) {
+      lookupUrls.push(upgradeProtocol(url))
     }
 
     for (const lookupUrl of lookupUrls) {
