@@ -1,5 +1,5 @@
 import { parseFeed } from 'feedsmith'
-import { type NormalizeOptions, parseUrl, resolveUrl } from 'trousse'
+import { isHttpUrl, type NormalizeOptions, parseUrl, resolveUrl } from 'trousse'
 import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier } from './types.js'
 import { createSignature, isRelation, neutralizeUrls } from './utils.js'
 
@@ -74,6 +74,11 @@ export const defaultFetch: FetchFn = async (url, options) => {
     redirects.push({ url: requestUrl, status: response.status })
     await response.body?.cancel()
     const locationUrl = new URL(location, requestUrl)
+
+    // A redirect is followed only to another http or https URL, never to data: or file:.
+    if (!isHttpUrl(locationUrl)) {
+      throw new TypeError(`Redirect to a non-HTTP URL from ${url}`)
+    }
 
     // Credentials for one origin never reach another.
     if (locationUrl.origin !== new URL(requestUrl).origin) {
