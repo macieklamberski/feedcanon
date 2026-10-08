@@ -6,7 +6,7 @@ const bloggerRegex = /^(www\.|beta\.)?blogger\.com$/
 // Matches *.blogspot.com and the country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
 const blogspotRegex = /\.blogspot\.(com|(co|com)\.[a-z]{2}|[a-z]{2})$/i
 
-const redundantAltValues: Array<string | null> = ['atom', 'json', '']
+const redundantAltValues = ['atom', 'json', '']
 
 const strippedParams = [
   'redirect', // Controls redirect behavior, not content.
@@ -58,9 +58,13 @@ export const bloggerRewrite: Rewrite = {
     }
 
     // Strip alt=atom and alt=json (Atom is the default, JSON is same content).
-    const alt = rewritten.searchParams.get('alt')
-    if (redundantAltValues.includes(alt)) {
-      rewritten.searchParams.delete('alt')
+    const altValues = rewritten.searchParams.getAll('alt')
+    rewritten.searchParams.delete('alt')
+
+    for (const alt of altValues) {
+      if (!redundantAltValues.includes(alt)) {
+        rewritten.searchParams.append('alt', alt)
+      }
     }
 
     const normalized = normalizeUrl(rewritten.href, {
