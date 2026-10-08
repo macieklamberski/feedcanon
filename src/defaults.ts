@@ -31,6 +31,7 @@ const requestBodyHeaders = [
   'content-location',
   'content-type',
 ]
+const credentialHeaders = ['authorization', 'cookie', 'proxy-authorization']
 
 // Follows redirects by hand to record each one, switching to GET where a browser would.
 // See: https://fetch.spec.whatwg.org/#http-redirect-fetch.
@@ -72,7 +73,16 @@ export const defaultFetch: FetchFn = async (url, options) => {
 
     redirects.push({ url: requestUrl, status: response.status })
     await response.body?.cancel()
-    requestUrl = new URL(location, requestUrl).href
+    const locationUrl = new URL(location, requestUrl)
+
+    // Credentials for one origin never reach another.
+    if (locationUrl.origin !== new URL(requestUrl).origin) {
+      for (const name of credentialHeaders) {
+        headers.delete(name)
+      }
+    }
+
+    requestUrl = locationUrl.href
 
     const isPostToGet = method === 'POST' && [301, 302].includes(response.status)
 

@@ -385,6 +385,71 @@ describe('defaultFetch', () => {
     expect(headers.get('content-type')).toBe('application/json')
   })
 
+  it('should drop credentials when a redirect changes origin', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/feed') {
+          return createMockResponse({
+            status: 301,
+            headers: new Headers({ location: 'https://example.org/feed' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/feed', {
+      headers: {
+        Accept: 'application/rss+xml',
+        Authorization: 'Bearer token',
+        Cookie: 'session=1',
+        'Proxy-Authorization': 'Basic cHJveHk6c2VjcmV0',
+      },
+    })
+
+    const headers = Object.fromEntries(new Headers(capturedOptions[1]?.headers))
+    const expected = { accept: 'application/rss+xml' }
+
+    expect(headers).toEqual(expected)
+  })
+
+  it('should keep credentials when a redirect stays on the same origin', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/feed') {
+          return createMockResponse({
+            status: 301,
+            headers: new Headers({ location: 'https://example.com/rss' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/feed', {
+      headers: {
+        Accept: 'application/rss+xml',
+        Authorization: 'Bearer token',
+      },
+    })
+
+    const headers = Object.fromEntries(new Headers(capturedOptions[1]?.headers))
+    const expected = {
+      accept: 'application/rss+xml',
+      authorization: 'Bearer token',
+    }
+
+    expect(headers).toEqual(expected)
+  })
+
   it('should throw after 20 redirects', async () => {
     fetchSpy.mockImplementation(
       createFetchMock((url: string) => {
