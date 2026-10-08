@@ -14,7 +14,7 @@ Below is an overview of the default behavior. Many aspects can be customized. Se
 
 The process starts by fetching the input URL:
 
-1. Resolve the URL protocol (`feed://` → `https://`)
+1. Resolve the URL scheme (`feed://` → `https://`)
 2. Apply rewrites (e.g., normalize FeedBurner domains)
 3. Fetch the content and verify it returns a successful response (2xx)
 4. Parse the feed to ensure it's valid
@@ -38,6 +38,14 @@ Many feeds declare their canonical URL using `atom:link rel="self"`:
 
 The parser extracts this self URL from the feed content. This declared URL often represents the feed author's preferred canonical form.
 
+The default parser reads the self URL from:
+
+- The Atom link whose `rel` is `self` or its IANA form `http://www.iana.org/assignments/relation/self`, in any case for the short name ([RFC 4287 §4.2.7.2](https://www.rfc-editor.org/rfc/rfc4287#section-4.2.7.2), [RFC 8288 §2.1.1](https://www.rfc-editor.org/rfc/rfc8288#section-2.1.1))
+- `atom:link` in RSS and RDF, with the same matching
+- `feed_url` in [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)
+
+A relative self URL resolves against the root element's `xml:base`, which itself resolves against the URL the feed came from ([RFC 3986 §5.1](https://www.rfc-editor.org/rfc/rfc3986#section-5.1)).
+
 ### 3. Self URL Validation
 
 If a self URL exists and differs from the response URL, Feedcanon validates it:
@@ -50,7 +58,7 @@ The comparison uses a two-tier matching strategy:
 - **Exact match**: responses are byte-for-byte identical
 - **Signature match**: the parsed feeds are the same once volatile fields are left out
 
-If the self URL fails (e.g., wrong protocol), Feedcanon tries the alternate protocol (`https://` ↔ `http://`).
+If the self URL fails (e.g., wrong scheme), Feedcanon tries the alternate scheme (`https://` ↔ `http://`).
 
 ### 4. URL Probes
 
@@ -112,6 +120,15 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 
 This ensures secure connections when available.
 
+## Deviations From URI Equivalence
+
+Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, unless your `existsFn` already knows the URL.
+
+- **Root slash.** `https://example.com/` becomes `https://example.com`, though [RFC 9110 §4.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3) makes `/` the normal form. Both send the same request.
+- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
+- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
+- **http and https.** Different schemes name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
+
 ## Matching Strategy
 
 Feedcanon uses two methods to compare feed responses:
@@ -126,7 +143,7 @@ When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls
 
 - Volatile fields are left out: `lastBuildDate`, `pubDate`, `link` and `generator` in RSS, `updated` and `generator` in Atom, `link` in RDF, `feed_url` in JSON Feed
 - The self link is cleared
-- URLs on the feed's own host or the site's host are reduced to their path, so differences in protocol, `www` or trailing slash do not count
+- URLs on the feed's own host or the site's host are reduced to their path, so differences in scheme, `www` or trailing slash do not count
 
 If signatures match, the feeds are considered equivalent even if the raw content differs.
 

@@ -32,7 +32,7 @@ export const bloggerRewrite: Rewrite = {
     const isBlogger = bloggerRegex.test(rewritten.hostname)
     const isBlogspot = blogspotRegex.test(rewritten.hostname)
 
-    // Force HTTPS (Blogger/Blogspot rewrites internal links based on protocol).
+    // Force HTTPS (Blogger/Blogspot rewrites internal links based on scheme).
     rewritten.protocol = 'https:'
 
     // Normalize Blogger URLs to www (non-www redirects to www).

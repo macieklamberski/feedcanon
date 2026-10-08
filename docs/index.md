@@ -6,7 +6,7 @@ title: 'Feedcanon: Find Canonical Feed URLs'
 
 Find the canonical URL for any web feed by comparing actual content. Turn messy feed URLs into their cleanest form.
 
-Many URLs can point to the same feed, varying by protocol, www prefixes, trailing slashes, order of params, or domain aliases. Feedcanon compares actual feed content, respects the feed's declared self URL, and tests simpler URL alternatives to find the cleanest working one.
+Many URLs can point to the same feed, varying by scheme, www prefixes, trailing slashes, order of params, or domain aliases. Feedcanon compares actual feed content, respects the feed's declared self URL, and tests simpler URL alternatives to find the cleanest working one.
 
 Perfect for feed readers to deduplicate subscriptions when users add the same feed via different URLs.
 

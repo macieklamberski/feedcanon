@@ -1,5 +1,5 @@
 import { parseFeed } from 'feedsmith'
-import type { NormalizeOptions } from 'trousse'
+import { type NormalizeOptions, resolveUrl } from 'trousse'
 import type { DefaultParserResult, FetchFn, ParserAdapter, Tier } from './types.js'
 import { createSignature, neutralizeUrls } from './utils.js'
 
@@ -19,10 +19,20 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   normalizeUnicode: true,
 }
 
+// See: https://www.rfc-editor.org/rfc/rfc9110#section-12.5.1.
+const defaultAccept =
+  'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
+
 export const defaultFetch: FetchFn = async (url, options) => {
+  const headers = new Headers(options?.headers)
+
+  if (!headers.has('accept')) {
+    headers.set('accept', defaultAccept)
+  }
+
   const response = await fetch(url, {
     method: options?.method ?? 'GET',
-    headers: options?.headers,
+    headers,
     body: options?.body,
     signal: AbortSignal.timeout(30_000),
   })
@@ -35,19 +45,25 @@ export const defaultFetch: FetchFn = async (url, options) => {
   }
 }
 
+// A registered relation name equals its IANA IRI form (RFC 4287 §4.2.7.2) and compares
+// case-insensitively (RFC 8288 §2.1.1).
+const isRelation = (rel: string, name: string): boolean => {
+  return rel.toLowerCase() === name || rel === `http://www.iana.org/assignments/relation/${name}`
+}
+
 const retrieveSelfLink = (parsed: DefaultParserResult) => {
   switch (parsed.format) {
     case 'atom':
-      return parsed.feed.links?.find((link) => link.rel === 'self')
+      return parsed.feed.links?.find((link) => link.rel && isRelation(link.rel, 'self'))
     case 'rss':
     case 'rdf':
-      return parsed.feed.atom?.links?.find((link) => link.rel === 'self')
+      return parsed.feed.atom?.links?.find((link) => link.rel && isRelation(link.rel, 'self'))
   }
 }
 
 const retrieveAlternateLink = (feed: Extract<DefaultParserResult, { format: 'atom' }>['feed']) => {
-  // A link without rel is an alternate link per RFC 4287.
-  return feed.links?.find((link) => (link.rel ?? 'alternate') === 'alternate')
+  // A link without rel is an alternate link per RFC 4287 §4.2.7.2.
+  return feed.links?.find((link) => isRelation(link.rel ?? 'alternate', 'alternate'))
 }
 
 export const defaultParser: ParserAdapter<DefaultParserResult> = {
@@ -56,8 +72,22 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       return parseFeed(body)
     } catch {}
   },
-  getSelfUrl: (parsed) => {
-    return parsed.format === 'json' ? parsed.feed.feed_url : retrieveSelfLink(parsed)?.href
+  getSelfUrl: (parsed, url) => {
+    // See: https://www.jsonfeed.org/version/1.1/, the feed_url field.
+    if (parsed.format === 'json') {
+      return parsed.feed.feed_url
+    }
+
+    const href = retrieveSelfLink(parsed)?.href
+    const base = parsed.feed.xml?.base
+
+    if (!href || !base) {
+      return href
+    }
+
+    // A relative href resolves against xml:base, itself resolved against the retrieval URL (RFC
+    // 4287 §2, RFC 3986 §5.1). Feedsmith keeps only the root element's xml:base.
+    return resolveUrl(href, resolveUrl(base, url) ?? url)
   },
   getSignature: (parsed, url) => {
     // Neutralize dynamic fields before generating signature to ensure feeds that differ only in

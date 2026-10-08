@@ -67,7 +67,7 @@ export const createSignature = (
 
 // Static, so no ReDoS risk. A URL token runs to the next quote, whitespace, angle bracket, backslash
 // or `}`. A `//` after a word character is a doubled slash in a path, and after a colon another
-// scheme, so neither starts a protocol-relative URL.
+// scheme, so neither starts a scheme-relative URL.
 const urlSchemeRegex = /(?:https?:|(?<![\w:]))\/\//gi
 const urlDelimiterRegex = /[\s"'<>\\}]/g
 // Strips a trailing slash from any URL or root-relative path before a quote or query. Static and

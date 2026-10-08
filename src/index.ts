@@ -56,7 +56,7 @@ export async function findCanonical(
     return tidyQuery(cleanUrlFn ? cleanUrlFn(url) : url)
   }
 
-  // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
+  // Prepare a URL by resolving schemes, relative paths, and applying rewrites.
   const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
     return resolved && rewrites ? applyRewrites(resolved, rewrites) : resolved
@@ -115,7 +115,7 @@ export async function findCanonical(
   // feed data without redundant parsing.
   onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
 
-  const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
+  const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
 
   if (selfRequestUrlRaw) {
     selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)
@@ -228,12 +228,12 @@ export async function findCanonical(
   initialResponseUrl = await adoptCleanedUrl(initialResponseUrlRaw, initialRequestUrl)
 
   // Phase 3: Validate self URL.
-  // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https:// but
-  // only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
+  // Try self URL first, then alternate scheme if it fails (e.g., feed:// resolved to https:// but
+  // only http:// works). This ensures we don't lose a valid self URL due to scheme mismatch.
   let candidateSourceUrl = initialResponseUrl
 
   if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {
-    // Build list of URLs to try (self URL first, then alternate protocol).
+    // Build list of URLs to try (self URL first, then alternate scheme).
     const urlsToTry = [selfRequestUrl]
 
     if (selfRequestUrl.startsWith('https://')) {
