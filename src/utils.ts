@@ -57,7 +57,7 @@ export const isRelation = (rel: string, name: string): boolean => {
 
 // A link is `<uri-reference>` followed by parameters, which may hold commas inside quoted strings.
 const linkRegex = /<([^>]*)>((?:"[^"]*"|[^,"])*)/g
-const relParamRegex = /;\s*rel\s*=\s*(?:"([^"]*)"|([^\s;]+))/i
+const relParamRegex = /;\s*rel\s*=\s*(?:"(?<quoted>[^"]*)"|(?<token>[^\s;]+))/i
 const whitespaceRegex = /\s+/
 
 // The target of the first link in a Link header whose rel includes "self".
@@ -69,7 +69,7 @@ export const getLinkHeaderSelfUrl = (header: string | null): string | undefined 
 
   for (const [, target, params] of header.matchAll(linkRegex)) {
     const rel = params.match(relParamRegex)
-    const relTypes = (rel?.[1] ?? rel?.[2])?.split(whitespaceRegex)
+    const relTypes = (rel?.groups?.quoted ?? rel?.groups?.token)?.split(whitespaceRegex)
 
     if (relTypes?.some((relType) => isRelation(relType, 'self'))) {
       return target.trim()

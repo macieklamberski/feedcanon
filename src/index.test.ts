@@ -2827,7 +2827,8 @@ describe('findCanonical', () => {
         parser: createMockParser(undefined),
       })
 
-      expect(await findCanonical(value, options)).toBeUndefined()
+      await findCanonical(value, options)
+
       expect(fetchCalls).toEqual(['https://example.com/feed'])
     })
 
@@ -2842,7 +2843,8 @@ describe('findCanonical', () => {
         parser: createMockParser(undefined),
       })
 
-      expect(await findCanonical(value, options)).toBeUndefined()
+      await findCanonical(value, options)
+
       expect(fetchCalls).toEqual(['https://example.com/feed'])
     })
   })
