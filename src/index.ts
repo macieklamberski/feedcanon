@@ -1,4 +1,4 @@
-import { normalizeUrl, parseUrl, resolveUrl, upgradeProtocol } from 'trousse'
+import { normalizeUrl, parseUrl, resolveFeedProtocol, resolveUrl, upgradeProtocol } from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -63,22 +63,47 @@ export async function findCanonical(
   }
 
   // Phase 1: Initial fetch.
-  const initialRequestUrl = resolveAndApplyRewrites(inputUrl)
+  let initialRequestUrl = resolveAndApplyRewrites(inputUrl)
   if (!initialRequestUrl) {
     return
   }
 
-  let initialResponse: FetchFnResponse
+  // A pseudo-scheme such as feed:// names no transport. An http-only host fails over https with a
+  // thrown TLS or connection error, or a non-2xx from another virtual host.
+  // See: https://www.iana.org/assignments/uri-schemes/prov/feed (draft-obasanjo-feed-uri-scheme).
+  const initialRequestUrls = [initialRequestUrl]
+  const trimmedInputUrl = inputUrl.trim()
+  const httpInputUrl = resolveFeedProtocol(trimmedInputUrl, 'http')
 
-  try {
-    initialResponse = await fetchFn(initialRequestUrl)
-  } catch {
-    return
+  if (httpInputUrl !== resolveFeedProtocol(trimmedInputUrl)) {
+    const httpRequestUrl = resolveAndApplyRewrites(httpInputUrl)
+
+    if (httpRequestUrl) {
+      initialRequestUrls.push(httpRequestUrl)
+    }
   }
 
-  onFetch?.({ url: initialRequestUrl, response: initialResponse })
+  let initialResponse: FetchFnResponse | undefined
 
-  if (initialResponse.status < 200 || initialResponse.status >= 300) {
+  for (const requestUrl of initialRequestUrls) {
+    let response: FetchFnResponse
+
+    try {
+      response = await fetchFn(requestUrl)
+    } catch {
+      continue
+    }
+
+    onFetch?.({ url: requestUrl, response })
+
+    if (response.status >= 200 && response.status < 300) {
+      initialRequestUrl = requestUrl
+      initialResponse = response
+      break
+    }
+  }
+
+  if (!initialResponse) {
     return
   }
 
@@ -162,6 +187,11 @@ export async function findCanonical(
 
   // Phases can try the same URL again, so each URL is fetched once and its result reused.
   const comparedResponses = new Map<string, FetchFnResponse | undefined>()
+
+  // An https form that failed in Phase 1 fails again when Phase 7 upgrades the http fallback.
+  if (initialRequestUrl !== initialRequestUrls[0]) {
+    comparedResponses.set(initialRequestUrls[0], undefined)
+  }
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {

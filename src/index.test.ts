@@ -1454,6 +1454,29 @@ describe('findCanonical', () => {
         expect(fetchCalls).toEqual(expected)
       })
 
+      it('should call onFetch for both attempts of feed:// input URL', async () => {
+        const value = 'feed://example.com/feed'
+        const body = '<feed></feed>'
+        const fetchCalls: Array<{ url: string; status: number }> = []
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { status: 404 },
+            'http://example.com/feed': { body },
+          }),
+          onFetch: ({ url, response }) => {
+            fetchCalls.push({ url, status: response.status })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual([
+          { url: 'https://example.com/feed', status: 404 },
+          { url: 'http://example.com/feed', status: 200 },
+        ])
+      })
+
       it('should call onFetch for failed requests', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
@@ -2011,6 +2034,110 @@ describe('findCanonical', () => {
       })
 
       expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should fall back to http when https throws for feed:// input URL', async () => {
+      const value = 'feed://example.com/feed'
+      const expected = 'http://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: (url: string) => {
+          if (url.startsWith('https://')) {
+            throw new Error('Connection refused')
+          }
+
+          return { status: 200, url, body, headers: new Headers() }
+        },
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should not fetch https again after falling back to http', async () => {
+      const value = 'feed://example.com/feed'
+      const body = '<feed></feed>'
+      const fetchCalls: Array<string> = []
+      const options = toOptions({
+        fetchFn: (url: string) => {
+          fetchCalls.push(url)
+
+          if (url.startsWith('https://')) {
+            throw new Error('Connection refused')
+          }
+
+          return { status: 200, url, body, headers: new Headers() }
+        },
+        parser: createMockParser(undefined),
+      })
+
+      await findCanonical(value, options)
+
+      expect(fetchCalls).toEqual(['https://example.com/feed', 'http://example.com/feed'])
+    })
+
+    it('should fall back to http when https returns non-2xx for feed:// input URL', async () => {
+      const value = 'feed://example.com/feed'
+      const expected = 'http://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { status: 404 },
+          'http://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should not fetch http when https succeeds for feed:// input URL', async () => {
+      const value = 'feed://example.com/feed'
+      const body = '<feed></feed>'
+      const fetchCalls: Array<string> = []
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+        onFetch: ({ url }) => {
+          fetchCalls.push(url)
+        },
+      })
+
+      await findCanonical(value, options)
+
+      expect(fetchCalls).toEqual(['https://example.com/feed'])
+    })
+
+    it('should not fall back to http when https input URL fails', async () => {
+      const value = 'https://example.com/feed'
+      const fetchCalls: Array<string> = []
+      const options = toOptions({
+        fetchFn: (url: string) => {
+          fetchCalls.push(url)
+          throw new Error('Connection refused')
+        },
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBeUndefined()
+      expect(fetchCalls).toEqual(['https://example.com/feed'])
+    })
+
+    it('should not fall back to http for feed:https:// input URL', async () => {
+      const value = 'feed:https://example.com/feed'
+      const fetchCalls: Array<string> = []
+      const options = toOptions({
+        fetchFn: (url: string) => {
+          fetchCalls.push(url)
+          throw new Error('Connection refused')
+        },
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBeUndefined()
+      expect(fetchCalls).toEqual(['https://example.com/feed'])
     })
   })
 
