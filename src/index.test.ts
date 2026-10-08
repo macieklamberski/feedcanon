@@ -48,6 +48,36 @@ describe('findCanonical', () => {
 
   describe('core behavior', () => {
     describe('self URL handling', () => {
+      it('should match self URL when initial feed came through a temporary redirect', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://feeds.example.net/feed'
+        const createBody = (date: string) => `
+          <?xml version="1.0"?>
+          <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+            <channel>
+              <title>Example</title>
+              <link>https://example.com</link>
+              <lastBuildDate>${date}</lastBuildDate>
+              <atom:link rel="self" href="https://feeds.example.net/feed"/>
+              <item>
+                <title>Post</title>
+                <link>https://feeds.example.net/~r/post</link>
+              </item>
+            </channel>
+          </rss>
+        `
+        const fetchFn = createMockFetch({
+          'https://example.com/feed': {
+            body: createBody('Mon, 01 Jan 2024 00:00:00 GMT'),
+            url: 'https://feeds.example.net/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 302 }],
+          },
+          'https://feeds.example.net/feed': { body: createBody('Tue, 02 Jan 2024 00:00:00 GMT') },
+        })
+
+        expect(await findCanonical(value, { fetchFn })).toBe(expected)
+      })
+
       it('should adopt cleaner self URL when valid', async () => {
         const value = 'http://www.blog.example.com/rss.xml?source=homepage&_=1702934567'
         const expected = 'https://blog.example.com/rss.xml'
