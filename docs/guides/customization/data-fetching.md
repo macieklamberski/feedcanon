@@ -12,7 +12,7 @@ Below are copy-paste examples for popular HTTP clients. See the [`FetchFnRespons
 
 ## Redirects
 
-The default fetch follows up to 20 redirects itself and lists each one in the response's `redirects` field, as the URL that was requested and the status it returned. Feedcanon reads that list to decide which URL to keep. A 301 or 308 is a permanent move, so the target replaces the URL that was requested. A 302, 303 or 307 is temporary, so Feedcanon keeps the URL from before that redirect, even when the chain moves on from there. A chain of 301 and then 302 ends on the 301 target.
+The default fetch follows up to 20 redirects itself and lists each one in the response's `redirects` field, as the URL that was requested and the status it returned. A redirect to anything other than an http or https URL throws, as it does with `fetch`. Feedcanon reads that list to decide which URL to keep. A 301 or 308 is a permanent move, so the target replaces the URL that was requested. A 302, 303 or 307 is temporary, so Feedcanon keeps the URL from before that redirect, even when the chain moves on from there. A chain of 301 and then 302 ends on the 301 target.
 
 A custom `fetchFn` can fill `redirects` the same way. Without it, Feedcanon uses the final `url` whatever the redirect status was.
 
