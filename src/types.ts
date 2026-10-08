@@ -68,8 +68,8 @@ export type FetchFnOptions = {
 }
 
 // Callback to check if URLs exist in database (early termination). Returns data if URL exists,
-// undefined otherwise.
-export type ExistsFn<T = unknown> = (url: string) => MaybePromise<T | undefined>
+// null or undefined otherwise.
+export type ExistsFn<T = unknown> = (url: string) => MaybePromise<T | null | undefined>
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {

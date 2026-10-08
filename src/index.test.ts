@@ -1224,6 +1224,21 @@ describe('findCanonical', () => {
         expect(checkedUrls).toContain('https://www.example.com/feed')
       })
 
+      it('should treat null from existsFn as not found', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+          }),
+          existsFn: () => null,
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should treat falsy-but-defined existsFn results as "exists"', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://example.com/feed'
@@ -1763,6 +1778,24 @@ describe('findCanonical', () => {
           }),
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep the response URL when existsFn returns null for the unwrapped URL', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+            },
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: () => null,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
