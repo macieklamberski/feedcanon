@@ -86,11 +86,6 @@ const resolveCanonical = async (
     return cleanUrlFn ? cleanUrlFn(url) : url
   }
 
-  // Clean the URL with the injected function (when given), then tidy the remaining query.
-  const stripParams = (url: string): string => {
-    return tidyQuery(cleanUrl(url))
-  }
-
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
   const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
@@ -207,7 +202,7 @@ const resolveCanonical = async (
       continue
     }
 
-    const cleanedSelfRequestUrl = stripParams(selfRequestUrl)
+    const cleanedSelfRequestUrl = cleanUrl(selfRequestUrl)
 
     if (!selfRequestUrls.includes(cleanedSelfRequestUrl)) {
       selfRequestUrls.push(cleanedSelfRequestUrl)

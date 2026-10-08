@@ -172,6 +172,39 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should stop at Link header self URL equal to response URL with unsorted query', async () => {
+        const value = 'https://example.com/feed?b=1&a=2'
+        const expected = 'https://example.com/feed?b=1&a=2'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?b=1&a=2': {
+              body,
+              headers: new Headers({ link: '<https://example.com/feed?b=1&a=2>; rel="self"' }),
+            },
+            'https://example.com/atom.xml': { body },
+          }),
+          parser: createMockParser('https://example.com/atom.xml'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep self URL query in declared order', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/rss?b=1&a=2'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://example.com/rss?b=1&a=2': { body },
+          }),
+          parser: createMockParser('https://example.com/rss?b=1&a=2'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should use feed self URL when Link header has no self link', async () => {
         const value = 'https://example.com/feed?format=rss'
         const expected = 'https://example.com/rss.xml'
