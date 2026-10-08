@@ -118,6 +118,7 @@ Each candidate is tested in order:
 2. Fetch the candidate URL
 3. Compare with the initial response using the two-tier matching
 4. Return the first candidate that matches
+   - If it redirects permanently, return the redirect target instead, checked against your `existsFn` like any candidate
 
 This ensures the cleanest working URL is selected.
 
