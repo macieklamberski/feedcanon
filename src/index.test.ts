@@ -153,6 +153,123 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, { fetchFn })).toBe(expected)
       })
 
+      it('should prefer Link header self URL over feed self URL', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://example.com/rss.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': {
+              body,
+              headers: new Headers({ link: '<https://example.com/rss.xml>; rel="self"' }),
+            },
+            'https://example.com/rss.xml': { body },
+            'https://example.com/atom.xml': { body },
+          }),
+          parser: createMockParser('https://example.com/atom.xml'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should use feed self URL when Link header has no self link', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://example.com/rss.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': {
+              body,
+              headers: new Headers({ link: '<https://hub.example.com/>; rel="hub"' }),
+            },
+            'https://example.com/rss.xml': { body },
+          }),
+          parser: createMockParser('https://example.com/rss.xml'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should use self URL from Link header with several links', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://example.com/rss.xml'
+        const body = '<feed></feed>'
+        const link =
+          '<https://hub.example.com/>; rel="hub", <https://example.com/rss.xml>; rel=self'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': { body, headers: new Headers({ link }) },
+            'https://example.com/rss.xml': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should resolve relative Link header self URL against response URL', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://feeds.example.com/blog/rss.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': {
+              body,
+              url: 'https://feeds.example.com/blog/feed?format=rss',
+              headers: new Headers({ link: '<rss.xml>; rel="self"' }),
+            },
+            'https://feeds.example.com/blog/rss.xml': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should try feed self URL when Link header self URL fails', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://example.com/rss.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': {
+              body,
+              headers: new Headers({ link: '<https://example.com/old.xml>; rel="self"' }),
+            },
+            'https://example.com/old.xml': { status: 404 },
+            'http://example.com/old.xml': { status: 404 },
+            'https://example.com/rss.xml': { body },
+          }),
+          parser: createMockParser('https://example.com/rss.xml'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch feed self URL when Link header self URL verifies', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const fetchedUrls: Array<string> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': {
+              body,
+              headers: new Headers({ link: '<https://example.com/rss.xml>; rel="self"' }),
+            },
+            'https://example.com/rss.xml': { body },
+            'https://example.com/atom.xml': { body },
+          }),
+          parser: createMockParser('https://example.com/atom.xml'),
+          onFetch: ({ url }) => {
+            fetchedUrls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchedUrls).not.toContain('https://example.com/atom.xml')
+      })
+
       it('should use initialResponseUrl when no self URL present', async () => {
         const value = 'https://example.com/feed'
         const expected = 'https://example.com/feed'

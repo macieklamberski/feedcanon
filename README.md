@@ -39,7 +39,7 @@ The 9 URLs below all work and return identical content. None redirect to each ot
 This is a simplified flow. For complete details, see [How It Works](https://feedcanon.dev/how-it-works) in the docs.
 
 1. Fetch the input URL and parse the feed to establish reference content.
-2. Extract the feed's declared self URL (if present).
+2. Extract the feed's declared self URL from the `Link` header or the feed (if present).
 3. Validate the self URL by fetching and comparing content.
 4. Generate URL candidates ordered from cleanest to least clean.
 5. Test candidates in order: the first one serving identical content wins.

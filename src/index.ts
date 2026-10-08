@@ -6,7 +6,7 @@ import type {
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import { applyProbes, applyRewrites } from './utils.js'
+import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
 
 const permanentRedirectStatuses = [301, 308]
 
@@ -148,8 +148,8 @@ const resolveCanonical = async (
 
   let initialResponseSignature: string | undefined
 
-  // Phase 2: Extract and normalize self URL.
-  let selfRequestUrl: string | undefined
+  // Phase 2: Extract and normalize self URLs.
+  const selfRequestUrls: Array<string> = []
 
   let initialResponseFeed: Awaited<ReturnType<typeof parser.parse>>
 
@@ -168,11 +168,29 @@ const resolveCanonical = async (
   // feed data without redundant parsing.
   onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
 
-  const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
+  // A self link in the Link header takes precedence over one in the feed body.
+  // See: https://www.w3.org/TR/websub/#discovery.
+  const selfRequestUrlsRaw = [
+    getLinkHeaderSelfUrl(initialResponse.headers.get('link')),
+    parser.getSelfUrl(initialResponseFeed, initialResponseUrl),
+  ]
 
-  if (selfRequestUrlRaw) {
-    selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)
-    selfRequestUrl = selfRequestUrl ? stripParams(selfRequestUrl) : undefined
+  for (const selfRequestUrlRaw of selfRequestUrlsRaw) {
+    if (!selfRequestUrlRaw) {
+      continue
+    }
+
+    const selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)
+
+    if (!selfRequestUrl) {
+      continue
+    }
+
+    const cleanedSelfRequestUrl = stripParams(selfRequestUrl)
+
+    if (!selfRequestUrls.includes(cleanedSelfRequestUrl)) {
+      selfRequestUrls.push(cleanedSelfRequestUrl)
+    }
   }
 
   // Compare initial response against another response using 2-tier matching:
@@ -286,32 +304,37 @@ const resolveCanonical = async (
     resolveAndApplyRewrites(getSourceUrl(initialResponse)) ?? initialResponseUrlRaw
   initialResponseUrl = await adoptCleanedUrl(initialSourceUrl, initialRequestUrl)
 
-  // Phase 3: Validate self URL.
-  // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https:// but
-  // only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
+  // Phase 3: Validate self URLs.
+  // Try each self URL, then its alternate protocol if it fails (e.g., feed:// resolved to https://
+  // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
   let candidateSourceUrl = initialResponseUrl
+  const urlsToTry: Array<string> = []
 
-  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {
-    // Build list of URLs to try (self URL first, then alternate protocol).
-    const urlsToTry = [selfRequestUrl]
+  for (const selfRequestUrl of selfRequestUrls) {
+    // A self URL equal to the response URL is already verified, so the ones after it are not tried.
+    if (selfRequestUrl === initialResponseUrl) {
+      break
+    }
+
+    urlsToTry.push(selfRequestUrl)
 
     if (selfRequestUrl.startsWith('https://')) {
       urlsToTry.push(upgradeProtocol(selfRequestUrl, 'http'))
     } else if (selfRequestUrl.startsWith('http://')) {
       urlsToTry.push(upgradeProtocol(selfRequestUrl))
     }
+  }
 
-    for (const urlToTry of urlsToTry) {
-      const response = await fetchAndCompare(urlToTry)
+  for (const urlToTry of urlsToTry) {
+    const response = await fetchAndCompare(urlToTry)
 
-      if (response) {
-        onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        candidateSourceUrl = await adoptCleanedUrl(
-          resolveAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
-          urlToTry,
-        )
-        break
-      }
+    if (response) {
+      onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
+      candidateSourceUrl = await adoptCleanedUrl(
+        resolveAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
+        urlToTry,
+      )
+      break
     }
   }
 
