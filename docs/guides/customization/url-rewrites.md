@@ -69,8 +69,9 @@ Transformations applied:
 - Legacy paths: `/atom.xml` → `/feeds/posts/default`, `/rss.xml` → `/feeds/posts/default?alt=rss`
 - HTTP → HTTPS
 - `blogger.com` → `www.blogger.com`
-- Strips Blogger API params that do not change which feed is served: `redirect`, `alt=atom`, `alt=json`, an empty `alt`, `v`, `orderby`, pagination (`max-results`, `start-index`) and date filters (`published-min`, `published-max`, `updated-min`, `updated-max`)
+- Strips Blogger API params that do not change which feed is served: `alt=atom`, `alt=json`, an empty `alt`, `v`, `orderby`, pagination (`max-results`, `start-index`) and date filters (`published-min`, `published-max`, `updated-min`, `updated-max`)
 - Keeps `alt=rss`, which selects the RSS version of the feed
+- Keeps `redirect`: without `redirect=false`, a blog that set up FeedBurner redirects its feed there, and the FeedBurner feed can carry different content
 
 ## Examples
 

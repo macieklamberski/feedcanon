@@ -8,8 +8,9 @@ const blogspotRegex = /\.blogspot\.(com|(co|com)\.[a-z]{2}|[a-z]{2})$/i
 
 const redundantAltValues = ['atom', 'json', '']
 
+// `redirect` stays: without `redirect=false`, a blog that set up FeedBurner redirects its feed
+// there, and the FeedBurner feed can carry different content.
 const strippedParams = [
-  'redirect', // Controls redirect behavior, not content.
   'v', // GData API version, deprecated and now ignored.
   // Pagination and date filters. Feed readers subscribe to full feeds, not filtered views, so
   // subscriptions with different limits or date ranges canonicalize to one URL.
