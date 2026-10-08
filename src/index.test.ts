@@ -1921,6 +1921,43 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return existing URL without query when the feed came through a temporary redirect', async () => {
+        const value = 'https://example.com/podcast?show=1'
+        const expected = 'https://example.com/podcast'
+        const createBody = (date: string) => `
+          <?xml version="1.0"?>
+          <rss version="2.0">
+            <channel>
+              <title>Podcast</title>
+              <link>https://example.com</link>
+              <lastBuildDate>${date}</lastBuildDate>
+              <item>
+                <title>Episode</title>
+                <guid>episode-1</guid>
+                <enclosure url="https://media.example.net/episode-1.mp3" type="audio/mpeg"/>
+              </item>
+            </channel>
+          </rss>
+        `
+        const fetchFn = createMockFetch({
+          'https://example.com/podcast?show=1': {
+            body: createBody('Mon, 01 Jan 2024 00:00:00 GMT'),
+            url: 'https://media.example.net/feed.xml',
+            redirects: [{ url: 'https://example.com/podcast?show=1', status: 302 }],
+          },
+          'https://example.com/podcast': {
+            body: createBody('Tue, 02 Jan 2024 00:00:00 GMT'),
+            url: 'https://media.example.net/feed.xml',
+            redirects: [{ url: 'https://example.com/podcast', status: 302 }],
+          },
+        })
+        const existsFn = (url: string) => {
+          return url === 'https://example.com/podcast' ? { id: 42 } : undefined
+        }
+
+        expect(await findCanonical(value, { fetchFn, existsFn })).toBe(expected)
+      })
+
       it('should return existing http URL for https input', async () => {
         const value = 'https://example.com/feed'
         const expected = 'http://example.com/feed'
