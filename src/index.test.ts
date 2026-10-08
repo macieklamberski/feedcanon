@@ -845,6 +845,67 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
+
+      it('should keep query param order when the sorted URL was not verified', async () => {
+        const value = 'https://example.com/feed?b=1&a=2'
+        const expected = 'https://example.com/feed?b=1&a=2'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?b=1&a=2': { body: '<feed></feed>' },
+            'https://example.com/feed': { status: 404 },
+            'https://example.com/feed?a=2&b=1': { status: 404 },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep an empty query when the URL without it was not verified', async () => {
+        const value = 'https://example.com/feed?'
+        const expected = 'https://example.com/feed?'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?': { body: '<feed></feed>' },
+            'https://example.com/feed': { status: 404 },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return sorted query params when the sorted URL serves the same feed', async () => {
+        const value = 'https://example.com/feed?b=1&a=2'
+        const expected = 'https://example.com/feed?a=2&b=1'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?b=1&a=2': { body },
+            'https://example.com/feed': { status: 404 },
+            'https://example.com/feed?a=2&b=1': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip a candidate that redirects to the unsorted response URL', async () => {
+        const value = 'https://example.com/feed?b=1&a=2'
+        const expected = 'https://example.com/feed?b=1&a=2'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?b=1&a=2': { body },
+            'https://example.com/feed': { body, url: 'https://example.com/feed?b=1&a=2' },
+            'https://example.com/feed?a=2&b=1': { status: 404 },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
     })
 
     describe('response comparison', () => {
