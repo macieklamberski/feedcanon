@@ -210,7 +210,7 @@ export async function findCanonical(
       return cleanedUrl
     }
 
-    if (existsFn && (await existsFn(cleanedUrl)) !== undefined) {
+    if (existsFn && (await existsFn(cleanedUrl)) != null) {
       return cleanedUrl
     }
 
@@ -295,7 +295,7 @@ export async function findCanonical(
       for (const lookupUrl of lookupUrls) {
         const data = await existsFn(lookupUrl)
 
-        if (data === undefined) {
+        if (data == null) {
           continue
         }
 

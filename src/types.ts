@@ -1,4 +1,4 @@
-import type { MaybePromise, NormalizeOptions } from 'trousse'
+import type { MaybePromise, NormalizeOptions, Nullish } from 'trousse'
 
 // Default feed type from feedsmith parser. Uses inline typeof import() because tsdown strips
 // `import type` in .d.ts files, breaking type resolution. Can be simplified once feedsmith exports
@@ -68,8 +68,8 @@ export type FetchFnOptions = {
 }
 
 // Callback to check if URLs exist in database (early termination). Returns data if URL exists,
-// undefined otherwise.
-export type ExistsFn<T = unknown> = (url: string) => MaybePromise<T | undefined>
+// null or undefined otherwise.
+export type ExistsFn<T = unknown> = (url: string) => MaybePromise<Nullish<T>>
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {
