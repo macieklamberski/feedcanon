@@ -165,7 +165,9 @@ const resolveCanonical = async (
   if (!initialResponseUrlRaw) {
     return
   }
-  let initialResponseUrl = tidyQuery(initialResponseUrlRaw)
+  // The URL that served the initial body. Self URLs resolve against it, and its signature uses it,
+  // as a compared response's signature uses the URL that served that body.
+  const initialBaseUrl = tidyQuery(initialResponseUrlRaw)
 
   const initialResponseBody = initialResponse.body
   if (!initialResponseBody) {
@@ -198,15 +200,15 @@ const resolveCanonical = async (
   // HTTP field, not markup, so its URL is parsed without decoding character references.
   // See: https://www.w3.org/TR/websub/#discovery.
   const linkHeaderSelfUrl = getLinkHeaderSelfUrl(initialResponse.headers.get('link'))
-  const feedSelfUrl = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
+  const feedSelfUrl = parser.getSelfUrl(initialResponseFeed, initialBaseUrl)
   const declaredSelfUrls: Array<string | undefined> = []
 
   if (linkHeaderSelfUrl) {
-    declaredSelfUrls.push(parseAndApplyRewrites(linkHeaderSelfUrl, initialResponseUrl))
+    declaredSelfUrls.push(parseAndApplyRewrites(linkHeaderSelfUrl, initialBaseUrl))
   }
 
   if (feedSelfUrl) {
-    declaredSelfUrls.push(resolveAndApplyRewrites(feedSelfUrl, initialResponseUrl))
+    declaredSelfUrls.push(resolveAndApplyRewrites(feedSelfUrl, initialBaseUrl))
   }
 
   for (const selfRequestUrl of declaredSelfUrls) {
@@ -247,7 +249,10 @@ const resolveCanonical = async (
     }
 
     if (comparedResponseFeed) {
-      initialResponseSignature ??= parser.getSignature(initialResponseFeed, initialResponseUrl)
+      if (!initialResponseSignature) {
+        initialResponseSignature = parser.getSignature(initialResponseFeed, initialBaseUrl)
+      }
+
       const comparedResponseSignature = parser.getSignature(
         comparedResponseFeed,
         comparedResponseUrl,
@@ -332,7 +337,7 @@ const resolveCanonical = async (
     return adoptCleanedUrl(sourceUrl, requestUrl)
   }
 
-  initialResponseUrl = await adoptSourceUrl(
+  const initialResponseUrl = await adoptSourceUrl(
     initialResponse,
     initialRequestUrl,
     initialResponseUrlRaw,
