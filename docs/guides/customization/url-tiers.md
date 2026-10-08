@@ -26,6 +26,7 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`. Tier options
 | `stripProtocol` | `false` | Remove protocol (not recommended for feed URLs) |
 | `stripAuthentication` | `false` | Remove `user:pass@` |
 | `stripWww` | `true` | Remove `www.` prefix |
+| `stripHostTrailingDot` | `true` | Remove the trailing `.` of a host, `example.com.` → `example.com` |
 | `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
 | `stripRootSlash` | `true` | Remove `/` from root paths |
 | `collapseSlashes` | `true` | `///` → `/` |

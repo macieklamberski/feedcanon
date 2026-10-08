@@ -1173,6 +1173,21 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should drop the trailing dot of a fully qualified host', async () => {
+        const value = 'https://example.com./feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com./feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should fall back to original when all candidates fail', async () => {
         const value = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
         const expected = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
