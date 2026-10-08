@@ -128,8 +128,10 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 
 1. Replace `http://` with `https://`
 2. Fetch and compare with the initial response
-3. If it matches and doesn't redirect back to HTTP, return the HTTPS URL
+3. If it matches and doesn't redirect back to HTTP, test the HTTPS forms of the cleaner candidates that failed over HTTP, as in candidate testing, and return the first that matches or the HTTPS URL
 4. If the HTTPS URL redirects permanently, return its target instead, as in candidate testing
+
+An HTTP and an HTTPS entry URL of the same feed reach the same result this way. When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
 
 This ensures secure connections when available.
 

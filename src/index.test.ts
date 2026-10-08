@@ -513,6 +513,27 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should fetch no other HTTPS candidate when HTTP wins with the cleanest URL', async () => {
+        const value = 'http://example.com/feed'
+        const fetchedUrls: Array<string> = []
+        const expected = ['http://example.com/feed', 'https://example.com/feed']
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          onFetch: ({ url }) => {
+            fetchedUrls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchedUrls).toEqual(expected)
+      })
+
       it('should keep HTTP when HTTPS fails', async () => {
         const value = 'http://legacy.example.com/feed.rss'
         const expected = 'http://legacy.example.com/feed.rss'
@@ -576,6 +597,48 @@ describe('findCanonical', () => {
             },
           }),
           existsFn: (url) => (url === 'http://www.example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep HTTPS winner when cleaner HTTPS candidate redirects back to HTTP', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'http://example.com/feed': { status: 404 },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://www.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not retry cleaner candidates over HTTPS when a redirect target won', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'https://feeds.example.org/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'http://example.com/feed': {
+              body,
+              url: 'http://feeds.example.org/feed',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+            'https://feeds.example.org/feed': { body },
+            'https://example.com/feed': { body },
+          }),
           parser: createMockParser(undefined),
         })
 
@@ -1200,6 +1263,37 @@ describe('findCanonical', () => {
           })
 
           expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
+      describe('https serving a shorter URL that http does not', () => {
+        const entryUrls: Array<string> = [
+          'http://www.example.com/feed',
+          'https://www.example.com/feed',
+          'https://example.com/feed',
+        ]
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        it.each(entryUrls)('should resolve %s to the shorter https URL', async (value) => {
+          const expected = 'https://example.com/feed'
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve its own result to the same URL', async () => {
+          const value = 'http://www.example.com/feed'
+          const expected = ['https://example.com/feed', 'https://example.com/feed']
+          const result = await findCanonical(value, options)
+          const rerunResult = await findCanonical(result as string, options)
+
+          expect([result, rerunResult]).toEqual(expected)
         })
       })
 
