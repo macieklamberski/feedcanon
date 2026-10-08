@@ -36,6 +36,8 @@ getSelfUrl: (feed: Feed, url?: string) => string | undefined
 
 The `url` argument is the URL the feed was fetched from. A relative self URL is resolved against it afterwards, so most parsers can ignore it. The default parser uses it to resolve the self link against the feed's `xml:base` first ([RFC 4287 §2](https://www.rfc-editor.org/rfc/rfc4287#section-2)). Called without it, the default parser applies only an absolute `xml:base`. Feedsmith keeps only the `xml:base` on the root element, so a base set on the channel or on the link itself is ignored.
 
+A self link in the response's `Link` header takes precedence. This one is tried only when that one fails validation.
+
 ### getSignature
 
 Return a string representing the feed's identity. Two feeds are treated as the same when their signatures are equal. Used to compare feeds when exact body matching fails:

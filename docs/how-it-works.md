@@ -49,6 +49,14 @@ The default parser reads the self URL from:
 
 A relative self URL resolves against the root element's `xml:base`, which itself resolves against the URL the feed came from ([RFC 3986 §5.1](https://www.rfc-editor.org/rfc/rfc3986#section-5.1)).
 
+A server can also declare the self URL in the HTTP `Link` response header ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288#section-3)):
+
+```
+Link: <https://example.com/feed.xml>; rel="self"
+```
+
+When the header has a self link, it takes precedence over the one in the feed, as [WebSub](https://www.w3.org/TR/websub/#discovery) specifies. The feed's self link is tried only when the header's fails validation. The header's `rel` matches the same way as the feed's, IANA form included. A relative URL in the header is resolved against the response URL. Both go through the same rewrites and cleaning.
+
 ### 3. Self URL Validation
 
 If a self URL exists and differs from the response URL, Feedcanon validates it:

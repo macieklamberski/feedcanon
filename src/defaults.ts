@@ -1,7 +1,7 @@
 import { parseFeed } from 'feedsmith'
 import { type NormalizeOptions, parseUrl, resolveUrl } from 'trousse'
 import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier } from './types.js'
-import { createSignature, neutralizeUrls } from './utils.js'
+import { createSignature, isRelation, neutralizeUrls } from './utils.js'
 
 export const defaultNormalizeOptions: NormalizeOptions = {
   stripProtocol: true,
@@ -85,12 +85,6 @@ export const defaultFetch: FetchFn = async (url, options) => {
       }
     }
   }
-}
-
-// A registered relation name equals its IANA IRI form (RFC 4287 §4.2.7.2) and compares
-// case-insensitively (RFC 8288 §2.1.1).
-const isRelation = (rel: string, name: string): boolean => {
-  return rel.toLowerCase() === name || rel === `http://www.iana.org/assignments/relation/${name}`
 }
 
 const retrieveSelfLink = (parsed: DefaultParserResult) => {

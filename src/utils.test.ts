@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import type { Probe, Rewrite } from './types.js'
-import { applyProbes, applyRewrites, createSignature, neutralizeUrls } from './utils.js'
+import {
+  applyProbes,
+  applyRewrites,
+  createSignature,
+  getLinkHeaderSelfUrl,
+  neutralizeUrls,
+} from './utils.js'
 
 describe('applyRewrites', () => {
   const createRewrite = (matchHostname: string, newHostname: string): Rewrite => {
@@ -273,6 +279,89 @@ describe('applyProbes', () => {
     const expected = 'https://example.com/?feed=rss2'
 
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+  })
+})
+
+describe('getLinkHeaderSelfUrl', () => {
+  it('should return target of self link', () => {
+    const value = '<https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should return self link among several links', () => {
+    const value =
+      '<https://hub.example.com/>; rel="hub", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should read unquoted rel', () => {
+    const value = '<https://example.com/feed.xml>; rel=self'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should read self among several space-separated rel types', () => {
+    const value = '<https://example.com/feed.xml>; rel="alternate self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should match rel case-insensitively', () => {
+    const value = '<https://example.com/feed.xml>; REL="Self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should match rel in IANA IRI form', () => {
+    const value =
+      '<https://example.com/feed.xml>; rel="http://www.iana.org/assignments/relation/self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should keep comma inside target', () => {
+    const value = '<https://example.com/feed?tags=a,b>; rel="self"'
+    const expected = 'https://example.com/feed?tags=a,b'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should skip comma inside quoted parameter', () => {
+    const value = '<https://example.com/feed.xml>; title="News, daily"; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should return relative target as is', () => {
+    const value = '</feed.xml>; rel="self"'
+    const expected = '/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should return undefined when no link has rel self', () => {
+    const value = '<https://hub.example.com/>; rel="hub"'
+
+    expect(getLinkHeaderSelfUrl(value)).toBeUndefined()
+  })
+
+  it('should not match rel type that only contains self', () => {
+    const value = '<https://example.com/feed.xml>; rel="selfish"'
+
+    expect(getLinkHeaderSelfUrl(value)).toBeUndefined()
+  })
+
+  it('should return undefined for missing header', () => {
+    expect(getLinkHeaderSelfUrl(null)).toBeUndefined()
   })
 })
 
