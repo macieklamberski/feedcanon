@@ -1254,7 +1254,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should propagate error when existsFn throws', async () => {
+      it('should return undefined when existsFn throws', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1266,9 +1266,7 @@ describe('findCanonical', () => {
           },
           parser: createMockParser(undefined),
         })
-        const throwing = () => findCanonical(value, options)
-
-        await expect(throwing()).rejects.toThrow('DB connection failed')
+        expect(await findCanonical(value, options)).toBeUndefined()
       })
 
       it('should skip existing URL without query when it serves a different feed', async () => {
@@ -1492,7 +1490,7 @@ describe('findCanonical', () => {
         ])
       })
 
-      it('should propagate error when onFetch throws', async () => {
+      it('should return undefined when onFetch throws', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1504,9 +1502,7 @@ describe('findCanonical', () => {
             throw new Error('Callback error')
           },
         })
-        const throwing = () => findCanonical(value, options)
-
-        await expect(throwing()).rejects.toThrow('Callback error')
+        expect(await findCanonical(value, options)).toBeUndefined()
       })
     })
 
@@ -1636,7 +1632,7 @@ describe('findCanonical', () => {
         })
       })
 
-      it('should propagate error when onMatch throws', async () => {
+      it('should return undefined when onMatch throws', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1648,9 +1644,7 @@ describe('findCanonical', () => {
             throw new Error('Callback error')
           },
         })
-        const throwing = () => findCanonical(value, options)
-
-        await expect(throwing()).rejects.toThrow('Callback error')
+        expect(await findCanonical(value, options)).toBeUndefined()
       })
     })
 
@@ -1680,7 +1674,7 @@ describe('findCanonical', () => {
         expect(existsCallData).toEqual({ url: 'https://example.com/feed', data: existingData })
       })
 
-      it('should propagate error when onExists throws', async () => {
+      it('should return undefined when onExists throws', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1693,9 +1687,7 @@ describe('findCanonical', () => {
             throw new Error('Callback error')
           },
         })
-        const throwing = () => findCanonical(value, options)
-
-        await expect(throwing()).rejects.toThrow('Callback error')
+        expect(await findCanonical(value, options)).toBeUndefined()
       })
     })
 
@@ -1870,7 +1862,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should propagate error when cleanUrlFn throws', async () => {
+      it('should return undefined when cleanUrlFn throws', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
@@ -1882,9 +1874,7 @@ describe('findCanonical', () => {
             throw new Error('Cleaner failed')
           },
         })
-        const throwing = () => findCanonical(value, options)
-
-        await expect(throwing()).rejects.toThrow('Cleaner failed')
+        expect(await findCanonical(value, options)).toBeUndefined()
       })
     })
 
@@ -1987,6 +1977,58 @@ describe('findCanonical', () => {
           getSelfUrl: () => undefined,
           getSignature: () => 'Test',
         },
+      })
+
+      expect(await findCanonical(value, options)).toBeUndefined()
+    })
+
+    it('should return undefined when getSelfUrl throws', async () => {
+      const value = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { body },
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: () => {
+            throw new Error('Self URL failed')
+          },
+          getSignature: () => 'Test',
+        },
+      })
+
+      expect(await findCanonical(value, options)).toBeUndefined()
+    })
+
+    it('should return undefined when getSignature throws', async () => {
+      const value = 'https://www.example.com/feed/'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed/': { body: '<feed>original</feed>' },
+          'https://example.com/feed': { body: '<feed>reordered</feed>' },
+        }),
+        parser: {
+          parse: (body) => body,
+          getSelfUrl: () => undefined,
+          getSignature: () => {
+            throw new Error('Signature failed')
+          },
+        },
+      })
+
+      expect(await findCanonical(value, options)).toBeUndefined()
+    })
+
+    it('should return undefined when existsFn rejects', async () => {
+      const value = 'https://www.example.com/feed/'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://www.example.com/feed/': { body },
+        }),
+        existsFn: () => Promise.reject(new Error('DB connection failed')),
+        parser: createMockParser(undefined),
       })
 
       expect(await findCanonical(value, options)).toBeUndefined()
@@ -2573,7 +2615,7 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
-    it('should propagate error when onMatch throws for probe candidate', async () => {
+    it('should return undefined when onMatch throws for probe candidate', async () => {
       const value = 'https://example.com/?feed=rss2'
       const body = '<feed></feed>'
       const options = toOptions({
@@ -2589,9 +2631,7 @@ describe('findCanonical', () => {
         parser: createMockParser(undefined),
         probes: [createProbe('feed', '/feed')],
       })
-      const throwing = () => findCanonical(value, options)
-
-      await expect(throwing()).rejects.toThrow('Callback failed')
+      expect(await findCanonical(value, options)).toBeUndefined()
     })
   })
 })
