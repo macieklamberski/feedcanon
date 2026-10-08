@@ -495,7 +495,23 @@ const resolveCanonical = async (
     // An https URL that redirects back to http is not served over https.
     if (response && !parseAndApplyRewrites(response.url)?.startsWith('http://')) {
       onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
-      return httpsUrl
+
+      const httpsResponseUrl = parseAndApplyRewrites(getSourceUrl(response))
+
+      if (!httpsResponseUrl || httpsResponseUrl === httpsUrl) {
+        return httpsUrl
+      }
+
+      // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
+      const targetUrl = await adoptCleanedUrl(httpsResponseUrl, httpsUrl)
+
+      const existingTargetUrl = await findExistingUrl(targetUrl)
+
+      if (existingTargetUrl) {
+        return existingTargetUrl
+      }
+
+      return targetUrl
     }
   }
 

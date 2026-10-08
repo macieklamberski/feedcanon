@@ -127,7 +127,8 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 
 1. Replace `http://` with `https://`
 2. Fetch and compare with the initial response
-3. If it matches, return the HTTPS URL
+3. If it matches and doesn't redirect back to HTTP, return the HTTPS URL
+4. If the HTTPS URL redirects permanently, return its target instead, as in candidate testing
 
 This ensures secure connections when available.
 
