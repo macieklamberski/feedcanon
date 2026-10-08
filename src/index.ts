@@ -1,4 +1,5 @@
 import {
+  addMissingProtocol,
   isHttpUrl,
   normalizeUrl,
   parseUrl,
@@ -394,7 +395,12 @@ const resolveCanonical = async (
   // Include candidateSource for existsFn check, but skip fetch/compare (already verified).
   const candidateUrls = new Set(
     tiers
-      .map((tier) => resolveAndApplyRewrites(normalizeUrl(candidateSourceUrl, tier)))
+      .map((tier) => {
+        // A tier can strip the protocol, and the parser accepts only absolute URLs.
+        const normalizedUrl = addMissingProtocol(normalizeUrl(candidateSourceUrl, tier))
+
+        return parseAndApplyRewrites(normalizedUrl)
+      })
       .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
   )
   candidateUrls.add(candidateSourceUrl)
