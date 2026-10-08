@@ -418,7 +418,7 @@ const resolveCanonical = async (
     }
 
     if (url.startsWith('http://')) {
-      lookupUrls.push(upgradeProtocol(url))
+      lookupUrls.push(upgradeProtocol(url, 'https'))
     }
 
     for (const lookupUrl of lookupUrls) {
