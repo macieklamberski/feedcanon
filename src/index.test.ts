@@ -134,6 +134,24 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should resolve relative self URL against xml:base', async () => {
+        const value = 'https://example.com/old/feed.xml'
+        const expected = 'https://example.com/blog/feed.xml'
+        const body = `
+          <?xml version="1.0"?>
+          <feed xmlns="http://www.w3.org/2005/Atom" xml:base="/blog/">
+            <title>Test</title>
+            <link rel="self" href="feed.xml"/>
+          </feed>
+        `
+        const fetchFn = createMockFetch({
+          'https://example.com/old/feed.xml': { body },
+          'https://example.com/blog/feed.xml': { body },
+        })
+
+        expect(await findCanonical(value, { fetchFn })).toBe(expected)
+      })
+
       it('should use initialResponseUrl when no self URL present', async () => {
         const value = 'https://example.com/feed'
         const expected = 'https://example.com/feed'

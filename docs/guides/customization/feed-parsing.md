@@ -13,7 +13,7 @@ The `parser` option must implement `ParserAdapter<T>`:
 ```typescript
 type ParserAdapter<T> = {
   parse: (body: string) => MaybePromise<T | undefined>
-  getSelfUrl: (parsed: T) => string | undefined
+  getSelfUrl: (parsed: T, url?: string) => string | undefined
   getSignature: (parsed: T, url: string) => string
 }
 ```
@@ -31,8 +31,10 @@ parse: (body: string) => MaybePromise<Feed | undefined>
 Extract the self URL from the parsed feed. This is typically the `atom:link rel="self"` or similar declaration:
 
 ```typescript
-getSelfUrl: (feed: Feed) => string | undefined
+getSelfUrl: (feed: Feed, url?: string) => string | undefined
 ```
+
+The `url` argument is the URL the feed was fetched from. A relative self URL is resolved against it afterwards, so most parsers can ignore it. The default parser uses it to resolve the self link against the feed's `xml:base` first ([RFC 4287 §2](https://www.rfc-editor.org/rfc/rfc4287#section-2)). Called without it, the default parser applies only an absolute `xml:base`. Feedsmith keeps only the `xml:base` on the root element, so a base set on the channel or on the link itself is ignored.
 
 ### getSignature
 

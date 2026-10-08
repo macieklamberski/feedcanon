@@ -130,7 +130,7 @@ const resolveCanonical = async (
   // feed data without redundant parsing.
   onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
 
-  const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
+  const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
 
   if (selfRequestUrlRaw) {
     selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)

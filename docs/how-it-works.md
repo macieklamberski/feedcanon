@@ -38,6 +38,14 @@ Many feeds declare their canonical URL using `atom:link rel="self"`:
 
 The parser extracts this self URL from the feed content. This declared URL often represents the feed author's preferred canonical form.
 
+The default parser reads the self URL from:
+
+- The Atom link whose `rel` is `self` or its IANA form `http://www.iana.org/assignments/relation/self`, in any case for the short name ([RFC 4287 §4.2.7.2](https://www.rfc-editor.org/rfc/rfc4287#section-4.2.7.2), [RFC 8288 §2.1.1](https://www.rfc-editor.org/rfc/rfc8288#section-2.1.1))
+- `atom:link` in RSS and RDF, with the same matching
+- `feed_url` in [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)
+
+A relative self URL resolves against the root element's `xml:base`, which itself resolves against the URL the feed came from ([RFC 3986 §5.1](https://www.rfc-editor.org/rfc/rfc3986#section-5.1)).
+
 ### 3. Self URL Validation
 
 If a self URL exists and differs from the response URL, Feedcanon validates it:
@@ -111,6 +119,15 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 3. If it matches, return the HTTPS URL
 
 This ensures secure connections when available.
+
+## Deviations From URI Equivalence
+
+Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, unless your `existsFn` already knows the URL.
+
+- **Root slash.** `https://example.com/` becomes `https://example.com`, though [RFC 9110 §4.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3) makes `/` the normal form. Both send the same request.
+- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
+- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
+- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
 
 ## Matching Strategy
 
