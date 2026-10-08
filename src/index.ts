@@ -265,7 +265,9 @@ const resolveCanonical = async (
   }
 
   // Phases can try the same URL again, so each URL is fetched once and its result reused.
-  const comparedResponses = new Map<string, FetchFnResponse | undefined>()
+  const comparedResponses = new Map<string, FetchFnResponse | undefined>([
+    [initialRequestUrl, initialResponse],
+  ])
 
   // An https form that failed in Phase 1 fails again when Phase 7 upgrades the http fallback.
   if (initialRequestUrl !== initialRequestUrls[0]) {
