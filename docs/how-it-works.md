@@ -22,6 +22,8 @@ The process starts by fetching the input URL:
 
 If any step fails, the function returns `undefined`. The same goes for an error thrown by the parser, `existsFn`, `cleanUrlFn` or a callback at any phase: the promise never rejects.
 
+A feed pseudo-scheme like `feed://` or `itpc://` doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
+
 ### 2. Self URL Extraction
 
 Many feeds declare their canonical URL using `atom:link rel="self"`:
