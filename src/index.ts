@@ -51,9 +51,13 @@ export async function findCanonical(
     return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
   }
 
+  const cleanUrl = (url: string): string => {
+    return cleanUrlFn ? cleanUrlFn(url) : url
+  }
+
   // Clean the URL with the injected function (when given), then tidy the remaining query.
   const stripParams = (url: string): string => {
-    return tidyQuery(cleanUrlFn ? cleanUrlFn(url) : url)
+    return tidyQuery(cleanUrl(url))
   }
 
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
@@ -199,14 +203,13 @@ export async function findCanonical(
   // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once known to
   // existsFn or verified to serve the same feed. Otherwise the response URL is kept.
   const adoptCleanedUrl = async (responseUrl: string, requestUrl: string): Promise<string> => {
-    const tidiedUrl = tidyQuery(responseUrl)
-    const cleanedUrl = stripParams(responseUrl)
-    const tidied = parseUrl(tidiedUrl)
+    const cleanedUrl = cleanUrl(responseUrl)
+    const received = parseUrl(responseUrl)
     const cleaned = parseUrl(cleanedUrl)
     const isSameLocation =
-      tidied?.origin === cleaned?.origin && tidied?.pathname === cleaned?.pathname
+      received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
 
-    if (isSameLocation || cleanedUrl === tidyQuery(requestUrl)) {
+    if (isSameLocation || cleanedUrl === requestUrl) {
       return cleanedUrl
     }
 
@@ -217,7 +220,7 @@ export async function findCanonical(
     const response = await fetchAndCompare(cleanedUrl)
 
     if (!response) {
-      return tidiedUrl
+      return responseUrl
     }
 
     onMatch?.({ url: cleanedUrl, response, feed: initialResponseFeed })
@@ -346,8 +349,8 @@ export async function findCanonical(
       if (candidateResponseUrl) {
         const knownUrls = [candidateSourceUrl, initialResponseUrl]
         const isKnownUrl =
-          knownUrls.includes(stripParams(candidateResponseUrl)) ||
-          knownUrls.includes(tidyQuery(candidateResponseUrl))
+          knownUrls.includes(cleanUrl(candidateResponseUrl)) ||
+          knownUrls.includes(candidateResponseUrl)
 
         if (isKnownUrl) {
           continue

@@ -47,7 +47,7 @@ Use a single tier with minimal normalization:
 import { findCanonical } from 'feedcanon'
 
 const url = await findCanonical('https://example.com/feed', {
-  tiers: [{}], // No URL transformations beyond sorting the query
+  tiers: [{}], // No URL transformations
 })
 ```
 
