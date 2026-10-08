@@ -126,20 +126,31 @@ const resolveCanonical = async (
     }
   }
 
-  let initialResponse: FetchFnResponse | undefined
-
-  for (const requestUrl of initialRequestUrls) {
+  // Fetch a URL and report it to onFetch. Returns the response only when it is a 2xx.
+  const fetchSuccess = async (url: string): Promise<FetchFnResponse | undefined> => {
     let response: FetchFnResponse
 
     try {
-      response = await fetchFn(requestUrl)
+      response = await fetchFn(url)
     } catch {
-      continue
+      return
     }
 
-    onFetch?.({ url: requestUrl, response })
+    onFetch?.({ url, response })
 
-    if (response.status >= 200 && response.status < 300) {
+    if (response.status < 200 || response.status >= 300) {
+      return
+    }
+
+    return response
+  }
+
+  let initialResponse: FetchFnResponse | undefined
+
+  for (const requestUrl of initialRequestUrls) {
+    const response = await fetchSuccess(requestUrl)
+
+    if (response) {
       initialRequestUrl = requestUrl
       initialResponse = response
       break
@@ -265,17 +276,9 @@ const resolveCanonical = async (
     // Every exit below is a failure except the last, so the URL counts as failed until it matches.
     comparedResponses.set(url, undefined)
 
-    let response: FetchFnResponse
+    const response = await fetchSuccess(url)
 
-    try {
-      response = await fetchFn(url)
-    } catch {
-      return
-    }
-
-    onFetch?.({ url, response })
-
-    if (response.status < 200 || response.status >= 300) {
+    if (!response) {
       return
     }
 
