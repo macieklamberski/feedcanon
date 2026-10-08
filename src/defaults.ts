@@ -34,7 +34,8 @@ const requestBodyHeaders = [
 const credentialHeaders = ['authorization', 'cookie', 'proxy-authorization']
 const postToGetStatuses = [301, 302]
 
-// Follows redirects by hand to record each one, switching to GET where a browser would.
+// findCanonical needs the status of every redirect, which fetch hides when it follows them, so
+// redirects are followed here, by the same rules fetch applies.
 // See: https://fetch.spec.whatwg.org/#http-redirect-fetch.
 export const defaultFetch: FetchFn = async (url, options) => {
   const signal = AbortSignal.timeout(30_000)
