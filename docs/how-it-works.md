@@ -14,7 +14,7 @@ Below is an overview of the default behavior. Many aspects can be customized. Se
 
 The process starts by fetching the input URL:
 
-1. Resolve the URL scheme (`feed://` → `https://`)
+1. Resolve the URL protocol (`feed://` → `https://`)
 2. Apply rewrites (e.g., normalize FeedBurner domains)
 3. Fetch the content and verify it returns a successful response (2xx)
 4. Parse the feed to ensure it's valid
@@ -58,7 +58,7 @@ The comparison uses a two-tier matching strategy:
 - **Exact match**: responses are byte-for-byte identical
 - **Signature match**: the parsed feeds are the same once volatile fields are left out
 
-If the self URL fails (e.g., wrong scheme), Feedcanon tries the alternate scheme (`https://` ↔ `http://`).
+If the self URL fails (e.g., wrong protocol), Feedcanon tries the alternate protocol (`https://` ↔ `http://`).
 
 ### 4. URL Probes
 
@@ -127,7 +127,7 @@ Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rf
 - **Root slash.** `https://example.com/` becomes `https://example.com`, though [RFC 9110 §4.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3) makes `/` the normal form. Both send the same request.
 - **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
 - **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
-- **http and https.** Different schemes name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
+- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
 
 ## Matching Strategy
 
@@ -143,7 +143,7 @@ When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls
 
 - Volatile fields are left out: `lastBuildDate`, `pubDate`, `link` and `generator` in RSS, `updated` and `generator` in Atom, `link` in RDF, `feed_url` in JSON Feed
 - The self link is cleared
-- URLs on the feed's own host or the site's host are reduced to their path, so differences in scheme, `www` or trailing slash do not count
+- URLs on the feed's own host or the site's host are reduced to their path, so differences in protocol, `www` or trailing slash do not count
 
 If signatures match, the feeds are considered equivalent even if the raw content differs.
 

@@ -1,5 +1,5 @@
 import { parseFeed } from 'feedsmith'
-import { type NormalizeOptions, resolveUrl } from 'trousse'
+import { type NormalizeOptions, parseUrl, resolveUrl } from 'trousse'
 import type { DefaultParserResult, FetchFn, ParserAdapter, Tier } from './types.js'
 import { createSignature, neutralizeUrls } from './utils.js'
 
@@ -85,9 +85,20 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       return href
     }
 
+    // Without the retrieval URL, only an absolute xml:base can resolve the href.
+    if (!url && !parseUrl(base)) {
+      return href
+    }
+
     // A relative href resolves against xml:base, itself resolved against the retrieval URL (RFC
     // 4287 §2, RFC 3986 §5.1). Feedsmith keeps only the root element's xml:base.
-    return resolveUrl(href, resolveUrl(base, url) ?? url)
+    const baseUrl = resolveUrl(base, url) ?? url
+
+    if (!baseUrl) {
+      return href
+    }
+
+    return resolveUrl(href, baseUrl)
   },
   getSignature: (parsed, url) => {
     // Neutralize dynamic fields before generating signature to ensure feeds that differ only in
