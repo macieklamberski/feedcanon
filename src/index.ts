@@ -347,10 +347,8 @@ const resolveCanonical = async (
 
     if (response) {
       onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-      candidateSourceUrl = await adoptCleanedUrl(
-        parseAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
-        urlToTry,
-      )
+      const responseUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl
+      candidateSourceUrl = await adoptCleanedUrl(responseUrl, urlToTry)
       break
     }
   }
