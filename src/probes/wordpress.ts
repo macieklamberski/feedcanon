@@ -8,7 +8,6 @@ type FeedParam = {
 const commentsFeedPathRegex = /\/comments\/feed(\/|$)/
 const feedPathRegex = /\/feed(\/|$)/
 const trailingSlashRegex = /\/$/
-const optionalTrailingSlashRegex = /\/?$/
 
 const feedTypes = ['atom', 'rss2', 'rss', 'rdf']
 
@@ -53,20 +52,17 @@ export const wordpressProbe: Probe = {
       return []
     }
 
-    // Path already contains feed segment - param is redundant, just strip it.
-    const pathRegex = feedParam.isComment ? commentsFeedPathRegex : feedPathRegex
-    if (pathRegex.test(url.pathname)) {
-      return [
-        createCandidate(url, url.pathname.replace(trailingSlashRegex, '')),
-        createCandidate(url, url.pathname.replace(optionalTrailingSlashRegex, '/')),
-      ]
-    }
-
-    // Convert ?feed=X to path-based URL.
     const basePath = url.pathname.replace(trailingSlashRegex, '')
-    // WordPress serves RSS2 at /feed and every other type at /feed/<type>.
-    const feedSegment = feedParam.type === 'rss2' ? '/feed' : `/feed/${feedParam.type}`
-    const feedPath = feedParam.isComment ? `/comments${feedSegment}` : feedSegment
+    const pathRegex = feedParam.isComment ? commentsFeedPathRegex : feedPathRegex
+    let feedPath = ''
+
+    // Convert ?feed=X to path-based URL. A path that already contains the feed segment only loses
+    // the redundant param.
+    if (!pathRegex.test(url.pathname)) {
+      // WordPress serves RSS2 at /feed and every other type at /feed/<type>.
+      const feedSegment = feedParam.type === 'rss2' ? '/feed' : `/feed/${feedParam.type}`
+      feedPath = feedParam.isComment ? `/comments${feedSegment}` : feedSegment
+    }
 
     return [
       createCandidate(url, basePath + feedPath),
