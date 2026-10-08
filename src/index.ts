@@ -317,9 +317,23 @@ const resolveCanonical = async (
     return cleanedUrl
   }
 
-  const initialSourceUrl =
-    parseAndApplyRewrites(getSourceUrl(initialResponse)) ?? initialResponseUrlRaw
-  initialResponseUrl = await adoptCleanedUrl(initialSourceUrl, initialRequestUrl)
+  // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
+  // when that is safe. A response URL that is not http falls back to fallbackUrl.
+  const adoptSourceUrl = (
+    response: FetchFnResponse,
+    requestUrl: string,
+    fallbackUrl = requestUrl,
+  ): Promise<string> => {
+    const sourceUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? fallbackUrl
+
+    return adoptCleanedUrl(sourceUrl, requestUrl)
+  }
+
+  initialResponseUrl = await adoptSourceUrl(
+    initialResponse,
+    initialRequestUrl,
+    initialResponseUrlRaw,
+  )
 
   // Phase 3: Validate self URLs.
   // Try each self URL, then its alternate protocol if it fails (e.g., feed:// resolved to https://
@@ -347,8 +361,8 @@ const resolveCanonical = async (
 
     if (response) {
       onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-      const responseUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl
-      candidateSourceUrl = await adoptCleanedUrl(responseUrl, urlToTry)
+      // A self URL whose response lands on a non-http URL is not trusted.
+      candidateSourceUrl = await adoptSourceUrl(response, urlToTry, initialResponseUrl)
       break
     }
   }
@@ -361,8 +375,7 @@ const resolveCanonical = async (
 
       if (response) {
         onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
-        const responseUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? candidateUrl
-        return adoptCleanedUrl(responseUrl, candidateUrl)
+        return adoptSourceUrl(response, candidateUrl)
       }
     })
   }
@@ -490,14 +503,12 @@ const resolveCanonical = async (
     if (response && !parseAndApplyRewrites(response.url)?.startsWith('http://')) {
       onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
 
-      const httpsResponseUrl = parseAndApplyRewrites(getSourceUrl(response))
+      // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
+      const targetUrl = await adoptSourceUrl(response, httpsUrl)
 
-      if (!httpsResponseUrl || httpsResponseUrl === httpsUrl) {
+      if (targetUrl === httpsUrl) {
         return httpsUrl
       }
-
-      // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
-      const targetUrl = await adoptCleanedUrl(httpsResponseUrl, httpsUrl)
 
       const existingTargetUrl = await findExistingUrl(targetUrl)
 
