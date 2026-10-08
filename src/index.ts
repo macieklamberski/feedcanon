@@ -188,17 +188,17 @@ const resolveCanonical = async (
   // See: https://www.w3.org/TR/websub/#discovery.
   const linkHeaderSelfUrl = getLinkHeaderSelfUrl(initialResponse.headers.get('link'))
   const feedSelfUrl = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
-  const selfRequestUrlsResolved: Array<string | undefined> = []
+  const declaredSelfUrls: Array<string | undefined> = []
 
   if (linkHeaderSelfUrl) {
-    selfRequestUrlsResolved.push(parseAndApplyRewrites(linkHeaderSelfUrl, initialResponseUrl))
+    declaredSelfUrls.push(parseAndApplyRewrites(linkHeaderSelfUrl, initialResponseUrl))
   }
 
   if (feedSelfUrl) {
-    selfRequestUrlsResolved.push(resolveAndApplyRewrites(feedSelfUrl, initialResponseUrl))
+    declaredSelfUrls.push(resolveAndApplyRewrites(feedSelfUrl, initialResponseUrl))
   }
 
-  for (const selfRequestUrl of selfRequestUrlsResolved) {
+  for (const selfRequestUrl of declaredSelfUrls) {
     if (!selfRequestUrl) {
       continue
     }
