@@ -16,7 +16,7 @@ The default fetch follows up to 20 redirects itself and lists each one in the re
 
 A custom `fetchFn` can fill `redirects` the same way. Without it, Feedcanon uses the final `url` whatever the redirect status was.
 
-The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself never passes it, so every request it makes is a GET. The type also allows HEAD and POST, so one fetch function can serve Feedcanon and any other code that sends those requests.
+The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself never passes it, so every request it makes is a GET. The type also allows HEAD and POST, so one fetch function can serve Feedcanon and any other code that sends those requests. When a redirect moves to another origin, the default fetch drops the `Authorization`, `Cookie` and `Proxy-Authorization` headers you passed, so credentials for one site never reach another.
 
 ## Axios
 
