@@ -452,6 +452,26 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return known URL when HTTPS redirects permanently to it', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'http://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          existsFn: (url) => (url === 'http://www.example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should keep HTTP when HTTPS returns different content', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'
@@ -913,6 +933,38 @@ describe('findCanonical', () => {
                 redirects: [{ url: 'http://example.com/feed', status: 301 }],
               },
               'https://example.com/feed': { body },
+            }),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
+      describe('http serving the feed and https redirecting to www', () => {
+        const entryUrls: Array<string> = [
+          'http://example.com/feed',
+          'https://example.com/feed',
+          'http://www.example.com/feed',
+          'https://www.example.com/feed',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the https www URL', async (value) => {
+          const expected = 'https://www.example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/feed': { body },
+              'https://example.com/feed': {
+                body,
+                url: 'https://www.example.com/feed',
+                redirects: [{ url: 'https://example.com/feed', status: 301 }],
+              },
+              'http://www.example.com/feed': {
+                body,
+                url: 'https://www.example.com/feed',
+                redirects: [{ url: 'http://www.example.com/feed', status: 301 }],
+              },
+              'https://www.example.com/feed': { body },
             }),
             parser: createMockParser(undefined),
           })
