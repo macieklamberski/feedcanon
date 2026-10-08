@@ -386,48 +386,63 @@ const resolveCanonical = async (
   let winningUrl = candidateSourceUrl
   const hasSourceQuery = !!parseUrl(candidateSourceUrl)?.search
 
-  for (const candidateUrl of candidateUrls) {
-    // Check if candidate exists in database, including the http form stored for an https feed.
-    if (existsFn) {
-      const lookupUrls = [candidateUrl]
-      let isCandidateMismatch = false
+  // Look a URL up in existsFn, including the http form stored for an https feed. Returns the known
+  // URL, or false when the URL itself is known but serves a different feed.
+  const findExistingUrl = async (url: string): Promise<string | false | undefined> => {
+    if (!existsFn) {
+      return
+    }
 
-      if (candidateUrl.startsWith('https://')) {
-        lookupUrls.push(upgradeProtocol(candidateUrl, 'http'))
+    const lookupUrls = [url]
+    let isMismatch = false
+
+    if (url.startsWith('https://')) {
+      lookupUrls.push(upgradeProtocol(url, 'http'))
+    }
+
+    for (const lookupUrl of lookupUrls) {
+      const data = await existsFn(lookupUrl)
+
+      if (data == null) {
+        continue
       }
 
-      for (const lookupUrl of lookupUrls) {
-        const data = await existsFn(lookupUrl)
+      // A query can select a different feed, so a known URL without it must serve the same feed.
+      const isQueryStripped =
+        hasSourceQuery && !parseUrl(lookupUrl)?.search && lookupUrl !== initialResponseUrl
 
-        if (data == null) {
+      if (isQueryStripped) {
+        const response = await fetchAndCompare(lookupUrl)
+
+        if (!response) {
+          if (lookupUrl === url) {
+            isMismatch = true
+          }
+
           continue
         }
 
-        // A query can select a different feed, so a known URL without it must serve the same feed.
-        const isQueryStripped =
-          hasSourceQuery && !parseUrl(lookupUrl)?.search && lookupUrl !== initialResponseUrl
-
-        if (isQueryStripped) {
-          const response = await fetchAndCompare(lookupUrl)
-
-          if (!response) {
-            if (lookupUrl === candidateUrl) {
-              isCandidateMismatch = true
-            }
-
-            continue
-          }
-
-          onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
-        }
-
-        onExists?.({ url: lookupUrl, data })
-        return lookupUrl
+        onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
       }
 
-      if (isCandidateMismatch) {
-        continue
-      }
+      onExists?.({ url: lookupUrl, data })
+      return lookupUrl
+    }
+
+    if (isMismatch) {
+      return false
+    }
+  }
+
+  for (const candidateUrl of candidateUrls) {
+    const existingUrl = await findExistingUrl(candidateUrl)
+
+    if (existingUrl) {
+      return existingUrl
+    }
+
+    if (existingUrl === false) {
+      continue
     }
 
     // Skip if same as candidateSource (already verified).
@@ -460,6 +475,14 @@ const resolveCanonical = async (
       })
 
       winningUrl = knownUrl ?? (await adoptCleanedUrl(candidateResponseUrl, candidateUrl))
+
+      // The loop stops before the target is looked up as a candidate, so look it up here.
+      const existingWinningUrl = await findExistingUrl(winningUrl)
+
+      if (existingWinningUrl) {
+        return existingWinningUrl
+      }
+
       break
     }
   }
