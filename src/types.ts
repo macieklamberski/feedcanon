@@ -71,12 +71,19 @@ export type FetchFnOptions = {
 // null or undefined otherwise.
 export type ExistsFn<T = unknown> = (url: string) => MaybePromise<Nullish<T>>
 
+// One redirect response in a chain: the URL that was requested and the 3xx status it returned.
+export type FetchFnRedirect = {
+  url: string
+  status: number
+}
+
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {
   headers: Headers
   body: string
   url: string // Final URL after redirects
   status: number
+  redirects?: Array<FetchFnRedirect> // Redirects followed to reach url, in order
 }
 
 // Custom fetch function type (adapter interface).

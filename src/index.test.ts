@@ -41,6 +41,7 @@ describe('findCanonical', () => {
         url: response.url ?? url,
         body: response.body ?? '',
         headers: response.headers ?? new Headers(),
+        redirects: response.redirects,
       }
     }
   }
@@ -594,6 +595,85 @@ describe('findCanonical', () => {
             'https://www.example.com/feed': { body },
           }),
           parser: createMockParser('https://www.example.com/feed'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should adopt destination reached through permanent redirects', async () => {
+        const value = 'http://old.example.com/rss'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://old.example.com/rss': {
+              body,
+              url: 'https://example.com/feed',
+              redirects: [
+                { url: 'http://old.example.com/rss', status: 301 },
+                { url: 'https://old.example.com/rss', status: 308 },
+              ],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep requested URL when it redirects temporarily', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'https://cdn.example.net/feed?token=abc',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should adopt permanent redirect target up to first temporary redirect', async () => {
+        const value = 'https://old.example.com/rss'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://old.example.com/rss': {
+              body,
+              url: 'https://cdn.example.net/feed?token=abc',
+              redirects: [
+                { url: 'https://old.example.com/rss', status: 301 },
+                { url: 'https://example.com/feed', status: 302 },
+              ],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep self URL when it redirects temporarily', async () => {
+        const value = 'https://www.example.com/feed?ref=home'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed?ref=home': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://cdn.example.net/feed?token=abc',
+              redirects: [{ url: 'https://example.com/feed', status: 307 }],
+            },
+          }),
+          parser: createMockParser('https://example.com/feed'),
         })
 
         expect(await findCanonical(value, options)).toBe(expected)

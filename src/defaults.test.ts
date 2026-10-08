@@ -48,6 +48,7 @@ describe('defaultFetch', () => {
       body: 'response body',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
@@ -68,6 +69,7 @@ describe('defaultFetch', () => {
       method: 'GET',
       headers: expect.any(Headers),
       signal: expect.any(AbortSignal),
+      redirect: 'manual',
     }
 
     expect(capturedOptions).toEqual(expected)
@@ -88,6 +90,7 @@ describe('defaultFetch', () => {
       method: 'HEAD',
       headers: expect.any(Headers),
       signal: expect.any(AbortSignal),
+      redirect: 'manual',
     }
 
     expect(capturedOptions).toEqual(expected)
@@ -112,6 +115,7 @@ describe('defaultFetch', () => {
       headers: expect.any(Headers),
       body: '{"key":"value"}',
       signal: expect.any(AbortSignal),
+      redirect: 'manual',
     }
 
     expect(capturedOptions).toEqual(expected)
@@ -183,6 +187,7 @@ describe('defaultFetch', () => {
       body: 'feed content',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(result).toEqual(expected)
@@ -202,6 +207,7 @@ describe('defaultFetch', () => {
       body: '',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
@@ -220,6 +226,7 @@ describe('defaultFetch', () => {
       body: '<rss>feed content</rss>',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
@@ -238,9 +245,118 @@ describe('defaultFetch', () => {
       body: '',
       headers: expect.any(Headers),
       status: 404,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
+  })
+
+  it('should record each redirect and resolve relative locations', async () => {
+    const responses: Record<string, Partial<MockResponse>> = {
+      'http://example.com/rss': {
+        status: 301,
+        headers: new Headers({ location: 'https://example.com/rss' }),
+      },
+      'https://example.com/rss': {
+        status: 302,
+        headers: new Headers({ location: '/feed.xml' }),
+      },
+      'https://example.com/feed.xml': {
+        text: async () => '<rss></rss>',
+      },
+    }
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string) => {
+        return createMockResponse({ url, ...responses[url] })
+      }),
+    )
+    const expected: FetchFnResponse = {
+      url: 'https://example.com/feed.xml',
+      body: '<rss></rss>',
+      headers: expect.any(Headers),
+      status: 200,
+      redirects: [
+        { url: 'http://example.com/rss', status: 301 },
+        { url: 'https://example.com/rss', status: 302 },
+      ],
+    }
+
+    expect(await defaultFetch('http://example.com/rss')).toEqual(expected)
+  })
+
+  it('should switch POST to GET without body after 303', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/api') {
+          return createMockResponse({
+            status: 303,
+            headers: new Headers({ location: 'https://example.com/result' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', { method: 'POST', body: '{"key":"value"}' })
+
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+
+    expect(capturedOptions[1]).toEqual(expected)
+  })
+
+  it('should keep POST and body through 307', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/api') {
+          return createMockResponse({
+            status: 307,
+            headers: new Headers({ location: 'https://example.com/api/v2' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', { method: 'POST', body: '{"key":"value"}' })
+
+    const expected: RequestInit = {
+      method: 'POST',
+      headers: expect.any(Headers),
+      body: '{"key":"value"}',
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+
+    expect(capturedOptions[1]).toEqual(expected)
+  })
+
+  it('should throw after 20 redirects', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string) => {
+        return createMockResponse({
+          url,
+          status: 302,
+          headers: new Headers({ location: `${url}x` }),
+        })
+      }),
+    )
+    const throwing = () => defaultFetch('https://example.com/feed')
+
+    await expect(throwing()).rejects.toThrow('Too many redirects')
+    expect(fetchSpy).toHaveBeenCalledTimes(21)
   })
 
   it('should propagate error when native fetch throws', async () => {

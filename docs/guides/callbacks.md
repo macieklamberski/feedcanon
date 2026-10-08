@@ -34,6 +34,7 @@ The `response` object contains:
 | `url` | `string` | Final URL after redirects |
 | `body` | `string` | Response body |
 | `headers` | `Headers` | Response headers |
+| `redirects` | `Array<{ url: string; status: number }>` | Redirects followed to reach `url`, when the fetch function lists them |
 
 ### Use Cases
 
