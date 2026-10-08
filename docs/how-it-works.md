@@ -18,6 +18,7 @@ The process starts by fetching the input URL:
 2. Apply rewrites (e.g., normalize FeedBurner domains)
 3. Fetch the content and verify it returns a successful response (2xx)
 4. Parse the feed to ensure it's valid
+5. Keep the URL the response came from, following only permanent redirects (see [Redirects](/guides/customization/data-fetching#redirects))
 
 If any step fails, the function returns `undefined`. The same goes for an error thrown by the parser, `existsFn`, `cleanUrlFn` or a callback at any phase: the promise never rejects.
 

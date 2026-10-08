@@ -1,6 +1,6 @@
 import { parseFeed } from 'feedsmith'
 import { type NormalizeOptions, parseUrl, resolveUrl } from 'trousse'
-import type { DefaultParserResult, FetchFn, ParserAdapter, Tier } from './types.js'
+import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier } from './types.js'
 import { createSignature, neutralizeUrls } from './utils.js'
 
 export const defaultNormalizeOptions: NormalizeOptions = {
@@ -22,26 +22,68 @@ export const defaultNormalizeOptions: NormalizeOptions = {
 // See: https://www.rfc-editor.org/rfc/rfc9110#section-12.5.1.
 const defaultAccept =
   'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
+const redirectStatuses = [301, 302, 303, 307, 308]
+const maxRedirects = 20
+const requestBodyHeaders = [
+  'content-encoding',
+  'content-language',
+  'content-length',
+  'content-location',
+  'content-type',
+]
 
+// Follows redirects by hand to record each one, switching to GET where a browser would.
+// See: https://fetch.spec.whatwg.org/#http-redirect-fetch.
 export const defaultFetch: FetchFn = async (url, options) => {
+  const signal = AbortSignal.timeout(30_000)
+  const redirects: Array<FetchFnRedirect> = []
+  let requestUrl = url
+  let method = options?.method ?? 'GET'
+  let body = options?.body
   const headers = new Headers(options?.headers)
 
   if (!headers.has('accept')) {
     headers.set('accept', defaultAccept)
   }
 
-  const response = await fetch(url, {
-    method: options?.method ?? 'GET',
-    headers,
-    body: options?.body,
-    signal: AbortSignal.timeout(30_000),
-  })
+  while (true) {
+    const response = await fetch(requestUrl, {
+      method,
+      headers,
+      body,
+      signal,
+      redirect: 'manual',
+    })
+    const location = response.headers.get('location')
 
-  return {
-    headers: response.headers,
-    body: await response.text(),
-    url: response.url,
-    status: response.status,
+    if (!redirectStatuses.includes(response.status) || !location) {
+      return {
+        headers: response.headers,
+        body: await response.text(),
+        url: response.url,
+        status: response.status,
+        redirects,
+      }
+    }
+
+    if (redirects.length === maxRedirects) {
+      throw new TypeError(`Too many redirects from ${url}`)
+    }
+
+    redirects.push({ url: requestUrl, status: response.status })
+    await response.body?.cancel()
+    requestUrl = new URL(location, requestUrl).href
+
+    const isPostToGet = method === 'POST' && [301, 302].includes(response.status)
+
+    if ((response.status === 303 && method !== 'HEAD') || isPostToGet) {
+      method = 'GET'
+      body = undefined
+
+      for (const name of requestBodyHeaders) {
+        headers.delete(name)
+      }
+    }
   }
 }
 

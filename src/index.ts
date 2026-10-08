@@ -8,6 +8,19 @@ import type {
 } from './types.js'
 import { applyProbes, applyRewrites } from './utils.js'
 
+const permanentRedirectStatuses = [301, 308]
+
+// The URL to keep using for a response: its final URL, or the URL before its first temporary
+// redirect, since a client keeps using the URI it requested through a 302, 303 or 307.
+// See: https://www.rfc-editor.org/rfc/rfc9110#section-15.4.
+const getSourceUrl = (response: FetchFnResponse): string => {
+  const temporaryRedirect = response.redirects?.find((redirect) => {
+    return !permanentRedirectStatuses.includes(redirect.status)
+  })
+
+  return temporaryRedirect?.url ?? response.url
+}
+
 // Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
   TResponse extends FetchFnResponse = FetchFnResponse,
@@ -239,7 +252,9 @@ const resolveCanonical = async (
     return cleanedUrl
   }
 
-  initialResponseUrl = await adoptCleanedUrl(initialResponseUrlRaw, initialRequestUrl)
+  const initialSourceUrl =
+    resolveAndApplyRewrites(getSourceUrl(initialResponse)) ?? initialResponseUrlRaw
+  initialResponseUrl = await adoptCleanedUrl(initialSourceUrl, initialRequestUrl)
 
   // Phase 3: Validate self URL.
   // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https:// but
@@ -262,7 +277,7 @@ const resolveCanonical = async (
       if (response) {
         onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
         candidateSourceUrl = await adoptCleanedUrl(
-          resolveAndApplyRewrites(response.url) ?? initialResponseUrl,
+          resolveAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
           urlToTry,
         )
         break
@@ -278,7 +293,8 @@ const resolveCanonical = async (
 
       if (response) {
         onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
-        return adoptCleanedUrl(resolveAndApplyRewrites(response.url) ?? candidateUrl, candidateUrl)
+        const responseUrl = resolveAndApplyRewrites(getSourceUrl(response)) ?? candidateUrl
+        return adoptCleanedUrl(responseUrl, candidateUrl)
       }
     })
   }
