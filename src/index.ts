@@ -28,12 +28,23 @@ export function findCanonical<
 ): Promise<string | undefined>
 
 // Implementation uses 'any' for TFeed to avoid variance issues with parser default. Type safety is
-// enforced by the overload signatures above.
+// enforced by the overload signatures above. An error thrown by any injected callback resolves to
+// undefined, like any other failure.
 export async function findCanonical(
   inputUrl: string,
   // biome-ignore lint/suspicious/noExplicitAny: Necessary for function overloads.
   options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
 ): Promise<string | undefined> {
+  try {
+    return await resolveCanonical(inputUrl, options)
+  } catch {}
+}
+
+const resolveCanonical = async (
+  inputUrl: string,
+  // biome-ignore lint/suspicious/noExplicitAny: Same as the findCanonical implementation.
+  options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
+): Promise<string | undefined> => {
   const {
     parser = defaultParser,
     fetchFn = defaultFetch,

@@ -4,17 +4,17 @@ title: Using Callbacks
 
 # Using Callbacks
 
-Feedcanon provides callbacks to track progress and hook into the resolution flow:
+Feedcanon provides callbacks to track progress and hook into the resolution flow. If a callback or `existsFn` throws, `findCanonical` stops and returns `undefined`:
 
 | Callback | Fires when | Data |
 |----------|------------|------|
-| `onFetch` | After each HTTP request | `{ url, response }` |
+| `onFetch` | After each HTTP response | `{ url, response }` |
 | `onMatch` | URL matches initial response | `{ url, response, feed }` |
 | `onExists` | `existsFn` finds URL in database | `{ url, data }` |
 
 ## onFetch
 
-Fires after every HTTP request, whether successful or not.
+Fires for every response, including non-2xx ones. It does not fire when the fetch itself throws, since there is no response to pass.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -118,6 +118,7 @@ const url = await findCanonical('https://example.com/feed', {
 ```typescript
 const aliases = []
 
+// Every protocol, www and trailing slash variant serves the same feed.
 const url = await findCanonical('http://www.example.com/feed/', {
   onMatch: ({ url }) => {
     aliases.push(url)
@@ -127,7 +128,7 @@ const url = await findCanonical('http://www.example.com/feed/', {
 // url: 'https://example.com/feed'
 // aliases: [
 //   'http://www.example.com/feed/',
-//   'https://www.example.com/feed/',
+//   'http://example.com/feed',
 //   'https://example.com/feed',
 // ]
 ```

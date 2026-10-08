@@ -78,7 +78,7 @@ const url = await findCanonical('http://www.example.com/feed/?utm_source=twitter
 // 'https://example.com/feed'
 ```
 
-Returns `undefined` if the feed is invalid or unreachable.
+Returns `undefined` if the feed is invalid or unreachable, or if the parser, `existsFn`, `cleanUrlFn` or a callback throws. It never rejects.
 
 ### Using Callbacks
 
@@ -89,6 +89,7 @@ import { findCanonical } from 'feedcanon'
 
 const aliases = []
 
+// Every protocol, www and trailing slash variant serves the same feed.
 const url = await findCanonical('http://www.example.com/feed/', {
   onMatch: ({ url }) => {
     aliases.push(url)
@@ -98,7 +99,7 @@ const url = await findCanonical('http://www.example.com/feed/', {
 // url: 'https://example.com/feed'
 // aliases: [
 //   'http://www.example.com/feed/',
-//   'https://www.example.com/feed/',
+//   'http://example.com/feed',
 //   'https://example.com/feed',
 // ]
 ```
