@@ -147,32 +147,33 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should strip orderby param', () => {
+    it('should keep orderby param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?orderby=updated')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?orderby=updated'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should strip max-results param', () => {
+    it('should keep max-results param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?max-results=5')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?max-results=5'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should strip start-index param', () => {
+    it('should keep start-index param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?start-index=10')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?start-index=10'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should strip date filter params', () => {
+    it('should keep date filter params', () => {
       const value = new URL(
         'https://www.blogger.com/feeds/123/posts/default?published-min=2024-01-01&published-max=2024-12-31&updated-min=2024-01-01&updated-max=2024-12-31',
       )
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+      const expected =
+        'https://www.blogger.com/feeds/123/posts/default?published-max=2024-12-31&published-min=2024-01-01&updated-max=2024-12-31&updated-min=2024-01-01'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -181,7 +182,8 @@ describe('bloggerRewrite', () => {
       const value = new URL(
         'https://www.blogger.com/feeds/123/posts/default?alt=rss&max-results=5&redirect=false',
       )
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss&redirect=false'
+      const expected =
+        'https://www.blogger.com/feeds/123/posts/default?alt=rss&max-results=5&redirect=false'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -312,11 +314,12 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should preserve blogspot alt=rss while stripping pagination', () => {
+    it('should keep blogspot pagination params', () => {
       const value = new URL(
         'https://example.blogspot.com/feeds/posts/default?alt=rss&max-results=5&start-index=10',
       )
-      const expected = 'https://example.blogspot.com/feeds/posts/default?alt=rss'
+      const expected =
+        'https://example.blogspot.com/feeds/posts/default?alt=rss&max-results=5&start-index=10'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
