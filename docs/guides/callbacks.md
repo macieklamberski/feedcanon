@@ -93,7 +93,7 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 The `existsFn` function:
-- Receives each URL candidate being tested, then the http form of an https candidate
+- Receives each URL candidate being tested, then the same URL under the other protocol: the http form of an https candidate, the https form of an http one
 - Returns your data if URL exists, `null` or `undefined` otherwise
 - Triggers early termination when a match is found
 
