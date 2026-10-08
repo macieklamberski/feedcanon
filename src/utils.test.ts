@@ -649,6 +649,14 @@ describe('neutralizeUrls', () => {
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
+
+    it('should keep a same-domain URL nested in the query of a neutralized URL', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'https://example.com/a?u=https://example.com/b' })
+      const expected = JSON.stringify({ link: '/a?u=https://example.com/b' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
   })
 
   describe('trailing slash normalization', () => {
@@ -904,6 +912,14 @@ describe('neutralizeUrls', () => {
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
+
+    it('should keep a scheme without a host unchanged', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ title: 'see https:// here' })
+      const expected = JSON.stringify({ title: 'see https:// here' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
   })
 
   describe('multiple URLs', () => {
@@ -1079,6 +1095,14 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
+    it('should strip trailing slash from same-domain URL before escaped quote', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ description: '<a href="https://example.com/post/">' })
+      const expected = JSON.stringify({ description: '<a href="/post">' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
     it('should normalize same-domain URL when host is uppercased in the body', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'http://EXAMPLE.COM/post/1' })
@@ -1110,6 +1134,29 @@ describe('neutralizeUrls', () => {
       const expected = JSON.stringify({ link: '/post' })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+  })
+  describe('pathological input', () => {
+    it('should finish quickly on a long run of slashes', () => {
+      const url = 'https://example.com/feed'
+      const value = '/'.repeat(200_000)
+
+      const start = performance.now()
+      neutralizeUrls(value, [url])
+      const elapsed = performance.now() - start
+
+      expect(elapsed).toBeLessThan(1000)
+    })
+
+    it('should finish quickly on many protocol-relative prefixes in one token', () => {
+      const url = 'https://example.com/feed'
+      const value = '//-'.repeat(70_000)
+
+      const start = performance.now()
+      neutralizeUrls(value, [url])
+      const elapsed = performance.now() - start
+
+      expect(elapsed).toBeLessThan(1000)
     })
   })
 })

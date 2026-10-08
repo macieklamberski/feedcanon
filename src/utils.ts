@@ -98,6 +98,11 @@ export const createSignature = (
 // scheme, so neither starts a protocol-relative URL.
 const urlSchemeRegex = /(?:https?:|(?<![\w:]))\/\//gi
 const urlDelimiterRegex = /[\s"'<>\\}]/g
+// The authority runs to the first `/`, `?` or `#`, and the match keeps that character so the parser
+// cannot trim a trailing control character the full token would reject. After an explicit scheme
+// the parser skips any further slashes before the host.
+const relativeAuthorityRegex = /[^/?#\s"'<>\\}]*[/?#]?/y
+const schemeAuthorityRegex = /\/*[^/?#\s"'<>\\}]*[/?#]?/y
 // Strips a trailing slash from any URL or root-relative path before a quote or query. Static and
 // linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
@@ -132,6 +137,15 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
 
     // Skip schemes inside a URL that was already rewritten (e.g. a nested URL in a query).
     if (start < lastIndex) {
+      continue
+    }
+
+    // A host check on the full token would re-parse most of a long token once per `//` inside it.
+    const authorityRegex = match[0].length > 2 ? schemeAuthorityRegex : relativeAuthorityRegex
+    authorityRegex.lastIndex = start + match[0].length
+    authorityRegex.exec(text)
+
+    if (!hosts.has(neutralizeHost(text.slice(start, authorityRegex.lastIndex)))) {
       continue
     }
 
