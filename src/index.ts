@@ -1,4 +1,11 @@
-import { normalizeUrl, parseUrl, resolveUrl, upgradeProtocol } from 'trousse'
+import {
+  isHttpUrl,
+  normalizeUrl,
+  parseUrl,
+  resolveFeedProtocol,
+  resolveUrl,
+  upgradeProtocol,
+} from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -6,7 +13,20 @@ import type {
   FindCanonicalOptions,
   ParserAdapter,
 } from './types.js'
-import { applyProbes, applyRewrites } from './utils.js'
+import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
+
+const permanentRedirectStatuses = [301, 308]
+
+// The URL to keep using for a response: its final URL, or the URL before its first temporary
+// redirect, since a client keeps using the URI it requested through a 302, 303 or 307.
+// See: https://www.rfc-editor.org/rfc/rfc9110#section-15.4.
+const getSourceUrl = (response: FetchFnResponse): string => {
+  const temporaryRedirect = response.redirects?.find((redirect) => {
+    return !permanentRedirectStatuses.includes(redirect.status)
+  })
+
+  return temporaryRedirect?.url ?? response.url
+}
 
 // Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
@@ -28,12 +48,23 @@ export function findCanonical<
 ): Promise<string | undefined>
 
 // Implementation uses 'any' for TFeed to avoid variance issues with parser default. Type safety is
-// enforced by the overload signatures above.
+// enforced by the overload signatures above. An error thrown by any injected callback resolves to
+// undefined, like any other failure.
 export async function findCanonical(
   inputUrl: string,
   // biome-ignore lint/suspicious/noExplicitAny: Necessary for function overloads.
   options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
 ): Promise<string | undefined> {
+  try {
+    return await resolveCanonical(inputUrl, options)
+  } catch {}
+}
+
+const resolveCanonical = async (
+  inputUrl: string,
+  // biome-ignore lint/suspicious/noExplicitAny: Same as the findCanonical implementation.
+  options?: FindCanonicalOptions<any, FetchFnResponse, unknown>,
+): Promise<string | undefined> => {
   const {
     parser = defaultParser,
     fetchFn = defaultFetch,
@@ -51,9 +82,13 @@ export async function findCanonical(
     return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
   }
 
+  const cleanUrl = (url: string): string => {
+    return cleanUrlFn ? cleanUrlFn(url) : url
+  }
+
   // Clean the URL with the injected function (when given), then tidy the remaining query.
   const stripParams = (url: string): string => {
-    return tidyQuery(cleanUrlFn ? cleanUrlFn(url) : url)
+    return tidyQuery(cleanUrl(url))
   }
 
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
@@ -62,27 +97,64 @@ export async function findCanonical(
     return resolved && rewrites ? applyRewrites(resolved, rewrites) : resolved
   }
 
+  // A response or redirect URL is already final, and resolveUrl would decode character references
+  // in it, turning `/a&amp;b` into a URL that was never fetched.
+  const parseAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
+    const parsed = parseUrl(url, baseUrl)
+
+    if (!parsed || !isHttpUrl(parsed)) {
+      return
+    }
+
+    return rewrites ? applyRewrites(parsed.href, rewrites) : parsed.href
+  }
+
   // Phase 1: Initial fetch.
-  const initialRequestUrl = resolveAndApplyRewrites(inputUrl)
+  let initialRequestUrl = resolveAndApplyRewrites(inputUrl)
   if (!initialRequestUrl) {
     return
   }
 
-  let initialResponse: FetchFnResponse
+  // A pseudo-scheme such as feed:// names no transport. An http-only host fails over https with a
+  // thrown TLS or connection error, or a non-2xx from another virtual host.
+  // See: https://www.iana.org/assignments/uri-schemes/prov/feed (draft-obasanjo-feed-uri-scheme).
+  const initialRequestUrls = [initialRequestUrl]
+  const trimmedInputUrl = inputUrl.trim()
+  const httpInputUrl = resolveFeedProtocol(trimmedInputUrl, 'http')
 
-  try {
-    initialResponse = await fetchFn(initialRequestUrl)
-  } catch {
+  if (httpInputUrl !== resolveFeedProtocol(trimmedInputUrl)) {
+    const httpRequestUrl = resolveAndApplyRewrites(httpInputUrl)
+
+    if (httpRequestUrl) {
+      initialRequestUrls.push(httpRequestUrl)
+    }
+  }
+
+  let initialResponse: FetchFnResponse | undefined
+
+  for (const requestUrl of initialRequestUrls) {
+    let response: FetchFnResponse
+
+    try {
+      response = await fetchFn(requestUrl)
+    } catch {
+      continue
+    }
+
+    onFetch?.({ url: requestUrl, response })
+
+    if (response.status >= 200 && response.status < 300) {
+      initialRequestUrl = requestUrl
+      initialResponse = response
+      break
+    }
+  }
+
+  if (!initialResponse) {
     return
   }
 
-  onFetch?.({ url: initialRequestUrl, response: initialResponse })
-
-  if (initialResponse.status < 200 || initialResponse.status >= 300) {
-    return
-  }
-
-  const initialResponseUrlRaw = resolveAndApplyRewrites(initialResponse.url)
+  const initialResponseUrlRaw = parseAndApplyRewrites(initialResponse.url)
   if (!initialResponseUrlRaw) {
     return
   }
@@ -95,8 +167,8 @@ export async function findCanonical(
 
   let initialResponseSignature: string | undefined
 
-  // Phase 2: Extract and normalize self URL.
-  let selfRequestUrl: string | undefined
+  // Phase 2: Extract and normalize self URLs.
+  const selfRequestUrls: Array<string> = []
 
   let initialResponseFeed: Awaited<ReturnType<typeof parser.parse>>
 
@@ -115,11 +187,31 @@ export async function findCanonical(
   // feed data without redundant parsing.
   onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
 
-  const selfRequestUrlRaw = parser.getSelfUrl(initialResponseFeed)
+  // A self link in the Link header takes precedence over one in the feed body. The header is an
+  // HTTP field, not markup, so its URL is parsed without decoding character references.
+  // See: https://www.w3.org/TR/websub/#discovery.
+  const linkHeaderSelfUrl = getLinkHeaderSelfUrl(initialResponse.headers.get('link'))
+  const feedSelfUrl = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
+  const selfRequestUrlsResolved: Array<string | undefined> = []
 
-  if (selfRequestUrlRaw) {
-    selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)
-    selfRequestUrl = selfRequestUrl ? stripParams(selfRequestUrl) : undefined
+  if (linkHeaderSelfUrl) {
+    selfRequestUrlsResolved.push(parseAndApplyRewrites(linkHeaderSelfUrl, initialResponseUrl))
+  }
+
+  if (feedSelfUrl) {
+    selfRequestUrlsResolved.push(resolveAndApplyRewrites(feedSelfUrl, initialResponseUrl))
+  }
+
+  for (const selfRequestUrl of selfRequestUrlsResolved) {
+    if (!selfRequestUrl) {
+      continue
+    }
+
+    const cleanedSelfRequestUrl = stripParams(selfRequestUrl)
+
+    if (!selfRequestUrls.includes(cleanedSelfRequestUrl)) {
+      selfRequestUrls.push(cleanedSelfRequestUrl)
+    }
   }
 
   // Compare initial response against another response using 2-tier matching:
@@ -163,6 +255,11 @@ export async function findCanonical(
   // Phases can try the same URL again, so each URL is fetched once and its result reused.
   const comparedResponses = new Map<string, FetchFnResponse | undefined>()
 
+  // An https form that failed in Phase 1 fails again when Phase 7 upgrades the http fallback.
+  if (initialRequestUrl !== initialRequestUrls[0]) {
+    comparedResponses.set(initialRequestUrls[0], undefined)
+  }
+
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
     if (comparedResponses.has(url)) {
@@ -199,25 +296,24 @@ export async function findCanonical(
   // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once known to
   // existsFn or verified to serve the same feed. Otherwise the response URL is kept.
   const adoptCleanedUrl = async (responseUrl: string, requestUrl: string): Promise<string> => {
-    const tidiedUrl = tidyQuery(responseUrl)
-    const cleanedUrl = stripParams(responseUrl)
-    const tidied = parseUrl(tidiedUrl)
+    const cleanedUrl = cleanUrl(responseUrl)
+    const received = parseUrl(responseUrl)
     const cleaned = parseUrl(cleanedUrl)
     const isSameLocation =
-      tidied?.origin === cleaned?.origin && tidied?.pathname === cleaned?.pathname
+      received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
 
-    if (isSameLocation || cleanedUrl === tidyQuery(requestUrl)) {
+    if (isSameLocation || cleanedUrl === requestUrl) {
       return cleanedUrl
     }
 
-    if (existsFn && (await existsFn(cleanedUrl)) !== undefined) {
+    if (existsFn && (await existsFn(cleanedUrl)) != null) {
       return cleanedUrl
     }
 
     const response = await fetchAndCompare(cleanedUrl)
 
     if (!response) {
-      return tidiedUrl
+      return responseUrl
     }
 
     onMatch?.({ url: cleanedUrl, response, feed: initialResponseFeed })
@@ -225,34 +321,41 @@ export async function findCanonical(
     return cleanedUrl
   }
 
-  initialResponseUrl = await adoptCleanedUrl(initialResponseUrlRaw, initialRequestUrl)
+  const initialSourceUrl =
+    parseAndApplyRewrites(getSourceUrl(initialResponse)) ?? initialResponseUrlRaw
+  initialResponseUrl = await adoptCleanedUrl(initialSourceUrl, initialRequestUrl)
 
-  // Phase 3: Validate self URL.
-  // Try self URL first, then alternate protocol if it fails (e.g., feed:// resolved to https:// but
-  // only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
+  // Phase 3: Validate self URLs.
+  // Try each self URL, then its alternate protocol if it fails (e.g., feed:// resolved to https://
+  // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
   let candidateSourceUrl = initialResponseUrl
+  const urlsToTry: Array<string> = []
 
-  if (selfRequestUrl && selfRequestUrl !== initialResponseUrl) {
-    // Build list of URLs to try (self URL first, then alternate protocol).
-    const urlsToTry = [selfRequestUrl]
+  for (const selfRequestUrl of selfRequestUrls) {
+    // A self URL equal to the response URL is already verified, so the ones after it are not tried.
+    if (selfRequestUrl === initialResponseUrl) {
+      break
+    }
+
+    urlsToTry.push(selfRequestUrl)
 
     if (selfRequestUrl.startsWith('https://')) {
       urlsToTry.push(upgradeProtocol(selfRequestUrl, 'http'))
     } else if (selfRequestUrl.startsWith('http://')) {
       urlsToTry.push(upgradeProtocol(selfRequestUrl))
     }
+  }
 
-    for (const urlToTry of urlsToTry) {
-      const response = await fetchAndCompare(urlToTry)
+  for (const urlToTry of urlsToTry) {
+    const response = await fetchAndCompare(urlToTry)
 
-      if (response) {
-        onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
-        candidateSourceUrl = await adoptCleanedUrl(
-          resolveAndApplyRewrites(response.url) ?? initialResponseUrl,
-          urlToTry,
-        )
-        break
-      }
+    if (response) {
+      onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
+      candidateSourceUrl = await adoptCleanedUrl(
+        parseAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
+        urlToTry,
+      )
+      break
     }
   }
 
@@ -264,7 +367,8 @@ export async function findCanonical(
 
       if (response) {
         onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
-        return adoptCleanedUrl(resolveAndApplyRewrites(response.url) ?? candidateUrl, candidateUrl)
+        const responseUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? candidateUrl
+        return adoptCleanedUrl(responseUrl, candidateUrl)
       }
     })
   }
@@ -295,7 +399,7 @@ export async function findCanonical(
       for (const lookupUrl of lookupUrls) {
         const data = await existsFn(lookupUrl)
 
-        if (data === undefined) {
+        if (data == null) {
           continue
         }
 
@@ -341,17 +445,18 @@ export async function findCanonical(
     if (candidateResponse) {
       onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
 
-      const candidateResponseUrl = resolveAndApplyRewrites(candidateResponse.url)
+      const candidateResponseUrl = parseAndApplyRewrites(getSourceUrl(candidateResponse))
 
-      if (!candidateResponseUrl || tidyQuery(candidateResponseUrl) === tidyQuery(candidateUrl)) {
+      if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
         winningUrl = candidateUrl
         break
       }
 
-      // A candidate that redirects is not where the feed lives, so its target is the result, known
-      // or not. A response URL kept because its cleaned form failed verification matches uncleaned.
+      // A candidate that redirects permanently is not where the feed lives, so its target is the
+      // result, known or not. A response URL kept because its cleaned form failed verification
+      // matches uncleaned.
       const knownUrl = [candidateSourceUrl, initialResponseUrl].find((url) => {
-        return url === stripParams(candidateResponseUrl) || url === tidyQuery(candidateResponseUrl)
+        return url === cleanUrl(candidateResponseUrl) || url === candidateResponseUrl
       })
 
       winningUrl = knownUrl ?? (await adoptCleanedUrl(candidateResponseUrl, candidateUrl))
@@ -365,7 +470,7 @@ export async function findCanonical(
     const response = await fetchAndCompare(httpsUrl)
 
     // An https URL that redirects back to http is not served over https.
-    if (response && !resolveAndApplyRewrites(response.url)?.startsWith('http://')) {
+    if (response && !parseAndApplyRewrites(response.url)?.startsWith('http://')) {
       onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
       return httpsUrl
     }

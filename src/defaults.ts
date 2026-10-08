@@ -1,7 +1,7 @@
 import { parseFeed } from 'feedsmith'
-import type { NormalizeOptions } from 'trousse'
-import type { DefaultParserResult, FetchFn, ParserAdapter, Tier } from './types.js'
-import { createSignature, neutralizeUrls } from './utils.js'
+import { type NormalizeOptions, parseUrl, resolveUrl } from 'trousse'
+import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier } from './types.js'
+import { createSignature, isRelation, neutralizeUrls } from './utils.js'
 
 export const defaultNormalizeOptions: NormalizeOptions = {
   stripProtocol: true,
@@ -19,35 +19,87 @@ export const defaultNormalizeOptions: NormalizeOptions = {
   normalizeUnicode: true,
 }
 
-export const defaultFetch: FetchFn = async (url, options) => {
-  const response = await fetch(url, {
-    method: options?.method ?? 'GET',
-    headers: options?.headers,
-    body: options?.body,
-    signal: AbortSignal.timeout(30_000),
-  })
+// See: https://www.rfc-editor.org/rfc/rfc9110#section-12.5.1.
+const defaultAccept =
+  'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
+const redirectStatuses = [301, 302, 303, 307, 308]
+const maxRedirects = 20
+const requestBodyHeaders = [
+  'content-encoding',
+  'content-language',
+  'content-length',
+  'content-location',
+  'content-type',
+]
 
-  return {
-    headers: response.headers,
-    body: await response.text(),
-    url: response.url,
-    status: response.status,
+// Follows redirects by hand to record each one, switching to GET where a browser would.
+// See: https://fetch.spec.whatwg.org/#http-redirect-fetch.
+export const defaultFetch: FetchFn = async (url, options) => {
+  const signal = AbortSignal.timeout(30_000)
+  const redirects: Array<FetchFnRedirect> = []
+  let requestUrl = url
+  let method = options?.method ?? 'GET'
+  let body = options?.body
+  const headers = new Headers(options?.headers)
+
+  if (!headers.has('accept')) {
+    headers.set('accept', defaultAccept)
+  }
+
+  while (true) {
+    const response = await fetch(requestUrl, {
+      method,
+      headers,
+      body,
+      signal,
+      redirect: 'manual',
+    })
+    const location = response.headers.get('location')
+
+    if (!redirectStatuses.includes(response.status) || !location) {
+      return {
+        headers: response.headers,
+        body: await response.text(),
+        url: response.url,
+        status: response.status,
+        redirects,
+      }
+    }
+
+    if (redirects.length === maxRedirects) {
+      throw new TypeError(`Too many redirects from ${url}`)
+    }
+
+    redirects.push({ url: requestUrl, status: response.status })
+    await response.body?.cancel()
+    requestUrl = new URL(location, requestUrl).href
+
+    const isPostToGet = method === 'POST' && [301, 302].includes(response.status)
+
+    if ((response.status === 303 && method !== 'HEAD') || isPostToGet) {
+      method = 'GET'
+      body = undefined
+
+      for (const name of requestBodyHeaders) {
+        headers.delete(name)
+      }
+    }
   }
 }
 
 const retrieveSelfLink = (parsed: DefaultParserResult) => {
   switch (parsed.format) {
     case 'atom':
-      return parsed.feed.links?.find((link) => link.rel === 'self')
+      return parsed.feed.links?.find((link) => link.rel && isRelation(link.rel, 'self'))
     case 'rss':
     case 'rdf':
-      return parsed.feed.atom?.links?.find((link) => link.rel === 'self')
+      return parsed.feed.atom?.links?.find((link) => link.rel && isRelation(link.rel, 'self'))
   }
 }
 
 const retrieveAlternateLink = (feed: Extract<DefaultParserResult, { format: 'atom' }>['feed']) => {
-  // A link without rel is an alternate link per RFC 4287.
-  return feed.links?.find((link) => (link.rel ?? 'alternate') === 'alternate')
+  // A link without rel is an alternate link per RFC 4287 §4.2.7.2.
+  return feed.links?.find((link) => isRelation(link.rel ?? 'alternate', 'alternate'))
 }
 
 export const defaultParser: ParserAdapter<DefaultParserResult> = {
@@ -56,8 +108,33 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       return parseFeed(body)
     } catch {}
   },
-  getSelfUrl: (parsed) => {
-    return parsed.format === 'json' ? parsed.feed.feed_url : retrieveSelfLink(parsed)?.href
+  getSelfUrl: (parsed, url) => {
+    // See: https://www.jsonfeed.org/version/1.1/, the feed_url field.
+    if (parsed.format === 'json') {
+      return parsed.feed.feed_url
+    }
+
+    const href = retrieveSelfLink(parsed)?.href
+    const base = parsed.feed.xml?.base
+
+    if (!href || !base) {
+      return href
+    }
+
+    // Without the retrieval URL, only an absolute xml:base can resolve the href.
+    if (!url && !parseUrl(base)) {
+      return href
+    }
+
+    // A relative href resolves against xml:base, itself resolved against the retrieval URL (RFC
+    // 4287 §2, RFC 3986 §5.1). Feedsmith keeps only the root element's xml:base.
+    const baseUrl = resolveUrl(base, url) ?? url
+
+    if (!baseUrl) {
+      return href
+    }
+
+    return resolveUrl(href, baseUrl)
   },
   getSignature: (parsed, url) => {
     // Neutralize dynamic fields before generating signature to ensure feeds that differ only in

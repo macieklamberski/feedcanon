@@ -1,4 +1,4 @@
-import type { MaybePromise, NormalizeOptions } from 'trousse'
+import type { MaybePromise, NormalizeOptions, Nullish } from 'trousse'
 
 // Default feed type from feedsmith parser. Uses inline typeof import() because tsdown strips
 // `import type` in .d.ts files, breaking type resolution. Can be simplified once feedsmith exports
@@ -8,7 +8,7 @@ export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFee
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
   parse: (body: string) => MaybePromise<T | undefined>
-  getSelfUrl: (parsed: T) => string | undefined
+  getSelfUrl: (parsed: T, url?: string) => string | undefined
   getSignature: (parsed: T, url: string) => string
 }
 
@@ -68,8 +68,14 @@ export type FetchFnOptions = {
 }
 
 // Callback to check if URLs exist in database (early termination). Returns data if URL exists,
-// undefined otherwise.
-export type ExistsFn<T = unknown> = (url: string) => MaybePromise<T | undefined>
+// null or undefined otherwise.
+export type ExistsFn<T = unknown> = (url: string) => MaybePromise<Nullish<T>>
+
+// One redirect response in a chain: the URL that was requested and the 3xx status it returned.
+export type FetchFnRedirect = {
+  url: string
+  status: number
+}
 
 // Response from fetch function (normalized across adapters).
 export type FetchFnResponse = {
@@ -77,6 +83,7 @@ export type FetchFnResponse = {
   body: string
   url: string // Final URL after redirects
   status: number
+  redirects?: Array<FetchFnRedirect> // Redirects followed to reach url, in order
 }
 
 // Custom fetch function type (adapter interface).

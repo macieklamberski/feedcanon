@@ -126,6 +126,13 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
+    it('should keep alt=rss when a redundant alt param precedes it', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=json&alt=rss')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
     it('should strip v param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?v=2')
       const expected = 'https://www.blogger.com/feeds/123/posts/default'

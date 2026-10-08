@@ -18,8 +18,11 @@ The process starts by fetching the input URL:
 2. Apply rewrites (e.g., normalize FeedBurner domains)
 3. Fetch the content and verify it returns a successful response (2xx)
 4. Parse the feed to ensure it's valid
+5. Keep the URL the response came from, following only permanent redirects (see [Redirects](/guides/customization/data-fetching#redirects))
 
-If any step fails, the function returns `undefined`.
+If any step fails, the function returns `undefined`. The same goes for an error thrown by the parser, `existsFn`, `cleanUrlFn` or a callback at any phase: the promise never rejects.
+
+A feed pseudo-scheme like `feed://` or `itpc://` doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
 
 ### 2. Self URL Extraction
 
@@ -37,6 +40,22 @@ Many feeds declare their canonical URL using `atom:link rel="self"`:
 ```
 
 The parser extracts this self URL from the feed content. This declared URL often represents the feed author's preferred canonical form.
+
+The default parser reads the self URL from:
+
+- The Atom link whose `rel` is `self` or its IANA form `http://www.iana.org/assignments/relation/self`, in any case for the short name ([RFC 4287 §4.2.7.2](https://www.rfc-editor.org/rfc/rfc4287#section-4.2.7.2), [RFC 8288 §2.1.1](https://www.rfc-editor.org/rfc/rfc8288#section-2.1.1))
+- `atom:link` in RSS and RDF, with the same matching
+- `feed_url` in [JSON Feed 1.1](https://www.jsonfeed.org/version/1.1/)
+
+A relative self URL resolves against the root element's `xml:base`, which itself resolves against the URL the feed came from ([RFC 3986 §5.1](https://www.rfc-editor.org/rfc/rfc3986#section-5.1)).
+
+A server can also declare the self URL in the HTTP `Link` response header ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288#section-3)):
+
+```
+Link: <https://example.com/feed.xml>; rel="self"
+```
+
+When the header has a self link, it takes precedence over the one in the feed, as [WebSub](https://www.w3.org/TR/websub/#discovery) specifies. The feed's self link is tried only when the header's fails validation. The header's `rel` matches the same way as the feed's, IANA form included. A relative URL in the header is resolved against the response URL. Both go through the same rewrites and cleaning.
 
 ### 3. Self URL Validation
 
@@ -111,6 +130,15 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 3. If it matches, return the HTTPS URL
 
 This ensures secure connections when available.
+
+## Deviations From URI Equivalence
+
+Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, unless your `existsFn` already knows the URL.
+
+- **Root slash.** `https://example.com/` becomes `https://example.com`, though [RFC 9110 §4.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3) makes `/` the normal form. Both send the same request.
+- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
+- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
+- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
 
 ## Matching Strategy
 

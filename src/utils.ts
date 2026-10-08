@@ -49,6 +49,34 @@ export const applyProbes = async (
   return url
 }
 
+// A registered relation name equals its IANA IRI form (RFC 4287 §4.2.7.2) and compares
+// case-insensitively (RFC 8288 §2.1.1).
+export const isRelation = (rel: string, name: string): boolean => {
+  return rel.toLowerCase() === name || rel === `http://www.iana.org/assignments/relation/${name}`
+}
+
+// A link is `<uri-reference>` followed by parameters, which may hold commas inside quoted strings.
+const linkRegex = /<([^>]*)>((?:"[^"]*"|[^,"])*)/g
+const relParamRegex = /;\s*rel\s*=\s*(?:"([^"]*)"|([^\s;]+))/i
+const whitespaceRegex = /\s+/
+
+// The target of the first link in a Link header whose rel includes "self".
+// See: https://www.rfc-editor.org/rfc/rfc8288#section-3.
+export const getLinkHeaderSelfUrl = (header: string | null): string | undefined => {
+  if (!header) {
+    return
+  }
+
+  for (const [, target, params] of header.matchAll(linkRegex)) {
+    const rel = params.match(relParamRegex)
+    const relTypes = (rel?.[1] ?? rel?.[2])?.split(whitespaceRegex)
+
+    if (relTypes?.some((relType) => isRelation(relType, 'self'))) {
+      return target.trim()
+    }
+  }
+}
+
 export const createSignature = (
   object: object,
   exclusions: Array<[holder: object | undefined, key: string]>,

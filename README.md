@@ -39,7 +39,7 @@ The 9 URLs below all work and return identical content. None redirect to each ot
 This is a simplified flow. For complete details, see [How It Works](https://feedcanon.dev/how-it-works) in the docs.
 
 1. Fetch the input URL and parse the feed to establish reference content.
-2. Extract the feed's declared self URL (if present).
+2. Extract the feed's declared self URL from the `Link` header or the feed (if present).
 3. Validate the self URL by fetching and comparing content.
 4. Generate URL candidates ordered from cleanest to least clean.
 5. Test candidates in order: the first one serving identical content wins.
@@ -78,7 +78,7 @@ const url = await findCanonical('http://www.example.com/feed/?utm_source=twitter
 // 'https://example.com/feed'
 ```
 
-Returns `undefined` if the feed is invalid or unreachable.
+Returns `undefined` if the feed is invalid or unreachable, or if the parser, `existsFn`, `cleanUrlFn` or a callback throws. It never rejects.
 
 ### Using Callbacks
 
@@ -89,6 +89,7 @@ import { findCanonical } from 'feedcanon'
 
 const aliases = []
 
+// Every protocol, www and trailing slash variant serves the same feed.
 const url = await findCanonical('http://www.example.com/feed/', {
   onMatch: ({ url }) => {
     aliases.push(url)
@@ -98,7 +99,7 @@ const url = await findCanonical('http://www.example.com/feed/', {
 // url: 'https://example.com/feed'
 // aliases: [
 //   'http://www.example.com/feed/',
-//   'https://www.example.com/feed/',
+//   'http://example.com/feed',
 //   'https://example.com/feed',
 // ]
 ```

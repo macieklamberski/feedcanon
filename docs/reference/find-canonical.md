@@ -34,7 +34,7 @@ Finds the canonical URL for a given feed URL by fetching, parsing, and testing U
 
 #### Returns
 
-`Promise<string | undefined>`: The canonical URL, or `undefined` if the feed is invalid or unreachable.
+`Promise<string | undefined>`: The canonical URL, or `undefined` if the feed is invalid or unreachable. The promise never rejects: an error thrown by any option you pass in, such as `existsFn` or `onMatch`, resolves to `undefined` as well. A few errors only skip one step and the lookup carries on: a rewrite or probe that throws, and a parser that throws on a candidate's body.
 
 #### Example
 

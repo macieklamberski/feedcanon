@@ -48,6 +48,7 @@ describe('defaultFetch', () => {
       body: 'response body',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
@@ -64,7 +65,12 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml')
 
-    const expected: RequestInit = { method: 'GET', signal: expect.any(AbortSignal) }
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
 
     expect(capturedOptions).toEqual(expected)
   })
@@ -80,7 +86,12 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml', { method: 'HEAD' })
 
-    const expected: RequestInit = { method: 'HEAD', signal: expect.any(AbortSignal) }
+    const expected: RequestInit = {
+      method: 'HEAD',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
 
     expect(capturedOptions).toEqual(expected)
   })
@@ -101,8 +112,10 @@ describe('defaultFetch', () => {
 
     const expected: RequestInit = {
       method: 'POST',
+      headers: expect.any(Headers),
       body: '{"key":"value"}',
       signal: expect.any(AbortSignal),
+      redirect: 'manual',
     }
 
     expect(capturedOptions).toEqual(expected)
@@ -121,13 +134,40 @@ describe('defaultFetch', () => {
       headers: { 'X-Custom': 'value' },
     })
 
-    const expected: RequestInit = {
-      method: 'GET',
-      headers: { 'X-Custom': 'value' },
-      signal: expect.any(AbortSignal),
-    }
+    expect(new Headers(capturedOptions?.headers).get('x-custom')).toBe('value')
+  })
 
-    expect(capturedOptions).toEqual(expected)
+  it('should send an Accept header preferring feed media types', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock((_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetch('https://example.com/feed.xml')
+
+    const expected =
+      'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
+
+    expect(new Headers(capturedOptions?.headers).get('accept')).toBe(expected)
+  })
+
+  it('should let a caller-supplied Accept header override the default', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock((_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', {
+      headers: { Accept: 'application/json' },
+    })
+
+    expect(new Headers(capturedOptions?.headers).get('accept')).toBe('application/json')
   })
 
   it('should return response with correct structure', async () => {
@@ -147,6 +187,7 @@ describe('defaultFetch', () => {
       body: 'feed content',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(result).toEqual(expected)
@@ -166,6 +207,7 @@ describe('defaultFetch', () => {
       body: '',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
@@ -184,6 +226,7 @@ describe('defaultFetch', () => {
       body: '<rss>feed content</rss>',
       headers: expect.any(Headers),
       status: 200,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
@@ -202,9 +245,160 @@ describe('defaultFetch', () => {
       body: '',
       headers: expect.any(Headers),
       status: 404,
+      redirects: [],
     }
 
     expect(await defaultFetch('https://example.com/feed.xml')).toEqual(expected)
+  })
+
+  it('should record each redirect and resolve relative locations', async () => {
+    const responses: Record<string, Partial<MockResponse>> = {
+      'http://example.com/rss': {
+        status: 301,
+        headers: new Headers({ location: 'https://example.com/rss' }),
+      },
+      'https://example.com/rss': {
+        status: 302,
+        headers: new Headers({ location: '/feed.xml' }),
+      },
+      'https://example.com/feed.xml': {
+        text: async () => '<rss></rss>',
+      },
+    }
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string) => {
+        return createMockResponse({ url, ...responses[url] })
+      }),
+    )
+    const expected: FetchFnResponse = {
+      url: 'https://example.com/feed.xml',
+      body: '<rss></rss>',
+      headers: expect.any(Headers),
+      status: 200,
+      redirects: [
+        { url: 'http://example.com/rss', status: 301 },
+        { url: 'https://example.com/rss', status: 302 },
+      ],
+    }
+
+    expect(await defaultFetch('http://example.com/rss')).toEqual(expected)
+  })
+
+  it('should switch POST to GET without body after 303', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/api') {
+          return createMockResponse({
+            status: 303,
+            headers: new Headers({ location: 'https://example.com/result' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', { method: 'POST', body: '{"key":"value"}' })
+
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+
+    expect(capturedOptions[1]).toEqual(expected)
+  })
+
+  it('should drop Content-Type when 303 switches POST to GET', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/api') {
+          return createMockResponse({
+            status: 303,
+            headers: new Headers({ location: 'https://example.com/result' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: '{"key":"value"}',
+    })
+
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+    const headers = new Headers(capturedOptions[1]?.headers)
+
+    expect(capturedOptions[1]).toEqual(expected)
+    expect(headers.has('content-type')).toBe(false)
+    expect(headers.get('accept')).toBe('application/json')
+  })
+
+  it('should keep POST and Content-Type through 307', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/api') {
+          return createMockResponse({
+            status: 307,
+            headers: new Headers({ location: 'https://example.com/api/v2' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"key":"value"}',
+    })
+
+    const expected: RequestInit = {
+      method: 'POST',
+      headers: expect.any(Headers),
+      body: '{"key":"value"}',
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+    const headers = new Headers(capturedOptions[1]?.headers)
+
+    expect(capturedOptions[1]).toEqual(expected)
+    expect(headers.get('content-type')).toBe('application/json')
+  })
+
+  it('should throw after 20 redirects', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string) => {
+        return createMockResponse({
+          url,
+          status: 302,
+          headers: new Headers({ location: `${url}x` }),
+        })
+      }),
+    )
+    const throwing = () => defaultFetch('https://example.com/feed')
+
+    await expect(throwing()).rejects.toThrow('Too many redirects')
+    expect(fetchSpy).toHaveBeenCalledTimes(21)
   })
 
   it('should propagate error when native fetch throws', async () => {
@@ -314,7 +508,7 @@ describe('defaultParser', () => {
       const expected = 'https://example.com/feed.json'
       const parsed = await parseOrThrow(value)
 
-      expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
     })
 
     it('should return undefined for JSON Feed without feed_url', async () => {
@@ -324,7 +518,7 @@ describe('defaultParser', () => {
       })
       const parsed = await parseOrThrow(value)
 
-      expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBeUndefined()
     })
 
     it('should return self URL from Atom feed', async () => {
@@ -338,7 +532,7 @@ describe('defaultParser', () => {
       const expected = 'https://example.com/feed.atom'
       const parsed = await parseOrThrow(value)
 
-      expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
     })
 
     it('should return undefined for Atom feed without self link', async () => {
@@ -351,7 +545,7 @@ describe('defaultParser', () => {
       `
       const parsed = await parseOrThrow(value)
 
-      expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBeUndefined()
     })
 
     it('should return self URL from RSS feed with atom:link', async () => {
@@ -367,7 +561,7 @@ describe('defaultParser', () => {
       const expected = 'https://example.com/feed.rss'
       const parsed = await parseOrThrow(value)
 
-      expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
     })
 
     it('should return undefined for RSS feed without self link', async () => {
@@ -381,7 +575,7 @@ describe('defaultParser', () => {
       `
       const parsed = await parseOrThrow(value)
 
-      expect(defaultParser.getSelfUrl(parsed)).toBeUndefined()
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBeUndefined()
     })
 
     it('should extract self URL from RDF feed', () => {
@@ -394,7 +588,9 @@ describe('defaultParser', () => {
         },
       }
 
-      expect(defaultParser.getSelfUrl(value)).toBe('https://example.com/rdf.xml')
+      const expected = 'https://example.com/rdf.xml'
+
+      expect(defaultParser.getSelfUrl(value, 'https://example.com/feed')).toBe(expected)
     })
 
     it('should return undefined for RDF feed without atom links', () => {
@@ -405,7 +601,122 @@ describe('defaultParser', () => {
         },
       }
 
-      expect(defaultParser.getSelfUrl(value)).toBeUndefined()
+      expect(defaultParser.getSelfUrl(value, 'https://example.com/feed')).toBeUndefined()
+    })
+
+    it('should match self link with uppercase rel', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="SELF" href="https://example.com/feed.atom"/>
+        </feed>
+      `
+      const expected = 'https://example.com/feed.atom'
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
+    })
+
+    it('should match self link with IANA relation IRI', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link
+            rel="http://www.iana.org/assignments/relation/self"
+            href="https://example.com/feed.atom"
+          />
+        </feed>
+      `
+      const expected = 'https://example.com/feed.atom'
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
+    })
+
+    it('should return relative self href unchanged without xml:base', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link rel="self" href="feed.atom"/>
+        </feed>
+      `
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe('feed.atom')
+    })
+
+    it('should resolve self href against absolute xml:base', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom" xml:base="https://example.org/blog/">
+          <title>Test</title>
+          <link rel="self" href="feed.atom"/>
+        </feed>
+      `
+      const expected = 'https://example.org/blog/feed.atom'
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
+    })
+
+    it('should resolve self href against relative xml:base and retrieval URL', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <rss version="2.0" xml:base="/blog/" xmlns:atom="http://www.w3.org/2005/Atom">
+          <channel>
+            <title>Test</title>
+            <atom:link rel="self" href="feed.rss"/>
+          </channel>
+        </rss>
+      `
+      const expected = 'https://example.com/blog/feed.rss'
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feeds/main')).toBe(expected)
+    })
+
+    it('should resolve self href against absolute xml:base without retrieval URL', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom" xml:base="https://example.org/blog/">
+          <title>Test</title>
+          <link rel="self" href="feed.atom"/>
+        </feed>
+      `
+      const expected = 'https://example.org/blog/feed.atom'
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
+    })
+
+    it('should return self href as is with relative xml:base and no retrieval URL', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom" xml:base="/blog/">
+          <title>Test</title>
+          <link rel="self" href="feed.atom"/>
+        </feed>
+      `
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed)).toBe('feed.atom')
+    })
+
+    it('should keep absolute self href when xml:base is set', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom" xml:base="https://example.org/blog/">
+          <title>Test</title>
+          <link rel="self" href="https://example.com/feed.atom"/>
+        </feed>
+      `
+      const expected = 'https://example.com/feed.atom'
+      const parsed = await parseOrThrow(value)
+
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
     })
   })
 
@@ -825,6 +1136,28 @@ describe('defaultParser', () => {
         <feed xmlns="http://www.w3.org/2005/Atom">
           <title>Test</title>
           <link rel="alternate" href="https://example.com/"/>
+          <entry>
+            <link href="https://example.com/post/1"/>
+          </entry>
+        </feed>
+      `
+      const parsed = await parseOrThrow(value)
+
+      const signature1 = defaultParser.getSignature(parsed, 'https://example.com/feed.atom')
+      const signature2 = defaultParser.getSignature(parsed, 'https://feeds.example.com/atom')
+
+      expect(signature1).toBe(signature2)
+    })
+
+    it('should neutralize link with IANA alternate relation IRI in Atom feed signature', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test</title>
+          <link
+            rel="http://www.iana.org/assignments/relation/alternate"
+            href="https://example.com/"
+          />
           <entry>
             <link href="https://example.com/post/1"/>
           </entry>

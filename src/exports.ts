@@ -23,6 +23,7 @@ export type {
   ExistsFn,
   FetchFn,
   FetchFnOptions,
+  FetchFnRedirect,
   FetchFnResponse,
   FindCanonicalOptions,
   OnExistsFn,
