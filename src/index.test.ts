@@ -2180,6 +2180,54 @@ describe('findCanonical', () => {
         expect(fetchCalls).toEqual(expected)
       })
 
+      it('should not fetch the entry URL again when it is a tier candidate', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'https://example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'https://example.com/feed/': { body },
+          }),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(['https://example.com/feed'])
+      })
+
+      it('should not fetch the entry URL again when it is the self URL', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser('https://example.com/feed'),
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'https://example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'https://example.com/feed/': { body },
+          }),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(['https://example.com/feed'])
+      })
+
       it('should call onFetch for both attempts of feed:// input URL', async () => {
         const value = 'feed://example.com/feed'
         const body = '<feed></feed>'
