@@ -98,9 +98,9 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should strip redirect param', () => {
+    it('should keep redirect param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?redirect=false')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?redirect=false'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -181,7 +181,7 @@ describe('bloggerRewrite', () => {
       const value = new URL(
         'https://www.blogger.com/feeds/123/posts/default?alt=rss&max-results=5&redirect=false',
       )
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss'
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss&redirect=false'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -305,9 +305,9 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should strip blogspot redirect param', () => {
+    it('should keep blogspot redirect param', () => {
       const value = new URL('https://example.blogspot.com/feeds/posts/default?redirect=false')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
+      const expected = 'https://example.blogspot.com/feeds/posts/default?redirect=false'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
