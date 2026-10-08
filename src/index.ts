@@ -68,10 +68,10 @@ const resolveCanonical = async (
   const {
     parser = defaultParser,
     fetchFn = defaultFetch,
-    cleanUrlFn,
+    cleanUrlFn = (url: string) => url,
     existsFn,
     tiers = defaultTiers,
-    rewrites,
+    rewrites = [],
     probes,
     onFetch,
     onMatch,
@@ -82,14 +82,15 @@ const resolveCanonical = async (
     return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
   }
 
-  const cleanUrl = (url: string): string => {
-    return cleanUrlFn ? cleanUrlFn(url) : url
-  }
-
   // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
   const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
-    return resolved && rewrites ? applyRewrites(resolved, rewrites) : resolved
+
+    if (!resolved) {
+      return
+    }
+
+    return applyRewrites(resolved, rewrites)
   }
 
   // A response or redirect URL is already final, and resolveUrl would decode character references
@@ -101,7 +102,7 @@ const resolveCanonical = async (
       return
     }
 
-    return rewrites ? applyRewrites(parsed.href, rewrites) : parsed.href
+    return applyRewrites(parsed.href, rewrites)
   }
 
   // Phase 1: Initial fetch.
@@ -202,7 +203,7 @@ const resolveCanonical = async (
       continue
     }
 
-    const cleanedSelfRequestUrl = cleanUrl(selfRequestUrl)
+    const cleanedSelfRequestUrl = cleanUrlFn(selfRequestUrl)
 
     if (!selfRequestUrls.includes(cleanedSelfRequestUrl)) {
       selfRequestUrls.push(cleanedSelfRequestUrl)
@@ -291,7 +292,7 @@ const resolveCanonical = async (
   // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once known to
   // existsFn or verified to serve the same feed. Otherwise the response URL is kept.
   const adoptCleanedUrl = async (responseUrl: string, requestUrl: string): Promise<string> => {
-    const cleanedUrl = cleanUrl(responseUrl)
+    const cleanedUrl = cleanUrlFn(responseUrl)
     const received = parseUrl(responseUrl)
     const cleaned = parseUrl(cleanedUrl)
     const isSameLocation =
@@ -466,7 +467,7 @@ const resolveCanonical = async (
       // result, known or not. A response URL kept because its cleaned form failed verification
       // matches uncleaned.
       const knownUrl = [candidateSourceUrl, initialResponseUrl].find((url) => {
-        return url === cleanUrl(candidateResponseUrl) || url === candidateResponseUrl
+        return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
       })
 
       winningUrl = knownUrl ?? (await adoptCleanedUrl(candidateResponseUrl, candidateUrl))
