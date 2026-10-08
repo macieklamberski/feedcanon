@@ -8,21 +8,6 @@ const blogspotRegex = /\.blogspot\.(com|(co|com)\.[a-z]{2}|[a-z]{2})$/i
 
 const redundantAltValues = ['atom', 'json', '']
 
-// `redirect` stays: without `redirect=false`, a blog that set up FeedBurner redirects its feed
-// there, and the FeedBurner feed can carry different content.
-const strippedParams = [
-  'v', // GData API version, deprecated and now ignored.
-  // Pagination and date filters. Feed readers subscribe to full feeds, not filtered views, so
-  // subscriptions with different limits or date ranges canonicalize to one URL.
-  'max-results',
-  'start-index',
-  'published-min',
-  'published-max',
-  'updated-min',
-  'updated-max',
-  'orderby',
-]
-
 export const bloggerRewrite: Rewrite = {
   match: (url) => {
     return bloggerRegex.test(url.hostname) || blogspotRegex.test(url.hostname)
@@ -54,9 +39,11 @@ export const bloggerRewrite: Rewrite = {
       }
     }
 
-    for (const param of strippedParams) {
-      rewritten.searchParams.delete(param)
-    }
+    // Strip v (GData API version, deprecated and now ignored). The other API params stay:
+    // without `redirect=false`, a blog that set up FeedBurner redirects its feed there, and the
+    // FeedBurner feed can carry different content. Pagination, date filters and `orderby` select
+    // a different set of posts.
+    rewritten.searchParams.delete('v')
 
     // Strip alt=atom and alt=json (Atom is the default, JSON is same content).
     const altValues = rewritten.searchParams.getAll('alt')
