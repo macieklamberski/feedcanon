@@ -1,4 +1,11 @@
-import { normalizeUrl, parseUrl, resolveFeedProtocol, resolveUrl, upgradeProtocol } from 'trousse'
+import {
+  isHttpUrl,
+  normalizeUrl,
+  parseUrl,
+  resolveFeedProtocol,
+  resolveUrl,
+  upgradeProtocol,
+} from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
@@ -90,6 +97,18 @@ const resolveCanonical = async (
     return resolved && rewrites ? applyRewrites(resolved, rewrites) : resolved
   }
 
+  // A response or redirect URL is already final, and resolveUrl would decode character references
+  // in it, turning `/a&amp;b` into a URL that was never fetched.
+  const parseAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
+    const parsed = parseUrl(url, baseUrl)
+
+    if (!parsed || !isHttpUrl(parsed)) {
+      return
+    }
+
+    return rewrites ? applyRewrites(parsed.href, rewrites) : parsed.href
+  }
+
   // Phase 1: Initial fetch.
   let initialRequestUrl = resolveAndApplyRewrites(inputUrl)
   if (!initialRequestUrl) {
@@ -135,7 +154,7 @@ const resolveCanonical = async (
     return
   }
 
-  const initialResponseUrlRaw = resolveAndApplyRewrites(initialResponse.url)
+  const initialResponseUrlRaw = parseAndApplyRewrites(initialResponse.url)
   if (!initialResponseUrlRaw) {
     return
   }
@@ -168,20 +187,22 @@ const resolveCanonical = async (
   // feed data without redundant parsing.
   onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
 
-  // A self link in the Link header takes precedence over one in the feed body.
+  // A self link in the Link header takes precedence over one in the feed body. The header is an
+  // HTTP field, not markup, so its URL is parsed without decoding character references.
   // See: https://www.w3.org/TR/websub/#discovery.
-  const selfRequestUrlsRaw = [
-    getLinkHeaderSelfUrl(initialResponse.headers.get('link')),
-    parser.getSelfUrl(initialResponseFeed, initialResponseUrl),
-  ]
+  const linkHeaderSelfUrl = getLinkHeaderSelfUrl(initialResponse.headers.get('link'))
+  const feedSelfUrl = parser.getSelfUrl(initialResponseFeed, initialResponseUrl)
+  const selfRequestUrlsResolved: Array<string | undefined> = []
 
-  for (const selfRequestUrlRaw of selfRequestUrlsRaw) {
-    if (!selfRequestUrlRaw) {
-      continue
-    }
+  if (linkHeaderSelfUrl) {
+    selfRequestUrlsResolved.push(parseAndApplyRewrites(linkHeaderSelfUrl, initialResponseUrl))
+  }
 
-    const selfRequestUrl = resolveAndApplyRewrites(selfRequestUrlRaw, initialResponseUrl)
+  if (feedSelfUrl) {
+    selfRequestUrlsResolved.push(resolveAndApplyRewrites(feedSelfUrl, initialResponseUrl))
+  }
 
+  for (const selfRequestUrl of selfRequestUrlsResolved) {
     if (!selfRequestUrl) {
       continue
     }
@@ -301,7 +322,7 @@ const resolveCanonical = async (
   }
 
   const initialSourceUrl =
-    resolveAndApplyRewrites(getSourceUrl(initialResponse)) ?? initialResponseUrlRaw
+    parseAndApplyRewrites(getSourceUrl(initialResponse)) ?? initialResponseUrlRaw
   initialResponseUrl = await adoptCleanedUrl(initialSourceUrl, initialRequestUrl)
 
   // Phase 3: Validate self URLs.
@@ -331,7 +352,7 @@ const resolveCanonical = async (
     if (response) {
       onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
       candidateSourceUrl = await adoptCleanedUrl(
-        resolveAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
+        parseAndApplyRewrites(getSourceUrl(response)) ?? initialResponseUrl,
         urlToTry,
       )
       break
@@ -346,7 +367,7 @@ const resolveCanonical = async (
 
       if (response) {
         onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
-        const responseUrl = resolveAndApplyRewrites(getSourceUrl(response)) ?? candidateUrl
+        const responseUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? candidateUrl
         return adoptCleanedUrl(responseUrl, candidateUrl)
       }
     })
@@ -422,7 +443,7 @@ const resolveCanonical = async (
 
     const candidateResponse = await fetchAndCompare(candidateUrl)
     if (candidateResponse) {
-      const candidateResponseUrl = resolveAndApplyRewrites(candidateResponse.url)
+      const candidateResponseUrl = parseAndApplyRewrites(candidateResponse.url)
 
       // Skip candidate if it redirects to a URL we already have as canonical. A response URL kept
       // because its cleaned form failed verification matches only in its uncleaned form.
@@ -449,7 +470,7 @@ const resolveCanonical = async (
     const response = await fetchAndCompare(httpsUrl)
 
     // An https URL that redirects back to http is not served over https.
-    if (response && !resolveAndApplyRewrites(response.url)?.startsWith('http://')) {
+    if (response && !parseAndApplyRewrites(response.url)?.startsWith('http://')) {
       onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
       return httpsUrl
     }

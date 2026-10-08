@@ -226,6 +226,24 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep character reference text in a Link header self URL', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://example.com/a&amp;b/rss.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': {
+              body,
+              headers: new Headers({ link: '<https://example.com/a&amp;b/rss.xml>; rel="self"' }),
+            },
+            'https://example.com/a&amp;b/rss.xml': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should try feed self URL when Link header self URL fails', async () => {
         const value = 'https://example.com/feed?format=rss'
         const expected = 'https://example.com/rss.xml'
@@ -550,6 +568,21 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'http://old-blog.example.com/rss': { body, url: 'https://blog.example.com/feed' },
             'https://blog.example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep character reference text in the final destination', async () => {
+        const value = 'https://example.com/rss'
+        const expected = 'https://example.com/a&amp;b/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/rss': { body, url: 'https://example.com/a&amp;b/feed' },
+            'https://example.com/a&amp;b/feed': { body },
           }),
           parser: createMockParser(undefined),
         })
