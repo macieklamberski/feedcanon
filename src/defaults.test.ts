@@ -26,6 +26,23 @@ describe('defaultFetch', () => {
 
   const fetchSpy = spyOn(globalThis, 'fetch')
 
+  const mockRedirect = (status: number, location: string): Array<RequestInit | undefined> => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (capturedOptions.length === 1) {
+          return createMockResponse({ status, headers: new Headers({ location }) })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    return capturedOptions
+  }
+
   beforeEach(() => {
     fetchSpy.mockReset()
   })
@@ -134,7 +151,9 @@ describe('defaultFetch', () => {
       headers: { 'X-Custom': 'value' },
     })
 
-    expect(new Headers(capturedOptions?.headers).get('x-custom')).toBe('value')
+    const customHeader = new Headers(capturedOptions?.headers).get('x-custom')
+
+    expect(customHeader).toBe('value')
   })
 
   it('should send an Accept header preferring feed media types', async () => {
@@ -148,10 +167,11 @@ describe('defaultFetch', () => {
 
     await defaultFetch('https://example.com/feed.xml')
 
+    const acceptHeader = new Headers(capturedOptions?.headers).get('accept')
     const expected =
       'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
 
-    expect(new Headers(capturedOptions?.headers).get('accept')).toBe(expected)
+    expect(acceptHeader).toBe(expected)
   })
 
   it('should let a caller-supplied Accept header override the default', async () => {
@@ -167,7 +187,9 @@ describe('defaultFetch', () => {
       headers: { Accept: 'application/json' },
     })
 
-    expect(new Headers(capturedOptions?.headers).get('accept')).toBe('application/json')
+    const acceptHeader = new Headers(capturedOptions?.headers).get('accept')
+
+    expect(acceptHeader).toBe('application/json')
   })
 
   it('should return response with correct structure', async () => {
@@ -285,21 +307,7 @@ describe('defaultFetch', () => {
   })
 
   it('should switch POST to GET without body after 303', async () => {
-    const capturedOptions: Array<RequestInit | undefined> = []
-    fetchSpy.mockImplementation(
-      createFetchMock((url: string, options?: RequestInit) => {
-        capturedOptions.push(options)
-
-        if (url === 'https://example.com/api') {
-          return createMockResponse({
-            status: 303,
-            headers: new Headers({ location: 'https://example.com/result' }),
-          })
-        }
-
-        return createMockResponse({ url })
-      }),
-    )
+    const capturedOptions = mockRedirect(303, 'https://example.com/result')
 
     await defaultFetch('https://example.com/api', { method: 'POST', body: '{"key":"value"}' })
 
@@ -314,21 +322,7 @@ describe('defaultFetch', () => {
   })
 
   it('should drop Content-Type when 303 switches POST to GET', async () => {
-    const capturedOptions: Array<RequestInit | undefined> = []
-    fetchSpy.mockImplementation(
-      createFetchMock((url: string, options?: RequestInit) => {
-        capturedOptions.push(options)
-
-        if (url === 'https://example.com/api') {
-          return createMockResponse({
-            status: 303,
-            headers: new Headers({ location: 'https://example.com/result' }),
-          })
-        }
-
-        return createMockResponse({ url })
-      }),
-    )
+    const capturedOptions = mockRedirect(303, 'https://example.com/result')
 
     await defaultFetch('https://example.com/api', {
       method: 'POST',
@@ -336,35 +330,14 @@ describe('defaultFetch', () => {
       body: '{"key":"value"}',
     })
 
-    const expected: RequestInit = {
-      method: 'GET',
-      headers: expect.any(Headers),
-      signal: expect.any(AbortSignal),
-      redirect: 'manual',
-    }
-    const headers = new Headers(capturedOptions[1]?.headers)
+    const headers = Object.fromEntries(new Headers(capturedOptions[1]?.headers))
+    const expected = { accept: 'application/json' }
 
-    expect(capturedOptions[1]).toEqual(expected)
-    expect(headers.has('content-type')).toBe(false)
-    expect(headers.get('accept')).toBe('application/json')
+    expect(headers).toEqual(expected)
   })
 
   it('should keep POST and Content-Type through 307', async () => {
-    const capturedOptions: Array<RequestInit | undefined> = []
-    fetchSpy.mockImplementation(
-      createFetchMock((url: string, options?: RequestInit) => {
-        capturedOptions.push(options)
-
-        if (url === 'https://example.com/api') {
-          return createMockResponse({
-            status: 307,
-            headers: new Headers({ location: 'https://example.com/api/v2' }),
-          })
-        }
-
-        return createMockResponse({ url })
-      }),
-    )
+    const capturedOptions = mockRedirect(307, 'https://example.com/api/v2')
 
     await defaultFetch('https://example.com/api', {
       method: 'POST',
@@ -386,21 +359,7 @@ describe('defaultFetch', () => {
   })
 
   it('should drop credentials when a redirect changes origin', async () => {
-    const capturedOptions: Array<RequestInit | undefined> = []
-    fetchSpy.mockImplementation(
-      createFetchMock((url: string, options?: RequestInit) => {
-        capturedOptions.push(options)
-
-        if (url === 'https://example.com/feed') {
-          return createMockResponse({
-            status: 301,
-            headers: new Headers({ location: 'https://example.org/feed' }),
-          })
-        }
-
-        return createMockResponse({ url })
-      }),
-    )
+    const capturedOptions = mockRedirect(301, 'https://example.org/feed')
 
     await defaultFetch('https://example.com/feed', {
       headers: {
@@ -418,21 +377,7 @@ describe('defaultFetch', () => {
   })
 
   it('should keep credentials when a redirect stays on the same origin', async () => {
-    const capturedOptions: Array<RequestInit | undefined> = []
-    fetchSpy.mockImplementation(
-      createFetchMock((url: string, options?: RequestInit) => {
-        capturedOptions.push(options)
-
-        if (url === 'https://example.com/feed') {
-          return createMockResponse({
-            status: 301,
-            headers: new Headers({ location: 'https://example.com/rss' }),
-          })
-        }
-
-        return createMockResponse({ url })
-      }),
-    )
+    const capturedOptions = mockRedirect(301, 'https://example.com/rss')
 
     await defaultFetch('https://example.com/feed', {
       headers: {
@@ -723,8 +668,9 @@ describe('defaultParser', () => {
         </feed>
       `
       const parsed = await parseOrThrow(value)
+      const expected = 'feed.atom'
 
-      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe('feed.atom')
+      expect(defaultParser.getSelfUrl(parsed, 'https://example.com/feed')).toBe(expected)
     })
 
     it('should resolve self href against absolute xml:base', async () => {
@@ -780,8 +726,9 @@ describe('defaultParser', () => {
         </feed>
       `
       const parsed = await parseOrThrow(value)
+      const expected = 'feed.atom'
 
-      expect(defaultParser.getSelfUrl(parsed)).toBe('feed.atom')
+      expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
     })
 
     it('should keep absolute self href when xml:base is set', async () => {

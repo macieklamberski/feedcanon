@@ -32,6 +32,7 @@ const requestBodyHeaders = [
   'content-type',
 ]
 const credentialHeaders = ['authorization', 'cookie', 'proxy-authorization']
+const postToGetStatuses = [301, 302]
 
 // Follows redirects by hand to record each one, switching to GET where a browser would.
 // See: https://fetch.spec.whatwg.org/#http-redirect-fetch.
@@ -89,7 +90,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
 
     requestUrl = locationUrl.href
 
-    const isPostToGet = method === 'POST' && [301, 302].includes(response.status)
+    const isPostToGet = method === 'POST' && postToGetStatuses.includes(response.status)
 
     if ((response.status === 303 && method !== 'HEAD') || isPostToGet) {
       method = 'GET'
