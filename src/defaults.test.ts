@@ -313,7 +313,43 @@ describe('defaultFetch', () => {
     expect(capturedOptions[1]).toEqual(expected)
   })
 
-  it('should keep POST and body through 307', async () => {
+  it('should drop Content-Type when 303 switches POST to GET', async () => {
+    const capturedOptions: Array<RequestInit | undefined> = []
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        capturedOptions.push(options)
+
+        if (url === 'https://example.com/api') {
+          return createMockResponse({
+            status: 303,
+            headers: new Headers({ location: 'https://example.com/result' }),
+          })
+        }
+
+        return createMockResponse({ url })
+      }),
+    )
+
+    await defaultFetch('https://example.com/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: '{"key":"value"}',
+    })
+
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+    const headers = new Headers(capturedOptions[1]?.headers)
+
+    expect(capturedOptions[1]).toEqual(expected)
+    expect(headers.has('content-type')).toBe(false)
+    expect(headers.get('accept')).toBe('application/json')
+  })
+
+  it('should keep POST and Content-Type through 307', async () => {
     const capturedOptions: Array<RequestInit | undefined> = []
     fetchSpy.mockImplementation(
       createFetchMock((url: string, options?: RequestInit) => {
@@ -330,7 +366,11 @@ describe('defaultFetch', () => {
       }),
     )
 
-    await defaultFetch('https://example.com/api', { method: 'POST', body: '{"key":"value"}' })
+    await defaultFetch('https://example.com/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"key":"value"}',
+    })
 
     const expected: RequestInit = {
       method: 'POST',
@@ -339,8 +379,10 @@ describe('defaultFetch', () => {
       signal: expect.any(AbortSignal),
       redirect: 'manual',
     }
+    const headers = new Headers(capturedOptions[1]?.headers)
 
     expect(capturedOptions[1]).toEqual(expected)
+    expect(headers.get('content-type')).toBe('application/json')
   })
 
   it('should throw after 20 redirects', async () => {
