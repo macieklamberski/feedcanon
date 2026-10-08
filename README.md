@@ -89,6 +89,7 @@ import { findCanonical } from 'feedcanon'
 
 const aliases = []
 
+// Every protocol, www and trailing slash variant serves the same feed.
 const url = await findCanonical('http://www.example.com/feed/', {
   onMatch: ({ url }) => {
     aliases.push(url)
@@ -98,7 +99,7 @@ const url = await findCanonical('http://www.example.com/feed/', {
 // url: 'https://example.com/feed'
 // aliases: [
 //   'http://www.example.com/feed/',
-//   'https://www.example.com/feed/',
+//   'http://example.com/feed',
 //   'https://example.com/feed',
 // ]
 ```
