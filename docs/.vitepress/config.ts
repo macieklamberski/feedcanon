@@ -83,6 +83,7 @@ export default defineConfig({
         items: [
           { text: 'Introduction', link: '/' },
           { text: 'Quick Start', link: '/quick-start' },
+          { text: 'CLI', link: '/cli' },
           { text: 'How It Works', link: '/how-it-works' },
         ],
       },
