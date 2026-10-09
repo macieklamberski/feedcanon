@@ -31,6 +31,7 @@ Finds the canonical URL for a given feed URL by fetching, parsing, and testing U
 | `onFetch` | [`OnFetchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback after each fetch. See [Using Callbacks](/guides/callbacks#onfetch) |
 | `onMatch` | [`OnMatchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback when URL matches. See [Using Callbacks](/guides/callbacks#onmatch) |
 | `onExists` | [`OnExistsFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback when URL exists. See [Using Callbacks](/guides/callbacks#onexists) |
+| `onCanonical` | [`OnCanonicalFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback with the returned URL and the response that served it, the place to read the canonical response. See [Using Callbacks](/guides/callbacks#oncanonical) |
 
 #### Returns
 

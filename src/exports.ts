@@ -26,6 +26,7 @@ export type {
   FetchFnRedirect,
   FetchFnResponse,
   FindCanonicalOptions,
+  OnCanonicalFn,
   OnExistsFn,
   OnFetchFn,
   OnMatchFn,

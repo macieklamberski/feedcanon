@@ -16,8 +16,14 @@ import type {
 } from './types.js'
 import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
 
-// A URL findCanonical returns, with the existsFn data when existsFn knows it.
-type CanonicalResult = { url: string; existing?: unknown }
+// A URL findCanonical returns, with the existsFn data when existsFn knows it, and the response
+// that served it, with its feed, when the URL was fetched.
+type CanonicalResult = {
+  url: string
+  existing?: unknown
+  response?: FetchFnResponse
+  feed?: unknown
+}
 
 const permanentRedirectStatuses = [301, 308]
 
@@ -62,11 +68,17 @@ export async function findCanonical(
   try {
     const result = await resolveCanonical(inputUrl, options)
 
-    if (result?.existing != null) {
+    if (!result) {
+      return
+    }
+
+    if (result.existing != null) {
       options?.onExists?.({ url: result.url, data: result.existing })
     }
 
-    return result?.url
+    options?.onCanonical?.({ url: result.url, response: result.response, feed: result.feed })
+
+    return result.url
   } catch {}
 }
 
@@ -368,6 +380,8 @@ const resolveCanonical = async (
         }
 
         reportMatch(lookupUrl, response)
+
+        return { url: lookupUrl, existing, response, feed: initialResponseFeed }
       }
 
       return { url: lookupUrl, existing }
@@ -381,10 +395,12 @@ const resolveCanonical = async (
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
   // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once verified
   // to serve the same feed, even when existsFn knows it. Otherwise the response URL is kept. The
-  // adopted URL comes back with its existsFn data when existsFn knows it.
+  // adopted URL comes back with its existsFn data when existsFn knows it, and with the response
+  // that served it.
   const adoptCleanedUrl = async (
     responseUrl: string,
     requestUrl: string,
+    response: FetchFnResponse,
   ): Promise<CanonicalResult> => {
     const cleanedUrl = cleanUrlFn(responseUrl)
     const received = parseUrl(responseUrl)
@@ -392,24 +408,31 @@ const resolveCanonical = async (
     const isSameLocation =
       received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
     let adoptedUrl = cleanedUrl
+    let adoptedResponse = response
 
     if (!isSameLocation && cleanedUrl !== requestUrl) {
-      const response = await fetchAndCompare(cleanedUrl)
+      const cleanedResponse = await fetchAndCompare(cleanedUrl)
 
-      if (response) {
-        reportMatch(cleanedUrl, response)
+      if (cleanedResponse) {
+        reportMatch(cleanedUrl, cleanedResponse)
       }
 
-      adoptedUrl = response ? cleanedUrl : responseUrl
+      adoptedUrl = cleanedResponse ? cleanedUrl : responseUrl
+      adoptedResponse = cleanedResponse ?? response
     }
 
     const existingUrl = await findExistingUrl(adoptedUrl)
 
-    if (existingUrl) {
+    if (!existingUrl) {
+      return { url: adoptedUrl, response: adoptedResponse, feed: initialResponseFeed }
+    }
+
+    // The other protocol form of the adopted URL comes back with its own response.
+    if (existingUrl.url !== adoptedUrl) {
       return existingUrl
     }
 
-    return { url: adoptedUrl }
+    return { ...existingUrl, response: adoptedResponse, feed: initialResponseFeed }
   }
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
@@ -421,7 +444,7 @@ const resolveCanonical = async (
   ): Promise<CanonicalResult> => {
     const sourceUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? fallbackUrl
 
-    return adoptCleanedUrl(sourceUrl, requestUrl)
+    return adoptCleanedUrl(sourceUrl, requestUrl, response)
   }
 
   const initialResult = await adoptKnownSourceUrl(
@@ -439,7 +462,7 @@ const resolveCanonical = async (
   // Phase 3: Validate self URLs.
   // Try each self URL, then its alternate protocol if it fails (e.g., feed:// resolved to https://
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
-  let candidateSourceUrl = initialResponseUrl
+  let candidateSource = initialResult
   const urlsToTry: Array<string> = []
 
   for (const selfRequestUrl of selfRequestUrls) {
@@ -469,14 +492,14 @@ const resolveCanonical = async (
         return selfResult
       }
 
-      candidateSourceUrl = selfResult.url
+      candidateSource = selfResult
       break
     }
   }
 
   // Phase 4: Apply URL probes.
   // Test alternate URL forms (e.g., WordPress query param -> path conversion).
-  const probeResult = await applyProbes(candidateSourceUrl, probes ?? [], async (candidateUrl) => {
+  const probeResult = await applyProbes(candidateSource.url, probes ?? [], async (candidateUrl) => {
     const response = await fetchAndCompare(candidateUrl)
 
     if (response) {
@@ -489,7 +512,9 @@ const resolveCanonical = async (
     return probeResult
   }
 
-  candidateSourceUrl = probeResult?.url ?? candidateSourceUrl
+  candidateSource = probeResult ?? candidateSource
+
+  const candidateSourceUrl = candidateSource.url
 
   // Phase 5: Generate Candidates.
   // Include candidateSource so Phase 7 finds the winning URL's place in the tier order. Testing skips
@@ -527,7 +552,7 @@ const resolveCanonical = async (
 
       // Use initial response URL if it's the cleanest candidate (already verified via initial fetch).
       if (candidateUrl === initialResponseUrl) {
-        return { url: initialResponseUrl }
+        return initialResult
       }
 
       const candidateResponse = await fetchAndCompare(candidateUrl)
@@ -538,21 +563,21 @@ const resolveCanonical = async (
         const candidateResponseUrl = parseAndApplyRewrites(getSourceUrl(candidateResponse))
 
         if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
-          return { url: candidateUrl }
+          return { url: candidateUrl, response: candidateResponse, feed: initialResponseFeed }
         }
 
         // A candidate that redirects permanently is not where the feed lives, so its target is the
         // result, known or not. A response URL kept because its cleaned form failed verification
         // matches uncleaned. Both were looked up in existsFn when adopted.
-        const knownUrl = [candidateSourceUrl, initialResponseUrl].find((url) => {
+        const knownResult = [candidateSource, initialResult].find(({ url }) => {
           return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
         })
 
-        if (knownUrl) {
-          return { url: knownUrl }
+        if (knownResult) {
+          return knownResult
         }
 
-        return adoptCleanedUrl(candidateResponseUrl, candidateUrl)
+        return adoptCleanedUrl(candidateResponseUrl, candidateUrl, candidateResponse)
       }
     }
   }
@@ -563,7 +588,8 @@ const resolveCanonical = async (
     return candidateResult
   }
 
-  const winningUrl = candidateResult?.url ?? candidateSourceUrl
+  const winningResult = candidateResult ?? candidateSource
+  const winningUrl = winningResult.url
 
   // Phase 7: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
@@ -592,18 +618,18 @@ const resolveCanonical = async (
               return httpsCandidateResult
             }
 
-            return { url: httpsUrl }
+            return targetResult
           }
 
           httpsCandidateUrls.push(upgradeScheme(candidateUrl))
         }
 
-        return { url: httpsUrl }
+        return targetResult
       }
 
       return targetResult
     }
   }
 
-  return { url: winningUrl }
+  return winningResult
 }

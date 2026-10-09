@@ -11,6 +11,7 @@ Feedcanon provides callbacks to track progress and hook into the resolution flow
 | `onFetch` | After each HTTP response | `{ url, response }` |
 | `onMatch` | URL matches initial response | `{ url, response, feed }` |
 | `onExists` | The returned URL was found by `existsFn` | `{ url, data }` |
+| `onCanonical` | Once, with the returned URL | `{ url, response, feed }` |
 
 ## onFetch
 
@@ -100,6 +101,32 @@ The `existsFn` function:
 
 The `onExists` callback fires once, when the URL `findCanonical` returns was found by `existsFn`, giving you access to both the URL and your database record. A URL `existsFn` knows that is then dropped, such as an http URL the HTTPS upgrade passes over, does not fire it.
 
+## onCanonical
+
+Fires once, right before `findCanonical` returns a URL, with that URL and the response that served it. This is the place to read the canonical response, for example to store its ETag or Last-Modified header next to the URL. `onMatch` fires for every URL serving the same feed, in the order Feedcanon reaches them, so the last match is not always the returned URL.
+
+```typescript
+import { findCanonical } from 'feedcanon'
+
+const url = await findCanonical('http://www.example.com/feed/', {
+  onCanonical: ({ url, response, feed }) => {
+    if (response) {
+      console.log(url, response.headers.get('etag'))
+    }
+  },
+})
+```
+
+The callback receives:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `url` | `string` | The URL `findCanonical` returns |
+| `response` | `FetchFnResponse \| undefined` | The response that served the URL |
+| `feed` | `TFeed \| undefined` | Parsed feed object |
+
+`response` and `feed` are empty when the URL comes from `existsFn` and was never fetched, since you already have that feed stored. A known URL Feedcanon fetched to verify, such as its form under the other protocol, comes with its response. The callback does not fire when `findCanonical` returns `undefined`.
+
 ## Examples
 
 ### Logging
@@ -170,6 +197,10 @@ const url = await findCanonical('https://example.com/feed', {
 
   onExists: ({ url, data }) => {
     console.log(`Exists: ${url} (id: ${data.id})`)
+  },
+
+  onCanonical: ({ url, response }) => {
+    console.log(`Canonical: ${url} (${response?.status ?? 'known'})`)
   },
 })
 ```
