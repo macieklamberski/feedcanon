@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it, spyOn } from 'bun:test'
+import { defaultParser } from './defaults.js'
 import { findCanonical } from './index.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
@@ -480,6 +481,33 @@ describe('findCanonical', () => {
             'https://example.com/feed': { body },
           }),
           parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should upgrade HTTP to HTTPS when share links encode the request protocol', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const createBody = (protocol: string) => {
+          return `
+            <rss version="2.0">
+              <channel>
+                <title>Example</title>
+                <item>
+                  <title>Post</title>
+                  <description>https://share.example.org/share?url=${protocol}%3A%2F%2Fexample.com%2Fpost</description>
+                </item>
+              </channel>
+            </rss>
+          `
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body: createBody('http') },
+            'https://example.com/feed': { body: createBody('https') },
+          }),
+          parser: defaultParser,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)

@@ -106,6 +106,20 @@ const schemeAuthorityRegex = /\/*[^/?#\s"'<>\\}]*[/?#]?/y
 // Strips a trailing slash from any URL or root-relative path before a quote or query. Static and
 // linear (the prior ReDoS lived only in the per-host pattern, now removed).
 const trailingSlashRegex = /("(?:https?:\/\/|\/)[^"]+)\/([?"])/g
+// A percent-encoded URL sits in a query, so it also ends at the next `&`.
+const encodedUrlRegex = /https?%3A%2F%2F[^\s"'<>\\&]*/gi
+
+// Decoding every encoded URL, own or foreign, is safe: the output only feeds signature comparison,
+// and both copies of a feed get the same treatment.
+const decodeEncodedUrls = (text: string): string => {
+  return text.replace(encodedUrlRegex, (url) => {
+    try {
+      return decodeURIComponent(url)
+    } catch {
+      return url
+    }
+  })
+}
 
 const neutralizeHost = (url: string): string | undefined => {
   const host = parseUrl(addMissingProtocol(url))?.host
@@ -128,11 +142,13 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     return text
   }
 
+  const decoded = decodeEncodedUrls(text)
+
   let result = ''
   let lastIndex = 0
   urlSchemeRegex.lastIndex = 0
 
-  for (let match = urlSchemeRegex.exec(text); match; match = urlSchemeRegex.exec(text)) {
+  for (let match = urlSchemeRegex.exec(decoded); match; match = urlSchemeRegex.exec(decoded)) {
     const start = match.index
 
     // Skip schemes inside a URL that was already rewritten (e.g. a nested URL in a query).
@@ -143,19 +159,19 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     // A host check on the full token would re-parse most of a long token once per `//` inside it.
     const authorityRegex = match[0].length > 2 ? schemeAuthorityRegex : relativeAuthorityRegex
     authorityRegex.lastIndex = start + match[0].length
-    authorityRegex.exec(text)
+    authorityRegex.exec(decoded)
 
-    if (!hosts.has(neutralizeHost(text.slice(start, authorityRegex.lastIndex)))) {
+    if (!hosts.has(neutralizeHost(decoded.slice(start, authorityRegex.lastIndex)))) {
       continue
     }
 
     // Find the next delimiter with one regex search instead of a per-character test.
     urlDelimiterRegex.lastIndex = start
 
-    const delimiterMatch = urlDelimiterRegex.exec(text)
-    const end = delimiterMatch ? delimiterMatch.index : text.length
+    const delimiterMatch = urlDelimiterRegex.exec(decoded)
+    const end = delimiterMatch ? delimiterMatch.index : decoded.length
 
-    const parsed = parseUrl(addMissingProtocol(text.slice(start, end)))
+    const parsed = parseUrl(addMissingProtocol(decoded.slice(start, end)))
 
     if (!parsed) {
       continue
@@ -171,11 +187,11 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       path = path.slice(0, -1)
     }
 
-    result += text.slice(lastIndex, start) + path + parsed.search + parsed.hash
+    result += decoded.slice(lastIndex, start) + path + parsed.search + parsed.hash
     lastIndex = end
   }
 
-  result += text.slice(lastIndex)
+  result += decoded.slice(lastIndex)
 
   return result.replace(trailingSlashRegex, '$1$2')
 }
