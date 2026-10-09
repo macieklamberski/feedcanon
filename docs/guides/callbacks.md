@@ -99,7 +99,7 @@ The `existsFn` function:
 - Returns your data if URL exists, `null` or `undefined` otherwise
 - Triggers early termination when a match is found
 
-The `onExists` callback fires once, when the URL `findCanonical` returns was found by `existsFn`, giving you access to both the URL and your database record. A URL `existsFn` knows that is then dropped, such as an http URL the HTTPS upgrade passes over, does not fire it.
+The `onExists` callback fires once, with the URL and your database record. It fires only when `existsFn` found the URL that `findCanonical` returns. A known URL that is then dropped does not fire it, such as an http URL the HTTPS upgrade passes over.
 
 ## onCanonical
 
