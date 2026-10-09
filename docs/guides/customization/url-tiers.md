@@ -19,7 +19,7 @@ In addition to the structural tiers, you can plug extra cleaning into the `clean
 
 ## Normalization Options
 
-Each tier accepts all `NormalizeOptions` except `stripQueryParams`. Tier options are not merged with any defaults: an option left out of a tier is off. The middle column shows the value the default Tier 2 uses, as a reference point:
+Each tier accepts all `NormalizeOptions` except `stripQueryParams`, `stripRootSlash` and `normalizeUnicode`, which have no effect on a parsed candidate. Tier options are not merged with any defaults: an option left out of a tier is off. The middle column shows the value the default Tier 2 uses, as a reference point:
 
 | Option | Default Tier 2 | Description |
 |--------|----------------|-------------|
