@@ -439,22 +439,25 @@ const resolveCanonical = async (
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
   // when that is safe, with its existsFn data when existsFn knows it. A response URL that is not
-  // http falls back to fallbackUrl.
+  // http falls back to the fallback URL and the response that served it.
   const adoptResponseUrl = async (
     response: FetchFnResponse,
     requestUrl: string,
-    fallbackUrl = requestUrl,
+    fallback = { url: requestUrl, response },
   ): Promise<CanonicalResult> => {
-    const sourceUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? fallbackUrl
+    const sourceUrl = parseAndApplyRewrites(getSourceUrl(response))
+
+    if (!sourceUrl) {
+      return findCanonicalResult(await adoptCleanedUrl(fallback.url, requestUrl, fallback.response))
+    }
 
     return findCanonicalResult(await adoptCleanedUrl(sourceUrl, requestUrl, response))
   }
 
-  const initialResult = await adoptResponseUrl(
-    initialResponse,
-    initialRequestUrl,
-    initialResponseUrlRaw,
-  )
+  const initialResult = await adoptResponseUrl(initialResponse, initialRequestUrl, {
+    url: initialResponseUrlRaw,
+    response: initialResponse,
+  })
 
   if (initialResult.data != null) {
     return initialResult
@@ -489,7 +492,10 @@ const resolveCanonical = async (
     if (response) {
       reportMatch(urlToTry, response)
       // A self URL whose response lands on a non-http URL is not trusted.
-      const selfResult = await adoptResponseUrl(response, urlToTry, initialResponseUrl)
+      const selfResult = await adoptResponseUrl(response, urlToTry, {
+        url: initialResponseUrl,
+        response: initialResponse,
+      })
 
       if (selfResult.data != null) {
         return selfResult

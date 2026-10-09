@@ -3084,6 +3084,36 @@ describe('findCanonical', () => {
         expect(canonicalData).toEqual(expected)
       })
 
+      it('should pass the initial response when a self URL lands on a non-http URL', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        let canonicalData: unknown | undefined
+        const options = toOptions({
+          parser: createMockParser('https://www.example.com/feed'),
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://www.example.com/feed': { body, url: 'ftp://example.com/feed' },
+          }),
+          onCanonical: (data) => {
+            canonicalData = data
+          },
+        })
+        const expected = {
+          url: 'https://example.com/feed',
+          response: {
+            body,
+            url: 'https://example.com/feed',
+            status: 200,
+            headers: new Headers(),
+          },
+          feed: body,
+        }
+
+        await findCanonical(value, options)
+
+        expect(canonicalData).toEqual(expected)
+      })
+
       it('should pass the redirect response when a candidate redirects permanently', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
