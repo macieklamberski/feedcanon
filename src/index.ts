@@ -202,10 +202,21 @@ const resolveCanonical = async (
     return
   }
 
-  // All onMatch calls receive initialResponseFeed because matched URLs return content equivalent to
-  // the initial response (that's the matching criteria). This allows consumers to access parsed
-  // feed data without redundant parsing.
-  onMatch?.({ url: initialRequestUrl, response: initialResponse, feed: initialResponseFeed })
+  const matchedUrls: Array<string> = []
+
+  // Every match receives initialResponseFeed, since a match serves the same feed, so consumers skip
+  // a second parse. A later phase can reach a matched URL again through the fetch cache, so each
+  // URL is reported once.
+  const reportMatch = (url: string, response: FetchFnResponse): void => {
+    if (matchedUrls.includes(url)) {
+      return
+    }
+
+    matchedUrls.push(url)
+    onMatch?.({ url, response, feed: initialResponseFeed })
+  }
+
+  reportMatch(initialRequestUrl, initialResponse)
 
   // A self link in the Link header takes precedence over one in the feed body. The header is an
   // HTTP field, not markup, so its URL is parsed without decoding character references.
@@ -364,7 +375,7 @@ const resolveCanonical = async (
           continue
         }
 
-        onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
+        reportMatch(lookupUrl, response)
       }
 
       return { url: lookupUrl, data }
@@ -406,7 +417,7 @@ const resolveCanonical = async (
       return responseUrl
     }
 
-    onMatch?.({ url: cleanedUrl, response, feed: initialResponseFeed })
+    reportMatch(cleanedUrl, response)
 
     return cleanedUrl
   }
@@ -461,7 +472,7 @@ const resolveCanonical = async (
     const response = await fetchAndCompare(urlToTry)
 
     if (response) {
-      onMatch?.({ url: urlToTry, response, feed: initialResponseFeed })
+      reportMatch(urlToTry, response)
       // A self URL whose response lands on a non-http URL is not trusted.
       const selfResult = await adoptResponseUrl(response, urlToTry, initialResponseUrl)
 
@@ -480,7 +491,7 @@ const resolveCanonical = async (
     const response = await fetchAndCompare(candidateUrl)
 
     if (response) {
-      onMatch?.({ url: candidateUrl, response, feed: initialResponseFeed })
+      reportMatch(candidateUrl, response)
       return adoptResponseUrl(response, candidateUrl)
     }
   })
@@ -535,7 +546,7 @@ const resolveCanonical = async (
       const candidateResponse = await fetchAndCompare(candidateUrl)
 
       if (candidateResponse) {
-        onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
+        reportMatch(candidateUrl, candidateResponse)
 
         const candidateResponseUrl = parseAndApplyRewrites(getSourceUrl(candidateResponse))
 
@@ -574,7 +585,7 @@ const resolveCanonical = async (
 
     // An https URL that redirects back to http is not served over https.
     if (response && !parseAndApplyRewrites(response.url)?.startsWith('http://')) {
-      onMatch?.({ url: httpsUrl, response, feed: initialResponseFeed })
+      reportMatch(httpsUrl, response)
 
       // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
       const sourceUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? httpsUrl

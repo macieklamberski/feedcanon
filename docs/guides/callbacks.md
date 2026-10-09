@@ -44,7 +44,7 @@ The `response` object contains:
 
 ## onMatch
 
-Fires when a URL candidate produces content matching the initial response. It also fires once for the input URL, right after the feed is parsed and before any candidate is tested. If rewrites are configured, the URL reported is the rewritten one.
+Fires when a URL candidate produces content matching the initial response. It also fires once for the input URL, right after the feed is parsed and before any candidate is tested. If rewrites are configured, the URL reported is the rewritten one. Each URL is reported once per call, even when several steps match it.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
