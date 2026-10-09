@@ -169,7 +169,7 @@ describe('defaultFetch', () => {
 
     const acceptHeader = new Headers(capturedOptions?.headers).get('accept')
     const expected =
-      'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
+      'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8'
 
     expect(acceptHeader).toBe(expected)
   })

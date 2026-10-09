@@ -21,7 +21,7 @@ export const defaultNormalizeOptions: NormalizeOptions = {
 
 // See: https://www.rfc-editor.org/rfc/rfc9110#section-12.5.1.
 const defaultAccept =
-  'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, */*;q=0.1'
+  'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8'
 const redirectStatuses = [301, 302, 303, 307, 308]
 const maxRedirects = 20
 const requestBodyHeaders = [
