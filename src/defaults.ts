@@ -202,7 +202,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 export const defaultTiers: Array<Tier> = [
   // Tier 1: Most aggressive - strip query, www, and trailing slash.
   {
-    stripProtocol: false,
+    stripScheme: false,
     stripAuthentication: false,
     stripWww: true,
     stripHostTrailingDot: true,
@@ -218,7 +218,7 @@ export const defaultTiers: Array<Tier> = [
   },
   // Tier 2: Strip www and trailing slash, keep query.
   {
-    stripProtocol: false,
+    stripScheme: false,
     stripAuthentication: false,
     stripWww: true,
     stripHostTrailingDot: true,
@@ -234,7 +234,7 @@ export const defaultTiers: Array<Tier> = [
   },
   // Tier 3: Keep www, strip trailing slash, keep query.
   {
-    stripProtocol: false,
+    stripScheme: false,
     stripAuthentication: false,
     stripWww: false,
     stripHostTrailingDot: true,
@@ -250,7 +250,7 @@ export const defaultTiers: Array<Tier> = [
   },
   // Tier 4: Keep www and trailing slash, keep query.
   {
-    stripProtocol: false,
+    stripScheme: false,
     stripAuthentication: false,
     stripWww: false,
     stripHostTrailingDot: true,
