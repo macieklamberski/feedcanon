@@ -406,7 +406,6 @@ const resolveCanonical = async (
   candidateUrls.add(candidateSourceUrl)
 
   // Phase 6: Test Candidates (in tier order, first match wins).
-  let winningUrl = candidateSourceUrl
   const hasSourceQuery = !!parseUrl(candidateSourceUrl)?.search
 
   // Look a URL up in existsFn, including its form under the other protocol. Returns the known URL,
@@ -461,58 +460,70 @@ const resolveCanonical = async (
     }
   }
 
-  for (const candidateUrl of candidateUrls) {
-    const existingUrl = await findExistingUrl(candidateUrl)
+  // Returns the first candidate that serves the feed, and whether existsFn knows it, which ends the
+  // search before the HTTPS upgrade.
+  const testCandidates = async (
+    urls: Iterable<string>,
+  ): Promise<{ url: string; isExisting: boolean } | undefined> => {
+    for (const candidateUrl of urls) {
+      const existingUrl = await findExistingUrl(candidateUrl)
 
-    if (existingUrl) {
-      return existingUrl
-    }
-
-    if (existingUrl === false) {
-      continue
-    }
-
-    // Skip if same as candidateSource (already verified).
-    if (candidateUrl === candidateSourceUrl) {
-      continue
-    }
-
-    // Use initial response URL if it's the cleanest candidate (already verified via initial fetch).
-    if (candidateUrl === initialResponseUrl) {
-      winningUrl = initialResponseUrl
-      break
-    }
-
-    const candidateResponse = await fetchAndCompare(candidateUrl)
-    if (candidateResponse) {
-      onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
-
-      const candidateResponseUrl = parseAndApplyRewrites(getSourceUrl(candidateResponse))
-
-      if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
-        winningUrl = candidateUrl
-        break
+      if (existingUrl) {
+        return { url: existingUrl, isExisting: true }
       }
 
-      // A candidate that redirects permanently is not where the feed lives, so its target is the
-      // result, known or not. A response URL kept because its cleaned form failed verification
-      // matches uncleaned.
-      const knownUrl = [candidateSourceUrl, initialResponseUrl].find((url) => {
-        return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
-      })
-
-      winningUrl = knownUrl ?? (await adoptCleanedUrl(candidateResponseUrl, candidateUrl))
-
-      // The loop stops before the target is looked up as a candidate, so look it up here.
-      const existingWinningUrl = await findExistingUrl(winningUrl)
-
-      if (existingWinningUrl) {
-        return existingWinningUrl
+      if (existingUrl === false) {
+        continue
       }
 
-      break
+      // Skip if same as candidateSource (already verified).
+      if (candidateUrl === candidateSourceUrl) {
+        continue
+      }
+
+      // Use initial response URL if it's the cleanest candidate (already verified via initial fetch).
+      if (candidateUrl === initialResponseUrl) {
+        return { url: initialResponseUrl, isExisting: false }
+      }
+
+      const candidateResponse = await fetchAndCompare(candidateUrl)
+      if (candidateResponse) {
+        onMatch?.({ url: candidateUrl, response: candidateResponse, feed: initialResponseFeed })
+
+        const candidateResponseUrl = parseAndApplyRewrites(getSourceUrl(candidateResponse))
+
+        if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
+          return { url: candidateUrl, isExisting: false }
+        }
+
+        // A candidate that redirects permanently is not where the feed lives, so its target is the
+        // result, known or not. A response URL kept because its cleaned form failed verification
+        // matches uncleaned.
+        const knownUrl = [candidateSourceUrl, initialResponseUrl].find((url) => {
+          return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
+        })
+
+        const targetUrl = knownUrl ?? (await adoptCleanedUrl(candidateResponseUrl, candidateUrl))
+
+        // The loop stops before the target is looked up as a candidate, so look it up here.
+        const existingTargetUrl = await findExistingUrl(targetUrl)
+
+        if (existingTargetUrl) {
+          return { url: existingTargetUrl, isExisting: true }
+        }
+
+        return { url: targetUrl, isExisting: false }
+      }
     }
   }
+
+  const candidateResult = await testCandidates(candidateUrls)
+
+  if (candidateResult?.isExisting) {
+    return candidateResult.url
+  }
+
+  const winningUrl = candidateResult?.url ?? candidateSourceUrl
 
   // Phase 7: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
@@ -526,7 +537,27 @@ const resolveCanonical = async (
       // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
       const targetUrl = await adoptSourceUrl(response, httpsUrl)
 
+      // A cleaner candidate that failed over http can still serve the feed over https, so the
+      // candidates ahead of a winning candidate are tried over https, as for an https entry URL.
+      // A redirect target ended the search in Phase 6, so it gets no retry.
       if (targetUrl === httpsUrl) {
+        const httpsCandidateUrls: Array<string> = []
+
+        for (const candidateUrl of candidateUrls) {
+          if (candidateUrl === winningUrl) {
+            const httpsCandidateResult = await testCandidates(httpsCandidateUrls)
+
+            // An https candidate that redirects back to http is not served over https.
+            if (httpsCandidateResult?.url.startsWith('https://')) {
+              return httpsCandidateResult.url
+            }
+
+            return httpsUrl
+          }
+
+          httpsCandidateUrls.push(upgradeProtocol(candidateUrl))
+        }
+
         return httpsUrl
       }
 

@@ -25,7 +25,15 @@ export type Probe = {
 }
 
 // Normalization tier options for findCanonical. Removing query params is left to cleanUrlFn.
-export type Tier = Omit<NormalizeOptions, 'stripQueryParams'>
+export type Tier = Omit<
+  NormalizeOptions,
+  'stripQueryParams' | 'stripRootSlash' | 'normalizeUnicode'
+> & {
+  /** @deprecated No effect in a tier: candidates are parsed as URLs, which restores the root `/`. */
+  stripRootSlash?: boolean
+  /** @deprecated No effect in a tier: candidates come from a parsed URL, already percent-encoded. */
+  normalizeUnicode?: boolean
+}
 
 // Callback fired after each fetch operation.
 export type OnFetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (data: {

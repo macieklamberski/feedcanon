@@ -1136,6 +1136,214 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
   })
+
+  describe('percent-encoded URLs', () => {
+    it('should normalize an encoded same-domain URL inside a share link', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost',
+      })
+      const expected = JSON.stringify({ description: 'https://share.example.org/share?url=/post' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should normalize an encoded URL with lowercase escapes', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description: 'https://share.example.org/share?url=https%3a%2f%2fexample.com%2fpost',
+      })
+      const expected = JSON.stringify({ description: 'https://share.example.org/share?url=/post' })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should end an encoded URL at the next ampersand', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost&text=Hi',
+      })
+      const expected = JSON.stringify({
+        description: 'https://share.example.org/share?url=/post&text=Hi',
+      })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should decode an encoded external domain URL without neutralizing it', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description: 'https://share.example.org/share?url=http%3A%2F%2Fexternal.com%2Fpost',
+      })
+      const expected = JSON.stringify({
+        description: 'https://share.example.org/share?url=http://external.com/post',
+      })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should preserve an encoded same-domain URL with a malformed escape', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({
+        description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost%ZZ',
+      })
+      const expected = JSON.stringify({
+        description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost%ZZ',
+      })
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with an uppercase scheme', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=HTTPS%3A%2F%2Fexample.com%2Fpost'
+      const expected = 'u=/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with a www host', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fwww.example.com%2Fpost'
+      const expected = 'u=/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with an encoded query', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com%2Fpost%3Fp%3D1'
+      const expected = 'u=/post?p=1'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with an encoded fragment', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com%2Fpost%23top'
+      const expected = 'u=/post#top'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with the root path', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com%2F'
+      const expected = 'u=/'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with only a host', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com'
+      const expected = 'u=/'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with a trailing slash', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com%2Fpost%2F'
+      const expected = 'u=/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize two encoded URLs in one text', () => {
+      const url = 'https://example.com/feed'
+      const value = 'a=http%3A%2F%2Fexample.com%2Fa b=https%3A%2F%2Fexample.com%2Fb'
+      const expected = 'a=/a b=/b'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should end an encoded URL at a JSON-escaped quote', () => {
+      const url = 'https://example.com/feed'
+      const value = '"href":"https://s.example.org/share?u=http%3A%2F%2Fexample.com%2Fpost\\"'
+      const expected = '"href":"https://s.example.org/share?u=/post\\"'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL at the end of the text', () => {
+      const url = 'https://example.com/feed'
+      const value = 'http%3A%2F%2Fexample.com%2Fpost'
+      const expected = '/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded URL with an IDN host', () => {
+      const url = 'https://bücher.example/feed'
+      const value = 'u=http%3A%2F%2Fb%C3%BCcher.example%2Fpost'
+      const expected = 'u=/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an own URL inside an encoded foreign URL', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fforeign.org%2F%3Fu%3Dhttp%3A%2F%2Fexample.com%2Fpost'
+      const expected = 'u=http://foreign.org/?u=/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should end an encoded URL at a decoded space', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com%2Fa%20b'
+      const expected = 'u=/a b'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should not neutralize an encoded URL with a lookalike host', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com.evil.org%2Fpost'
+      const expected = 'u=http://example.com.evil.org/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should not neutralize an encoded URL with a different port', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fexample.com%3A8080%2Fpost'
+      const expected = 'u=http://example.com:8080/post'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should preserve an encoded URL with a non-http scheme', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=ftp%3A%2F%2Fexample.com%2Fpost'
+
+      expect(neutralizeUrls(value, [url])).toBe(value)
+    })
+
+    it('should preserve an encoded protocol-relative URL', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=%2F%2Fexample.com%2Fpost'
+
+      expect(neutralizeUrls(value, [url])).toBe(value)
+    })
+
+    it('should preserve a double-encoded URL', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%253A%252F%252Fexample.com%252Fpost'
+
+      expect(neutralizeUrls(value, [url])).toBe(value)
+    })
+
+    it('should decode an encoded scheme with no host', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=https%3A%2F%2F'
+      const expected = 'u=https://'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+  })
+
   describe('pathological input', () => {
     it('should finish quickly on a long run of slashes', () => {
       const url = 'https://example.com/feed'
@@ -1151,6 +1359,17 @@ describe('neutralizeUrls', () => {
     it('should finish quickly on many protocol-relative prefixes in one token', () => {
       const url = 'https://example.com/feed'
       const value = '//-'.repeat(70_000)
+
+      const start = performance.now()
+      neutralizeUrls(value, [url])
+      const elapsed = performance.now() - start
+
+      expect(elapsed).toBeLessThan(1000)
+    })
+
+    it('should finish quickly on many percent-encoded schemes in one token', () => {
+      const url = 'https://example.com/feed'
+      const value = 'http%3A%2F%2F'.repeat(15_400)
 
       const start = performance.now()
       neutralizeUrls(value, [url])

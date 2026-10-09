@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it, spyOn } from 'bun:test'
+import { defaultParser } from './defaults.js'
 import { findCanonical } from './index.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
@@ -485,6 +486,54 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should upgrade HTTP to HTTPS when share links encode the request protocol', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const createBody = (protocol: string) => {
+          return `
+            <rss version="2.0">
+              <channel>
+                <title>Example</title>
+                <item>
+                  <title>Post</title>
+                  <description>https://share.example.org/share?url=${protocol}%3A%2F%2Fexample.com%2Fpost</description>
+                </item>
+              </channel>
+            </rss>
+          `
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body: createBody('http') },
+            'https://example.com/feed': { body: createBody('https') },
+          }),
+          parser: defaultParser,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should fetch no other HTTPS candidate when HTTP wins with the cleanest URL', async () => {
+        const value = 'http://example.com/feed'
+        const fetchedUrls: Array<string> = []
+        const expected = ['http://example.com/feed', 'https://example.com/feed']
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          onFetch: ({ url }) => {
+            fetchedUrls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchedUrls).toEqual(expected)
+      })
+
       it('should keep HTTP when HTTPS fails', async () => {
         const value = 'http://legacy.example.com/feed.rss'
         const expected = 'http://legacy.example.com/feed.rss'
@@ -515,6 +564,25 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep HTTP when HTTPS redirects back to it temporarily', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'http://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should return known URL when HTTPS redirects permanently to it', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://www.example.com/feed'
@@ -529,6 +597,48 @@ describe('findCanonical', () => {
             },
           }),
           existsFn: (url) => (url === 'http://www.example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep HTTPS winner when cleaner HTTPS candidate redirects back to HTTP', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'http://example.com/feed': { status: 404 },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://www.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not retry cleaner candidates over HTTPS when a redirect target won', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'https://feeds.example.org/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'http://example.com/feed': {
+              body,
+              url: 'http://feeds.example.org/feed',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+            'https://feeds.example.org/feed': { body },
+            'https://example.com/feed': { body },
+          }),
           parser: createMockParser(undefined),
         })
 
@@ -893,6 +1003,45 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep requested URL when a temporary redirect precedes a permanent one', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'https://feeds.example.net/feed',
+              redirects: [
+                { url: 'https://example.com/feed', status: 302 },
+                { url: 'https://cdn.example.net/feed', status: 301 },
+              ],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep requested URL when it redirects with 303', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'https://cdn.example.net/feed?token=abc',
+              redirects: [{ url: 'https://example.com/feed', status: 303 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should keep candidate URL when it redirects temporarily', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'https://example.com/feed'
@@ -1114,6 +1263,37 @@ describe('findCanonical', () => {
           })
 
           expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
+      describe('https serving a shorter URL that http does not', () => {
+        const entryUrls: Array<string> = [
+          'http://www.example.com/feed',
+          'https://www.example.com/feed',
+          'https://example.com/feed',
+        ]
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        it.each(entryUrls)('should resolve %s to the shorter https URL', async (value) => {
+          const expected = 'https://example.com/feed'
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should resolve its own result to the same URL', async () => {
+          const value = 'http://www.example.com/feed'
+          const expected = ['https://example.com/feed', 'https://example.com/feed']
+          const result = await findCanonical(value, options)
+          const rerunResult = await findCanonical(result as string, options)
+
+          expect([result, rerunResult]).toEqual(expected)
         })
       })
 
@@ -2034,6 +2214,23 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should fetch https candidate when only its http form is known and serves a different feed', async () => {
+        const value = 'https://example.com/feed?cat=1'
+        const expected = 'https://example.com/feed'
+        const body = '<feed>category</feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?cat=1': { body },
+            'https://example.com/feed': { body },
+            'http://example.com/feed': { body: '<feed>all</feed>' },
+          }),
+          existsFn: (url) => (url === 'http://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should prefer existing https URL over its http form', async () => {
         const value = 'https://example.com/feed'
         const expected = 'https://example.com/feed'
@@ -2073,6 +2270,26 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'http://example.com/feed': { body },
             'https://example.com/feed': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return existing https URL over its permanent redirect target', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
           }),
           existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
@@ -2674,19 +2891,20 @@ describe('findCanonical', () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
         const expected = ['https://track.example.org/click?url=https://example.com/feed']
         const fetchCalls: Array<string> = []
+        const mockFetch = createMockFetch({
+          'https://track.example.org/click?url=https://example.com/feed': {
+            body: '<feed></feed>',
+          },
+        })
         const options = toOptions({
-          fetchFn: createMockFetch({
-            'https://track.example.org/click?url=https://example.com/feed': {
-              body: '<feed></feed>',
-            },
-          }),
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+            return mockFetch(url)
+          },
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
             return url === 'https://example.com/feed' ? { id: 1 } : undefined
-          },
-          onFetch: ({ url }) => {
-            fetchCalls.push(url)
           },
         })
 
@@ -3543,6 +3761,26 @@ describe('findCanonical', () => {
         fetchFn: createMockFetch({
           'https://example.com/?feed=rss2': { body: '<feed>original</feed>' },
           'https://example.com/feed': { body: '<feed>different</feed>' },
+        }),
+        parser: createMockParser(undefined),
+        probes: [createProbe('feed', '/feed')],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should adopt the target of a probe candidate that redirects permanently', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/blog/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body },
+          'https://example.com/feed': {
+            body,
+            url: 'https://example.com/blog/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 301 }],
+          },
         }),
         parser: createMockParser(undefined),
         probes: [createProbe('feed', '/feed')],

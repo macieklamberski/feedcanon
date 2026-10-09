@@ -128,8 +128,10 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 
 1. Replace `http://` with `https://`
 2. Fetch and compare with the initial response
-3. If it matches and doesn't redirect back to HTTP, return the HTTPS URL
+3. If it matches and doesn't redirect back to HTTP, test the HTTPS forms of the cleaner candidates that failed over HTTP, as in candidate testing, and return the first that matches or the HTTPS URL
 4. If the HTTPS URL redirects permanently, return its target instead, as in candidate testing
+
+An HTTP and an HTTPS entry URL of the same feed reach the same result this way. When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
 
 This ensures secure connections when available.
 
@@ -137,7 +139,6 @@ This ensures secure connections when available.
 
 Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, unless your `existsFn` already knows the URL.
 
-- **Root slash.** `https://example.com/` becomes `https://example.com`, though [RFC 9110 §4.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3) makes `/` the normal form. Both send the same request.
 - **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
 - **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
 - **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
