@@ -118,14 +118,25 @@ const resolveCanonical = async (
 
   // A response or redirect URL is already final, and resolveUrl would decode character references
   // in it, turning `/a&amp;b` into a URL that was never fetched.
-  const parseAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
+  const parseHttpUrl = (url: string, baseUrl?: string): string | undefined => {
     const parsed = parseUrl(url, baseUrl)
 
     if (!parsed || !isHttpUrl(parsed)) {
       return
     }
 
-    return applyRewrites(parsed.href, rewrites)
+    return parsed.href
+  }
+
+  // For URLs a server sent that are fetched next: the Link header self URL and tier candidates.
+  const parseAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
+    const parsed = parseHttpUrl(url, baseUrl)
+
+    if (!parsed) {
+      return
+    }
+
+    return applyRewrites(parsed, rewrites)
   }
 
   // Phase 1: Initial fetch.
@@ -184,7 +195,7 @@ const resolveCanonical = async (
     return
   }
 
-  const initialResponseUrlRaw = parseAndApplyRewrites(initialResponse.url)
+  const initialResponseUrlRaw = parseHttpUrl(initialResponse.url)
   if (!initialResponseUrlRaw) {
     return
   }
@@ -282,7 +293,12 @@ const resolveCanonical = async (
       return false
     }
 
-    if (comparedResponseFeed) {
+    if (!comparedResponseFeed) {
+      return false
+    }
+
+    // A signature that throws fails this comparison only, as a parse that throws does.
+    try {
       if (!initialResponseSignature) {
         initialResponseSignature = parser.getSignature(initialResponseFeed, initialBaseUrl)
       }
@@ -293,9 +309,9 @@ const resolveCanonical = async (
       )
 
       return initialResponseSignature === comparedResponseSignature
+    } catch {
+      return false
     }
-
-    return false
   }
 
   // Phases can try the same URL again, so each URL is fetched once and its result reused.
@@ -306,6 +322,25 @@ const resolveCanonical = async (
   // An https form that failed in Phase 1 fails again when Phase 7 upgrades the http fallback.
   if (initialRequestUrl !== initialRequestUrls[0]) {
     comparedResponses.set(initialRequestUrls[0], undefined)
+  }
+
+  // The final URL of the initial response served it too, so a later phase does not fetch it again.
+  if (!comparedResponses.has(initialResponseUrlRaw)) {
+    comparedResponses.set(initialResponseUrlRaw, initialResponse)
+  }
+
+  // The URL a response fetched for requestUrl is kept under. A response that ends at requestUrl,
+  // such as the initial response cached under its final URL, is kept there, since the redirects
+  // it carries came from another request.
+  const getFetchedSourceUrl = (
+    response: FetchFnResponse,
+    requestUrl: string,
+  ): string | undefined => {
+    if (parseHttpUrl(response.url) === requestUrl) {
+      return requestUrl
+    }
+
+    return parseHttpUrl(getSourceUrl(response))
   }
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
@@ -401,6 +436,30 @@ const resolveCanonical = async (
     return { ...result, data: existingUrl.data }
   }
 
+  // A rewrite of a fetched URL names a URL nobody fetched, so it is used only once verified to serve
+  // the same feed. Otherwise the fetched URL is kept, with the response that served it.
+  const adoptRewrittenUrl = async (
+    fetchedUrl: string,
+    requestUrl: string,
+    response: FetchFnResponse,
+  ): Promise<CanonicalResult> => {
+    const rewrittenUrl = applyRewrites(fetchedUrl, rewrites)
+
+    if (rewrittenUrl === fetchedUrl) {
+      return adoptCleanedUrl(fetchedUrl, requestUrl, response)
+    }
+
+    const rewrittenResponse = await fetchAndCompare(rewrittenUrl)
+
+    if (!rewrittenResponse) {
+      return adoptCleanedUrl(fetchedUrl, requestUrl, response)
+    }
+
+    reportMatch(rewrittenUrl, rewrittenResponse)
+
+    return adoptCleanedUrl(rewrittenUrl, rewrittenUrl, rewrittenResponse)
+  }
+
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
   // path (an unwrapped redirect link) is used only once verified to serve the same feed, even when
   // existsFn knows it. Otherwise the response URL is kept, with the response that served it.
@@ -438,13 +497,15 @@ const resolveCanonical = async (
     requestUrl: string,
     fallback = { url: requestUrl, response },
   ): Promise<CanonicalResult> => {
-    const sourceUrl = parseAndApplyRewrites(getSourceUrl(response))
+    const sourceUrl = getFetchedSourceUrl(response, requestUrl)
 
     if (!sourceUrl) {
-      return findCanonicalResult(await adoptCleanedUrl(fallback.url, requestUrl, fallback.response))
+      return findCanonicalResult(
+        await adoptRewrittenUrl(fallback.url, requestUrl, fallback.response),
+      )
     }
 
-    return findCanonicalResult(await adoptCleanedUrl(sourceUrl, requestUrl, response))
+    return findCanonicalResult(await adoptRewrittenUrl(sourceUrl, requestUrl, response))
   }
 
   const initialResult = await adoptResponseUrl(initialResponse, initialRequestUrl, {
@@ -564,7 +625,7 @@ const resolveCanonical = async (
       if (candidateResponse) {
         reportMatch(candidateUrl, candidateResponse)
 
-        const candidateResponseUrl = parseAndApplyRewrites(getSourceUrl(candidateResponse))
+        const candidateResponseUrl = getFetchedSourceUrl(candidateResponse, candidateUrl)
 
         if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
           return { url: candidateUrl, response: candidateResponse, feed: initialResponseFeed }
@@ -581,7 +642,7 @@ const resolveCanonical = async (
           return knownResult
         }
 
-        const targetResult = await adoptCleanedUrl(
+        const targetResult = await adoptRewrittenUrl(
           candidateResponseUrl,
           candidateUrl,
           candidateResponse,
@@ -602,45 +663,55 @@ const resolveCanonical = async (
   const winningUrl = winningResult.url
 
   // Phase 7: HTTPS Upgrade on winning URL.
-  if (winningUrl.startsWith('http://')) {
-    const httpsUrl = upgradeScheme(winningUrl)
-    const response = await fetchAndCompare(httpsUrl)
-
-    // An https URL that redirects back to http is not served over https.
-    if (response && !parseAndApplyRewrites(response.url)?.startsWith('http://')) {
-      reportMatch(httpsUrl, response)
-
-      // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
-      const sourceUrl = parseAndApplyRewrites(getSourceUrl(response)) ?? httpsUrl
-      const targetResult = await adoptCleanedUrl(sourceUrl, httpsUrl, response)
-
-      // A cleaner candidate that failed over http can still serve the feed over https. A redirect
-      // target ended the search in Phase 6, so it gets no retry. Phase 6 looked up both protocol
-      // forms of the winning URL, so httpsUrl is not looked up again.
-      if (targetResult.url === httpsUrl) {
-        const httpsCandidateUrls: Array<string> = []
-
-        for (const candidateUrl of candidateUrls) {
-          if (candidateUrl === winningUrl) {
-            const httpsCandidateResult = await testCandidates(httpsCandidateUrls)
-
-            // An https candidate that redirects back to http is not served over https.
-            if (httpsCandidateResult?.url.startsWith('https://')) {
-              return httpsCandidateResult
-            }
-
-            return targetResult
-          }
-
-          httpsCandidateUrls.push(upgradeScheme(candidateUrl))
-        }
-
-        return targetResult
-      }
-
-      return findCanonicalResult(targetResult)
-    }
+  if (!winningUrl.startsWith('http://')) {
+    return winningResult
   }
 
-  return winningResult
+  const httpsUrl = upgradeScheme(winningUrl)
+  const httpsResponse = await fetchAndCompare(httpsUrl)
+
+  if (!httpsResponse) {
+    return winningResult
+  }
+
+  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
+  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
+  const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
+
+  // An https URL adopted under http, after a permanent redirect back, is not served over https.
+  if (!targetResult.url.startsWith('https://')) {
+    return winningResult
+  }
+
+  reportMatch(httpsUrl, httpsResponse)
+
+  if (targetResult.url !== httpsUrl) {
+    return findCanonicalResult(targetResult)
+  }
+
+  // A cleaner candidate that failed over http can still serve the feed over https. A redirect
+  // target that won Phase 6 is not a candidate, so it gets no retry. Phase 6 looked up both
+  // protocol forms of the winning URL, so httpsUrl is not looked up again.
+  if (!candidateUrls.has(winningUrl)) {
+    return targetResult
+  }
+
+  const httpsCandidateUrls: Array<string> = []
+
+  for (const candidateUrl of candidateUrls) {
+    if (candidateUrl === winningUrl) {
+      break
+    }
+
+    httpsCandidateUrls.push(upgradeScheme(candidateUrl))
+  }
+
+  const httpsCandidateResult = await testCandidates(httpsCandidateUrls)
+
+  // An https candidate adopted under http is not served over https.
+  if (httpsCandidateResult?.url.startsWith('https://')) {
+    return httpsCandidateResult
+  }
+
+  return targetResult
 }
