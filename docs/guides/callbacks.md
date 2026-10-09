@@ -110,9 +110,7 @@ import { findCanonical } from 'feedcanon'
 
 const url = await findCanonical('http://www.example.com/feed/', {
   onCanonical: ({ url, response, feed }) => {
-    if (response) {
-      console.log(url, response.headers.get('etag'))
-    }
+    console.log(url, response.headers.get('etag'))
   },
 })
 ```
@@ -122,8 +120,8 @@ The callback receives:
 | Property | Type | Description |
 |----------|------|-------------|
 | `url` | `string` | The URL `findCanonical` returns |
-| `response` | `FetchFnResponse \| undefined` | The response that served the URL |
-| `feed` | `TFeed \| undefined` | Parsed feed object |
+| `response` | `FetchFnResponse` | The response that served the URL |
+| `feed` | `TFeed` | Parsed feed object |
 
 A URL `existsFn` knows comes with the response that verified it, since Feedcanon returns a URL only after it served the same feed in the call. The callback does not fire when `findCanonical` returns `undefined`.
 
@@ -200,7 +198,7 @@ const url = await findCanonical('https://example.com/feed', {
   },
 
   onCanonical: ({ url, response }) => {
-    console.log(`Canonical: ${url} (${response?.status ?? 'known'})`)
+    console.log(`Canonical: ${url} (${response.status})`)
   },
 })
 ```
