@@ -2311,6 +2311,31 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should look up each URL in existsFn once', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const lookups: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'http://example.com/feed': {
+              body,
+              url: 'https://example.com/feed',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+          }),
+          existsFn: (url) => {
+            lookups.push(url)
+          },
+          parser: createMockParser('http://example.com/feed'),
+        })
+        const expected = ['https://example.com/feed', 'http://example.com/feed']
+
+        await findCanonical(value, options)
+
+        expect(lookups).toEqual(expected)
+      })
+
       it('should return the target of a known candidate that redirects permanently', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://example.com/feed.xml'
