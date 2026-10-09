@@ -43,7 +43,7 @@ See [How It Works](/how-it-works) for detailed explanation of each step.
 
 Feedcanon is designed to be flexible. Every major component can be replaced or extended.
 
-- **Progress callbacks**: monitor the process with `onFetch`, `onMatch`, and `onExists` callbacks.
+- **Progress callbacks**: monitor the process with `onFetch`, `onMatch`, `onExists`, and `onCanonical` callbacks.
 - **Database lookup**: use `existsFn` to check if a URL already exists in your database.
 - **Custom fetch**: use your own HTTP client (Axios, Got, Ky, etc.).
 - **Custom parser**: bring your own parser (Feedsmith by default).
