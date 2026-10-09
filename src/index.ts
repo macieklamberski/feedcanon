@@ -412,7 +412,7 @@ const resolveCanonical = async (
           continue
         }
 
-        const sourceUrl = parseAndApplyRewrites(getSourceUrl(response))
+        const sourceUrl = getFetchedSourceUrl(response, lookupUrl)
 
         // A candidate that redirects permanently is not where the feed lives, so its target is
         // tested instead, known or not.
