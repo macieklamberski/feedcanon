@@ -336,6 +336,38 @@ describe('defaultFetch', () => {
     expect(headers).toEqual(expected)
   })
 
+  const postToGetStatuses: Array<number> = [301, 302]
+
+  it.each(postToGetStatuses)('should switch POST to GET without body after %d', async (status) => {
+    const capturedOptions = mockRedirect(status, 'https://example.com/result')
+
+    await defaultFetch('https://example.com/api', { method: 'POST', body: '{"key":"value"}' })
+
+    const expected: RequestInit = {
+      method: 'GET',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+
+    expect(capturedOptions[1]).toEqual(expected)
+  })
+
+  it('should keep HEAD through 303', async () => {
+    const capturedOptions = mockRedirect(303, 'https://example.com/result')
+
+    await defaultFetch('https://example.com/feed', { method: 'HEAD' })
+
+    const expected: RequestInit = {
+      method: 'HEAD',
+      headers: expect.any(Headers),
+      signal: expect.any(AbortSignal),
+      redirect: 'manual',
+    }
+
+    expect(capturedOptions[1]).toEqual(expected)
+  })
+
   it('should keep POST and Content-Type through 307', async () => {
     const capturedOptions = mockRedirect(307, 'https://example.com/api/v2')
 
