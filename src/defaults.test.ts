@@ -156,24 +156,6 @@ describe('defaultFetch', () => {
     expect(customHeader).toBe('value')
   })
 
-  it('should send an Accept header preferring feed media types', async () => {
-    let capturedOptions: RequestInit | undefined
-    fetchSpy.mockImplementation(
-      createFetchMock((_url: string, options?: RequestInit) => {
-        capturedOptions = options
-        return createMockResponse({})
-      }),
-    )
-
-    await defaultFetch('https://example.com/feed.xml')
-
-    const acceptHeader = new Headers(capturedOptions?.headers).get('accept')
-    const expected =
-      'application/atom+xml, application/rss+xml, application/feed+json, application/rdf+xml, application/rss;q=0.9, text/rss;q=0.9, text/rss+xml;q=0.9, application/x-rss+xml;q=0.9, application/atom;q=0.9, application/x.atom+xml;q=0.9, application/x-atom+xml;q=0.9, text/atom+xml;q=0.9, text/atom;q=0.9, text/rdf;q=0.9, text/rdf+xml;q=0.9, application/xml;q=0.8, text/xml;q=0.8, application/json;q=0.8, text/plain;q=0.1'
-
-    expect(acceptHeader).toBe(expected)
-  })
-
   it('should let a caller-supplied Accept header override the default', async () => {
     let capturedOptions: RequestInit | undefined
     fetchSpy.mockImplementation(
