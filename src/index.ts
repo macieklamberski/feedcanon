@@ -329,6 +329,11 @@ const resolveCanonical = async (
     comparedResponses.set(initialResponseUrlRaw, initialResponse)
   }
 
+  // Whether a response landed on http, the final URL after every redirect.
+  const isServedOverHttp = (finalUrl: string): boolean => {
+    return !!parseHttpUrl(finalUrl)?.startsWith('http://')
+  }
+
   // The URL a response fetched for requestUrl is kept under. A response that ends at requestUrl,
   // such as the initial response cached under its final URL, is kept there, since the redirects
   // it carries came from another request.
@@ -670,20 +675,16 @@ const resolveCanonical = async (
   const httpsUrl = upgradeScheme(winningUrl)
   const httpsResponse = await fetchAndCompare(httpsUrl)
 
-  if (!httpsResponse) {
-    return winningResult
-  }
-
-  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
-  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
-  const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
-
-  // An https URL adopted under http, after a permanent redirect back, is not served over https.
-  if (!targetResult.url.startsWith('https://')) {
+  // An https URL whose response ends on http, through any redirect, is not served over https.
+  if (!httpsResponse || isServedOverHttp(httpsResponse.url)) {
     return winningResult
   }
 
   reportMatch(httpsUrl, httpsResponse)
+
+  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
+  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
+  const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
 
   if (targetResult.url !== httpsUrl) {
     return findCanonicalResult(targetResult)
@@ -708,10 +709,14 @@ const resolveCanonical = async (
 
   const httpsCandidateResult = await testCandidates(httpsCandidateUrls)
 
-  // An https candidate adopted under http is not served over https.
-  if (httpsCandidateResult?.url.startsWith('https://')) {
-    return httpsCandidateResult
+  if (!httpsCandidateResult) {
+    return targetResult
   }
 
-  return targetResult
+  // An https candidate whose response ends on http is not served over https either.
+  if (isServedOverHttp(httpsCandidateResult.response?.url ?? httpsCandidateResult.url)) {
+    return targetResult
+  }
+
+  return httpsCandidateResult
 }

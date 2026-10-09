@@ -539,9 +539,29 @@ describe('findCanonical', () => {
     })
 
     describe('protocol handling', () => {
-      it('should upgrade to https when the https URL redirects temporarily to http', async () => {
+      it('should not retry an https candidate that redirects temporarily to http', async () => {
+        const value = 'http://example.com/feed/'
+        const expected = 'https://example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed/': { body },
+            'https://example.com/feed/': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://example.com/other',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep http when the https URL redirects temporarily to another http URL', async () => {
         const value = 'http://example.com/feed'
-        const expected = 'https://example.com/feed'
+        const expected = 'http://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -651,9 +671,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should upgrade to HTTPS when HTTPS redirects back to its HTTP form temporarily', async () => {
+      it('should keep HTTP when HTTPS redirects back to it temporarily', async () => {
         const value = 'http://example.com/feed'
-        const expected = 'https://example.com/feed'
+        const expected = 'http://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
