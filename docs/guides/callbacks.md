@@ -78,7 +78,7 @@ The callback receives:
 
 ## onExists
 
-Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned immediately without further testing. The one exception is a URL that exists only once the query is dropped. A query can select a different feed, so Feedcanon fetches that URL first and returns it only if it serves the same feed.
+Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned once it serves the same feed, without further testing. A URL Feedcanon has not fetched yet in the call is fetched once to check that.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -125,7 +125,7 @@ The callback receives:
 | `response` | `FetchFnResponse \| undefined` | The response that served the URL |
 | `feed` | `TFeed \| undefined` | Parsed feed object |
 
-`response` and `feed` are empty when the URL comes from `existsFn` and was never fetched, since you already have that feed stored. A known URL Feedcanon fetched to verify, such as its form under the other protocol, comes with its response. The callback does not fire when `findCanonical` returns `undefined`.
+A URL `existsFn` knows comes with the response that verified it, since Feedcanon returns a URL only after it served the same feed in the call. The callback does not fire when `findCanonical` returns `undefined`.
 
 ## Examples
 
