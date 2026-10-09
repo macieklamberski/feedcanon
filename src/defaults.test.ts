@@ -156,6 +156,23 @@ describe('defaultFetch', () => {
     expect(customHeader).toBe('value')
   })
 
+  it('should send a feed-first Accept header without a wildcard when the caller sets none', async () => {
+    let capturedOptions: RequestInit | undefined
+    fetchSpy.mockImplementation(
+      createFetchMock((_url: string, options?: RequestInit) => {
+        capturedOptions = options
+        return createMockResponse({})
+      }),
+    )
+
+    await defaultFetch('https://example.com/feed.xml')
+
+    const acceptHeader = new Headers(capturedOptions?.headers).get('accept')
+
+    expect(acceptHeader).toStartWith('application/atom+xml')
+    expect(acceptHeader).not.toContain('*/*')
+  })
+
   it('should let a caller-supplied Accept header override the default', async () => {
     let capturedOptions: RequestInit | undefined
     fetchSpy.mockImplementation(
