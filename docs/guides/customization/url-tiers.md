@@ -14,7 +14,7 @@ Default tiers:
 4. **Tier 4**: Keep www and trailing slash, keep query
 
 ::: info
-In addition to the structural tiers, you can plug extra cleaning into the `cleanUrlFn` option in `FindCanonicalOptions`: strip tracking params, unwrap redirect wrappers, or apply any custom rewrite. It runs on every response URL before candidates are generated, so the cleanup stays consistent across all tiers. The [urlpurify](https://github.com/macieklamberski/urlpurify) package provides ready-made functions for this.
+In addition to the structural tiers, you can plug extra cleaning into the `cleanUrlFn` option in `FindCanonicalOptions`: strip tracking params, unwrap redirect wrappers, or apply any custom rewrite. It runs on every response URL before candidates are generated, so the cleanup stays consistent across all tiers, and on self URLs before they are fetched. The [urlpurify](https://github.com/macieklamberski/urlpurify) package provides ready-made functions for this.
 :::
 
 ## Normalization Options

@@ -4,7 +4,7 @@ title: Using Callbacks
 
 # Using Callbacks
 
-Feedcanon provides callbacks to track progress and hook into the resolution flow. If a callback or `existsFn` throws, `findCanonical` stops and returns `undefined`:
+Feedcanon provides callbacks to track progress and hook into the resolution flow. Callbacks are called synchronously and not awaited. If a callback throws, or `existsFn` throws or rejects, `findCanonical` stops and returns `undefined`. A rejection from an async callback is not caught, so handle it inside the callback.
 
 | Callback | Fires when | Data |
 |----------|------------|------|
