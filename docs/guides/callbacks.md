@@ -204,3 +204,15 @@ const url = await findCanonical('https://example.com/feed', {
   },
 })
 ```
+
+## Changes in 2.2
+
+Nothing in 2.2 is breaking. If you use `existsFn`, `cleanUrlFn` or the callbacks, these behave differently:
+
+- `existsFn` is also asked about every URL Feedcanon adopts: the response URL, self URLs, probes, redirect targets and the HTTPS upgrade target, and a hit ends the search.
+- A stored http or https twin of a URL is fetched and compared before it's accepted, so a subscription made while the twin is down can create a duplicate row.
+- A URL that `cleanUrlFn` moves to another host or path is fetched and compared before it's accepted, even when `existsFn` knows it, while query-only edits are still trusted.
+- `onExists` fires once, and only for the URL `findCanonical` returns.
+- `onMatch` fires at most once per URL.
+- `onCanonical` is new and passes the returned URL with the response and feed that served it, so read the canonical response there, not from the last `onMatch`.
+- `findCanonical` still returns the URL string.
