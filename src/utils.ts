@@ -142,13 +142,17 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     return text
   }
 
-  const decoded = decodeEncodedUrls(text)
+  const decodedText = decodeEncodedUrls(text)
 
   let result = ''
   let lastIndex = 0
   urlSchemeRegex.lastIndex = 0
 
-  for (let match = urlSchemeRegex.exec(decoded); match; match = urlSchemeRegex.exec(decoded)) {
+  for (
+    let match = urlSchemeRegex.exec(decodedText);
+    match;
+    match = urlSchemeRegex.exec(decodedText)
+  ) {
     const start = match.index
 
     // Skip schemes inside a URL that was already rewritten (e.g. a nested URL in a query).
@@ -159,19 +163,19 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     // A host check on the full token would re-parse most of a long token once per `//` inside it.
     const authorityRegex = match[0].length > 2 ? schemeAuthorityRegex : relativeAuthorityRegex
     authorityRegex.lastIndex = start + match[0].length
-    authorityRegex.exec(decoded)
+    authorityRegex.exec(decodedText)
 
-    if (!hosts.has(neutralizeHost(decoded.slice(start, authorityRegex.lastIndex)))) {
+    if (!hosts.has(neutralizeHost(decodedText.slice(start, authorityRegex.lastIndex)))) {
       continue
     }
 
     // Find the next delimiter with one regex search instead of a per-character test.
     urlDelimiterRegex.lastIndex = start
 
-    const delimiterMatch = urlDelimiterRegex.exec(decoded)
-    const end = delimiterMatch ? delimiterMatch.index : decoded.length
+    const delimiterMatch = urlDelimiterRegex.exec(decodedText)
+    const end = delimiterMatch ? delimiterMatch.index : decodedText.length
 
-    const parsed = parseUrl(addMissingProtocol(decoded.slice(start, end)))
+    const parsed = parseUrl(addMissingProtocol(decodedText.slice(start, end)))
 
     if (!parsed) {
       continue
@@ -187,11 +191,11 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       path = path.slice(0, -1)
     }
 
-    result += decoded.slice(lastIndex, start) + path + parsed.search + parsed.hash
+    result += decodedText.slice(lastIndex, start) + path + parsed.search + parsed.hash
     lastIndex = end
   }
 
-  result += decoded.slice(lastIndex)
+  result += decodedText.slice(lastIndex)
 
   return result.replace(trailingSlashRegex, '$1$2')
 }
