@@ -3075,14 +3075,58 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should not fetch an unwrapped URL that existsFn already knows', async () => {
+      it('should not return an unwrapped URL that existsFn knows when it serves a different feed', async () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
-        const expected = ['https://track.example.org/click?url=https://example.com/feed']
+        const expected = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+            },
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not return an unwrapped URL that existsFn knows when it fails to fetch', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed></feed>',
+            },
+            'https://example.com/feed': { status: 404 },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should fetch an unwrapped URL that existsFn knows once', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
         const fetchCalls: Array<string> = []
         const mockFetch = createMockFetch({
           'https://track.example.org/click?url=https://example.com/feed': {
             body: '<feed></feed>',
           },
+          'https://example.com/feed': { body: '<feed></feed>' },
         })
         const options = toOptions({
           fetchFn: (url) => {
@@ -3107,6 +3151,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
             'https://track.example.org/click?url=https://example.com/feed': { body },
             'https://example.com/rss': { body },
           }),
@@ -3127,6 +3172,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
             'https://track.example.org/click?url=https://example.com/feed': { body },
             'https://example.com/rss': { body },
           }),
@@ -3150,6 +3196,7 @@ describe('findCanonical', () => {
         const expected = 'https://example.com/feed'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'http://example.com/feed': { body: '<feed></feed>' },
             'https://track.example.org/click?url=http://example.com/feed': {
               body: '<feed></feed>',
             },
@@ -3189,11 +3236,15 @@ describe('findCanonical', () => {
 
       it('should not fetch a self URL after an unwrapped URL that existsFn knows', async () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
-        const expected = ['https://track.example.org/click?url=https://example.com/feed']
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
         const fetchCalls: Array<string> = []
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
             'https://track.example.org/click?url=https://example.com/feed': { body },
             'https://example.com/rss': { body },
           }),
@@ -3218,6 +3269,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://www.example.com/blog/feed': { body },
             'https://example.com/feed': { body },
             'https://example.com/rss': {
               body,
@@ -3242,6 +3294,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://www.example.com/blog/feed': { body },
             'https://example.com/feed': { body },
             'https://example.com/rss': {
               body,
@@ -3269,6 +3322,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://www.example.com/blog/feed': { body },
             'https://example.com/?feed=rss2': { body },
             'https://example.com/feed': {
               body,
@@ -3299,6 +3353,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://example.com/blog/feed': { body },
             'https://www.example.com/feed': { body },
             'https://example.com/feed': {
               body,
@@ -3327,6 +3382,7 @@ describe('findCanonical', () => {
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
+            'https://example.com/blog/feed': { body },
             'http://example.com/feed': { body },
             'https://example.com/feed': {
               body,
