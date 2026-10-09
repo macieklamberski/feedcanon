@@ -308,6 +308,9 @@ const resolveCanonical = async (
     comparedResponses.set(initialRequestUrls[0], undefined)
   }
 
+  // Phases can adopt the same URL again, so each URL is looked up in existsFn once.
+  const existingData = new Map<string, unknown>()
+
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
     if (comparedResponses.has(url)) {
@@ -355,7 +358,11 @@ const resolveCanonical = async (
     }
 
     for (const lookupUrl of lookupUrls) {
-      const data = await existsFn(lookupUrl)
+      if (!existingData.has(lookupUrl)) {
+        existingData.set(lookupUrl, await existsFn(lookupUrl))
+      }
+
+      const data = existingData.get(lookupUrl)
 
       if (data == null) {
         continue
