@@ -555,7 +555,7 @@ const resolveCanonical = async (
             return httpsUrl
           }
 
-          httpsCandidateUrls.push(upgradeProtocol(candidateUrl))
+          httpsCandidateUrls.push(upgradeScheme(candidateUrl))
         }
 
         return httpsUrl
