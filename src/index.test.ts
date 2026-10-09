@@ -2360,6 +2360,136 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
+
+      it('should skip a known https form of the response URL when it serves a different feed', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'http://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body: '<feed>blog</feed>' },
+            'http://example.com/feed': { body: '<feed>blog</feed>' },
+            'https://www.example.com/feed': { body: '<feed>shop</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://www.example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip a known http form of a self URL that served a different feed', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+            'http://www.example.com/feed/': { body: '<feed>shop</feed>' },
+            'https://www.example.com/feed/': { body: '<feed>blog</feed>' },
+          }),
+          existsFn: (url) => (url === 'http://www.example.com/feed/' ? { id: 42 } : undefined),
+          parser: createMockParser('http://www.example.com/feed/'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch a known http form again when it served a different feed', async () => {
+        const value = 'https://example.com/feed'
+        const expected = [
+          'https://example.com/feed',
+          'http://www.example.com/feed/',
+          'https://www.example.com/feed/',
+        ]
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+            'http://www.example.com/feed/': { body: '<feed>shop</feed>' },
+            'https://www.example.com/feed/': { body: '<feed>blog</feed>' },
+          }),
+          existsFn: (url) => (url === 'http://www.example.com/feed/' ? { id: 42 } : undefined),
+          parser: createMockParser('http://www.example.com/feed/'),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should skip a known https form of a redirect target when it serves a different feed', async () => {
+        const value = 'http://www.example.com/feed?id=1'
+        const expected = 'http://example.com/other'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed?id=1': { body: '<feed>blog</feed>' },
+            'http://example.com/feed': {
+              body: '<feed>blog</feed>',
+              url: 'http://example.com/other',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+            'https://example.com/other': { body: '<feed>shop</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/other' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip a known https form of a cleaned URL when it serves a different feed', async () => {
+        const value = 'http://example.com/go/feed'
+        const expected = 'http://example.com/go/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/go/feed': { body: '<feed>blog</feed>' },
+            'https://example.com/feed': { body: '<feed>shop</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+          cleanUrlFn: (url) => url.replace('/go/feed', '/feed'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a known https form that failed to fetch earlier', async () => {
+        const value = 'feed://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { status: 503 },
+            'http://example.com/feed': { body: '<feed></feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch a known https form again when it failed to fetch earlier', async () => {
+        const value = 'feed://example.com/feed'
+        const expected = ['https://example.com/feed', 'http://example.com/feed']
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { status: 503 },
+            'http://example.com/feed': { body: '<feed></feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
     })
 
     describe('parser', () => {
