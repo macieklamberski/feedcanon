@@ -58,8 +58,8 @@ export function findCanonical<
 ): Promise<string | undefined>
 
 // Implementation uses 'any' for TFeed to avoid variance issues with parser default. Type safety is
-// enforced by the overload signatures above. An error thrown by any injected callback resolves to
-// undefined, like any other failure.
+// enforced by the overload signatures above. An error thrown by existsFn, cleanUrlFn or a callback
+// resolves to undefined, like any other failure.
 export async function findCanonical(
   inputUrl: string,
   // biome-ignore lint/suspicious/noExplicitAny: Necessary for function overloads.
@@ -441,8 +441,8 @@ const resolveCanonical = async (
     return { ...result, data: existingUrl.data }
   }
 
-  // A rewrite of a fetched URL names a URL nobody fetched, so it is used only once verified to serve
-  // the same feed. Otherwise the fetched URL is kept, with the response that served it.
+  // A rewrite of a fetched URL names a URL nobody fetched, so it is used only once verified to
+  // serve the same feed. Otherwise the fetched URL is kept, with the response that served it.
   const adoptRewrittenUrl = async (
     fetchedUrl: string,
     requestUrl: string,

@@ -22,7 +22,7 @@ The process starts by fetching the input URL:
 
 If your `existsFn` knows the URL kept in step 5, it is returned right away. Phases 3, 4, 6 and 7 do the same with every URL they adopt: a URL your `existsFn` knows ends the search.
 
-If any step fails, the function returns `undefined`. The same goes for an error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser on the initial response: the promise never rejects. A parser error on a later response, in `parse` or `getSignature`, only skips that URL, and the search continues.
+If any step fails, the function returns `undefined`. The same goes for an error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse` or `getSelfUrl` on the initial response: the promise never rejects. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
 
 A feed pseudo-scheme like `feed://` or `itpc://` doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
 
