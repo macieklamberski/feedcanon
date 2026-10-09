@@ -487,7 +487,7 @@ const resolveCanonical = async (
       // A self URL whose response lands on a non-http URL is not trusted.
       const selfResult = await adoptResponseUrl(response, urlToTry, {
         url: initialResponseUrl,
-        response: initialResponse,
+        response: initialResult.response ?? initialResponse,
       })
 
       if (selfResult.data != null) {
