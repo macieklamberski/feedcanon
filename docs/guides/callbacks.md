@@ -77,7 +77,7 @@ The callback receives:
 
 ## onExists
 
-Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned once it serves the same feed, without further testing. A URL Feedcanon has not fetched yet in the call is fetched once to check that.
+Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned once it serves the same feed, without further testing. A URL Feedcanon has not fetched yet in the call is fetched once to check that. The one exception is a `cleanUrlFn` result that only edits the query, which is trusted without a fetch.
 
 ```typescript
 import { findCanonical } from 'feedcanon'

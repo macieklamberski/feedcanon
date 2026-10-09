@@ -479,8 +479,8 @@ const resolveCanonical = async (
   }
 
   // Phase 5: Generate Candidates.
-  // Include candidateSource so Phase 7 finds the winning URL's place in the tier order. Testing skips
-  // it, since it was verified and looked up when adopted.
+  // Include candidateSource so Phase 7 finds the winning URL's place in the tier order. Testing
+  // skips it, since it was verified and looked up when adopted.
   const candidateUrls = new Set(
     tiers
       .map((tier) => {
@@ -502,7 +502,7 @@ const resolveCanonical = async (
         continue
       }
 
-      // Use initial response URL if it's the cleanest candidate (verified and looked up in Phase 1).
+      // Use initial response URL if it's the cleanest candidate, verified and looked up in Phase 1.
       if (candidateUrl === initialResponseUrl) {
         return { url: initialResponseUrl }
       }
