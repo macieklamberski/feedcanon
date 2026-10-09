@@ -28,7 +28,6 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`. Tier options
 | `stripWww` | `true` | Remove `www.` prefix |
 | `stripHostTrailingDot` | `true` | Remove the trailing `.` of a host, `example.com.` → `example.com` |
 | `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
-| `stripRootSlash` | `true` | Remove `/` from root paths |
 | `collapseSlashes` | `true` | `///` → `/` |
 | `stripHash` | `true` | Remove `#fragment` |
 | `sortQueryParams` | `true` | Sort params alphabetically |
@@ -36,7 +35,6 @@ Each tier accepts all `NormalizeOptions` except `stripQueryParams`. Tier options
 | `stripEmptyQuery` | `true` | Remove empty `?` |
 | `lowercaseQuery` | `false` | Lowercase query param names and values |
 | `normalizeEncoding` | `true` | Normalize `%XX` encoding |
-| `normalizeUnicode` | `true` | NFC normalization |
 
 ## Examples
 
@@ -64,12 +62,10 @@ const url = await findCanonical('https://example.com/feed', {
     {
       stripWww: true,
       stripTrailingSlash: true,
-      stripRootSlash: true,
       collapseSlashes: true,
       stripHash: true,
       stripQuery: true,
       normalizeEncoding: true,
-      normalizeUnicode: true,
     },
   ],
 })
