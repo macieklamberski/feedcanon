@@ -1368,6 +1368,37 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep character reference text in a candidate query', async () => {
+        const value = 'https://example.com/rss'
+        const expected = 'https://example.com/feed?a=&amp;b'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/rss': { body, url: 'https://example.com/feed?a=&amp;b' },
+            'https://example.com/feed?a=&b': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should try a candidate from a tier that strips the scheme', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          tiers: [{ stripScheme: true, stripWww: true }],
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should fall back to original when all candidates fail', async () => {
         const value = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
         const expected = 'https://special.example.com:8443/api/v2/feed.json?auth=token123'
@@ -1978,6 +2009,21 @@ describe('findCanonical', () => {
             'https://www.example.com/feed/': { body },
           }),
           existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not match a known URL decoded from character reference text', async () => {
+        const value = 'https://example.com/rss'
+        const expected = 'https://example.com/a&amp;b/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/rss': { body, url: 'https://example.com/a&amp;b/feed' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/a&b/feed' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
         })
 

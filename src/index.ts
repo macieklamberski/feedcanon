@@ -1,10 +1,11 @@
 import {
+  addMissingScheme,
   isHttpUrl,
   normalizeUrl,
   parseUrl,
-  resolveFeedProtocol,
+  resolveFeedScheme,
   resolveUrl,
-  upgradeProtocol,
+  upgradeScheme,
 } from 'trousse'
 import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
 import type {
@@ -82,7 +83,9 @@ const resolveCanonical = async (
     return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
   }
 
-  // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
+  // For URLs a person or markup wrote: the input URL and the feed's self link. resolveUrl repairs
+  // schemes, resolves relative paths and decodes character references, so a URL that was already
+  // fetched goes through parseAndApplyRewrites instead.
   const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
 
@@ -116,9 +119,9 @@ const resolveCanonical = async (
   // See: https://www.iana.org/assignments/uri-schemes/prov/feed (draft-obasanjo-feed-uri-scheme).
   const initialRequestUrls = [initialRequestUrl]
   const trimmedInputUrl = inputUrl.trim()
-  const httpInputUrl = resolveFeedProtocol(trimmedInputUrl, 'http')
+  const httpInputUrl = resolveFeedScheme(trimmedInputUrl, 'http')
 
-  if (httpInputUrl !== resolveFeedProtocol(trimmedInputUrl)) {
+  if (httpInputUrl !== resolveFeedScheme(trimmedInputUrl)) {
     const httpRequestUrl = resolveAndApplyRewrites(httpInputUrl)
 
     if (httpRequestUrl) {
@@ -360,9 +363,9 @@ const resolveCanonical = async (
     urlsToTry.push(selfRequestUrl)
 
     if (selfRequestUrl.startsWith('https://')) {
-      urlsToTry.push(upgradeProtocol(selfRequestUrl, 'http'))
+      urlsToTry.push(upgradeScheme(selfRequestUrl, 'http'))
     } else if (selfRequestUrl.startsWith('http://')) {
-      urlsToTry.push(upgradeProtocol(selfRequestUrl))
+      urlsToTry.push(upgradeScheme(selfRequestUrl))
     }
   }
 
@@ -394,7 +397,12 @@ const resolveCanonical = async (
   // Include candidateSource for existsFn check, but skip fetch/compare (already verified).
   const candidateUrls = new Set(
     tiers
-      .map((tier) => resolveAndApplyRewrites(normalizeUrl(candidateSourceUrl, tier)))
+      .map((tier) => {
+        // A tier can strip the scheme, and the parser accepts only absolute URLs.
+        const normalizedUrl = addMissingScheme(normalizeUrl(candidateSourceUrl, tier))
+
+        return parseAndApplyRewrites(normalizedUrl)
+      })
       .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
   )
   candidateUrls.add(candidateSourceUrl)
@@ -413,11 +421,11 @@ const resolveCanonical = async (
     let isMismatch = false
 
     if (url.startsWith('https://')) {
-      lookupUrls.push(upgradeProtocol(url, 'http'))
+      lookupUrls.push(upgradeScheme(url, 'http'))
     }
 
     if (url.startsWith('http://')) {
-      lookupUrls.push(upgradeProtocol(url, 'https'))
+      lookupUrls.push(upgradeScheme(url, 'https'))
     }
 
     for (const lookupUrl of lookupUrls) {
@@ -521,7 +529,7 @@ const resolveCanonical = async (
 
   // Phase 7: HTTPS Upgrade on winning URL.
   if (winningUrl.startsWith('http://')) {
-    const httpsUrl = upgradeProtocol(winningUrl)
+    const httpsUrl = upgradeScheme(winningUrl)
     const response = await fetchAndCompare(httpsUrl)
 
     // An https URL that redirects back to http is not served over https.
@@ -549,7 +557,7 @@ const resolveCanonical = async (
             return httpsUrl
           }
 
-          httpsCandidateUrls.push(upgradeProtocol(candidateUrl))
+          httpsCandidateUrls.push(upgradeScheme(candidateUrl))
         }
 
         return httpsUrl

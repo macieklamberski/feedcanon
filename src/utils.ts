@@ -1,5 +1,5 @@
 import type { MaybePromise } from 'trousse'
-import { addMissingProtocol, parseUrl, stripWww } from 'trousse'
+import { addMissingScheme, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
@@ -122,7 +122,7 @@ const decodeEncodedUrls = (text: string): string => {
 }
 
 const neutralizeHost = (url: string): string | undefined => {
-  const host = parseUrl(addMissingProtocol(url))?.host
+  const host = parseUrl(addMissingScheme(url))?.host
 
   if (!host) {
     return
@@ -175,7 +175,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
     const delimiterMatch = urlDelimiterRegex.exec(decodedText)
     const end = delimiterMatch ? delimiterMatch.index : decodedText.length
 
-    const parsed = parseUrl(addMissingProtocol(decodedText.slice(start, end)))
+    const parsed = parseUrl(addMissingScheme(decodedText.slice(start, end)))
 
     if (!parsed) {
       continue
