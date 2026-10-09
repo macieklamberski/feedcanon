@@ -1,5 +1,5 @@
 import {
-  addMissingProtocol,
+  addMissingScheme,
   isHttpUrl,
   normalizeUrl,
   parseUrl,
@@ -396,8 +396,8 @@ const resolveCanonical = async (
   const candidateUrls = new Set(
     tiers
       .map((tier) => {
-        // A tier can strip the protocol, and the parser accepts only absolute URLs.
-        const normalizedUrl = addMissingProtocol(normalizeUrl(candidateSourceUrl, tier))
+        // A tier can strip the scheme, and the parser accepts only absolute URLs.
+        const normalizedUrl = addMissingScheme(normalizeUrl(candidateSourceUrl, tier))
 
         return parseAndApplyRewrites(normalizedUrl)
       })

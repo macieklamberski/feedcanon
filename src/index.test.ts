@@ -1203,7 +1203,7 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should try a candidate from a tier that strips the protocol', async () => {
+      it('should try a candidate from a tier that strips the scheme', async () => {
         const value = 'http://www.example.com/feed'
         const expected = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -1213,7 +1213,7 @@ describe('findCanonical', () => {
             'https://example.com/feed': { body },
           }),
           parser: createMockParser(undefined),
-          tiers: [{ stripProtocol: true, stripWww: true }],
+          tiers: [{ stripScheme: true, stripWww: true }],
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
