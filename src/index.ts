@@ -368,9 +368,9 @@ const resolveCanonical = async (
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
-  // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once known to
-  // existsFn or verified to serve the same feed. Otherwise the response URL is kept. The adopted URL
-  // comes back with its existsFn data when existsFn knows it.
+  // path (an unwrapped redirect link) names a URL nobody fetched, so it is used only once verified
+  // to serve the same feed, even when existsFn knows it. Otherwise the response URL is kept. The
+  // adopted URL comes back with its existsFn data when existsFn knows it.
   const adoptCleanedUrl = async (
     responseUrl: string,
     requestUrl: string,
@@ -380,31 +380,25 @@ const resolveCanonical = async (
     const cleaned = parseUrl(cleanedUrl)
     const isSameLocation =
       received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
-    const existingCleanedUrl = await findExistingUrl(cleanedUrl)
+    let adoptedUrl = cleanedUrl
 
-    if (existingCleanedUrl) {
-      return existingCleanedUrl
-    }
+    if (!isSameLocation && cleanedUrl !== requestUrl) {
+      const response = await fetchAndCompare(cleanedUrl)
 
-    if (isSameLocation || cleanedUrl === requestUrl) {
-      return { url: cleanedUrl }
-    }
-
-    const response = await fetchAndCompare(cleanedUrl)
-
-    if (!response) {
-      const existingResponseUrl = await findExistingUrl(responseUrl)
-
-      if (existingResponseUrl) {
-        return existingResponseUrl
+      if (response) {
+        onMatch?.({ url: cleanedUrl, response, feed: initialResponseFeed })
       }
 
-      return { url: responseUrl }
+      adoptedUrl = response ? cleanedUrl : responseUrl
     }
 
-    onMatch?.({ url: cleanedUrl, response, feed: initialResponseFeed })
+    const existingUrl = await findExistingUrl(adoptedUrl)
 
-    return { url: cleanedUrl }
+    if (existingUrl) {
+      return existingUrl
+    }
+
+    return { url: adoptedUrl }
   }
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
