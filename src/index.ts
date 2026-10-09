@@ -280,9 +280,6 @@ const resolveCanonical = async (
     [initialRequestUrl, initialResponse],
   ])
 
-  // A URL that served a different feed, which comparedResponses stores like a failed fetch.
-  const otherFeedUrls = new Set<string>()
-
   // An https form that failed in Phase 1 fails again when Phase 7 upgrades the http fallback.
   if (initialRequestUrl !== initialRequestUrls[0]) {
     comparedResponses.set(initialRequestUrls[0], undefined)
@@ -304,7 +301,6 @@ const resolveCanonical = async (
     }
 
     if (!(await compareWithInitialResponse(response.body, response.url))) {
-      otherFeedUrls.add(url)
       return
     }
 
@@ -352,9 +348,7 @@ const resolveCanonical = async (
       if (isQueryStripped || lookupUrl !== url) {
         const response = await fetchAndCompare(lookupUrl)
 
-        // The other protocol form is accepted unverified when it cannot be fetched, so a stored feed
-        // is still found while its host is down.
-        if (!response && (isQueryStripped || otherFeedUrls.has(lookupUrl))) {
+        if (!response) {
           if (lookupUrl === url) {
             isMismatch = true
           }
@@ -362,9 +356,7 @@ const resolveCanonical = async (
           continue
         }
 
-        if (response) {
-          onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
-        }
+        onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
       }
 
       return { url: lookupUrl, existing }

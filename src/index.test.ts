@@ -590,6 +590,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'http://example.com/feed': { body },
+            'http://www.example.com/feed': { body },
             'https://example.com/feed': {
               body,
               url: 'https://www.example.com/feed',
@@ -2214,6 +2215,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://example.com/feed': { body },
+            'http://example.com/feed': { body },
           }),
           existsFn: (url) => (url === 'http://example.com/feed' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
@@ -2254,9 +2256,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return existing https URL for http input when https fails', async () => {
+      it('should not return existing https URL for http input when https fails', async () => {
         const value = 'http://example.com/feed'
-        const expected = 'https://example.com/feed'
+        const expected = 'http://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -2328,6 +2330,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed': { body },
+            'http://www.example.com/feed': { body },
             'https://example.com/feed': {
               body,
               url: 'https://www.example.com/feed',
@@ -2348,6 +2351,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed': { body },
+            'http://feeds.example.org/feed': { body },
             'https://example.com/feed': {
               body,
               url: 'https://feeds.example.org/feed',
@@ -2455,9 +2459,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return a known https form that failed to fetch earlier', async () => {
+      it('should not return a known https form that failed to fetch earlier', async () => {
         const value = 'feed://example.com/feed'
-        const expected = 'https://example.com/feed'
+        const expected = 'http://example.com/feed'
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://example.com/feed': { status: 503 },
@@ -3127,6 +3131,7 @@ describe('findCanonical', () => {
             'https://track.example.org/click?url=http://example.com/feed': {
               body: '<feed></feed>',
             },
+            'https://example.com/feed': { body: '<feed></feed>' },
           }),
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,

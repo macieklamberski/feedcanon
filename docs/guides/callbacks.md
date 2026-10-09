@@ -94,7 +94,7 @@ const url = await findCanonical('https://example.com/feed', {
 
 The `existsFn` function:
 - Receives each URL Feedcanon adopts or tests as a candidate, then the same URL under the other protocol: the http form of an https candidate, the https form of an http one
-- Has a known form under the other protocol checked first: Feedcanon fetches it once and skips it if it serves a different feed, and accepts it when it cannot be fetched
+- Has a known form under the other protocol checked first: Feedcanon accepts it only once it serves the same feed, and skips it when it serves a different feed or cannot be fetched
 - Returns your data if URL exists, `null` or `undefined` otherwise
 - Triggers early termination when a match is found
 
