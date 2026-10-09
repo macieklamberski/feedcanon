@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it, spyOn } from 'bun:test'
 import { defaultParser } from './defaults.js'
 import { findCanonical } from './index.js'
+import { wordpressProbe } from './probes/wordpress.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
   FetchFnResponse,
@@ -2843,6 +2844,27 @@ describe('findCanonical', () => {
         await findCanonical(value, options)
 
         expect(matchCalls).toEqual(['http://example.com/feed', 'https://example.com/feed'])
+      })
+
+      it('should call onMatch once for a URL a later phase reaches again', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const matchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser('https://example.com/?feed=rss2'),
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://example.com/?feed=rss2': { body },
+          }),
+          probes: [wordpressProbe],
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(['https://example.com/feed', 'https://example.com/?feed=rss2'])
       })
 
       it('should include full response and feed in onMatch', async () => {
