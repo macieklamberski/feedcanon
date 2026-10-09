@@ -10,7 +10,7 @@ Feedcanon provides callbacks to track progress and hook into the resolution flow
 |----------|------------|------|
 | `onFetch` | After each HTTP response | `{ url, response }` |
 | `onMatch` | URL matches initial response | `{ url, response, feed }` |
-| `onExists` | `existsFn` finds URL in database | `{ url, data }` |
+| `onExists` | The returned URL was found by `existsFn` | `{ url, data }` |
 
 ## onFetch
 
@@ -93,11 +93,11 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 The `existsFn` function:
-- Receives each URL candidate being tested, then the same URL under the other protocol: the http form of an https candidate, the https form of an http one
+- Receives each URL Feedcanon adopts or tests as a candidate, then the same URL under the other protocol: the http form of an https candidate, the https form of an http one
 - Returns your data if URL exists, `null` or `undefined` otherwise
 - Triggers early termination when a match is found
 
-The `onExists` callback fires when `existsFn` returns data, giving you access to both the URL and your database record.
+The `onExists` callback fires once, when the URL `findCanonical` returns was found by `existsFn`, giving you access to both the URL and your database record. A URL `existsFn` knows that is then dropped, such as an http URL the HTTPS upgrade passes over, does not fire it.
 
 ## Examples
 

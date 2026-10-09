@@ -124,46 +124,42 @@ describe('applyProbes', () => {
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 
-  it('should return original URL when no candidate works', async () => {
+  it('should return undefined when no candidate works', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = () => undefined
-    const expected = 'https://example.com/?feed=rss2'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(await applyProbes(value, probes, testCandidate)).toBeUndefined()
   })
 
-  it('should return original URL when no probe matches', async () => {
+  it('should return undefined when no probe matches', async () => {
     const value = 'https://example.com/feed'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = () => {
       throw new Error('Should not be called')
     }
-    const expected = 'https://example.com/feed'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(await applyProbes(value, probes, testCandidate)).toBeUndefined()
   })
 
-  it('should return original URL when probes array is empty', async () => {
+  it('should return undefined when probes array is empty', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes: Array<Probe> = []
     const testCandidate = () => {
       throw new Error('Should not be called')
     }
-    const expected = 'https://example.com/?feed=rss2'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(await applyProbes(value, probes, testCandidate)).toBeUndefined()
   })
 
-  it('should return original string for invalid URL', async () => {
+  it('should return undefined for invalid URL', async () => {
     const value = 'not a valid url'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = () => {
       throw new Error('Should not be called')
     }
-    const expected = 'not a valid url'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(await applyProbes(value, probes, testCandidate)).toBeUndefined()
   })
 
   it('should try candidates in order and use first working one', async () => {
@@ -211,9 +207,8 @@ describe('applyProbes', () => {
       },
     ]
     const testCandidate = () => undefined
-    const expected = 'https://example.com/?feed=rss2'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(await applyProbes(value, probes, testCandidate)).toBeUndefined()
     expect(secondProbeCalled).toBe(false)
   })
 
@@ -263,7 +258,7 @@ describe('applyProbes', () => {
     expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
   })
 
-  it('should return original URL when getCandidates throws', async () => {
+  it('should return undefined when getCandidates throws', async () => {
     const value = 'https://example.com/?feed=rss2'
     const probes: Array<Probe> = [
       {
@@ -276,9 +271,8 @@ describe('applyProbes', () => {
     const testCandidate = () => {
       throw new Error('Should not be called')
     }
-    const expected = 'https://example.com/?feed=rss2'
 
-    expect(await applyProbes(value, probes, testCandidate)).toBe(expected)
+    expect(await applyProbes(value, probes, testCandidate)).toBeUndefined()
   })
 })
 
