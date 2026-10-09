@@ -3192,7 +3192,6 @@ describe('findCanonical', () => {
 
       it('should return a response URL that existsFn knows when the unwrapped URL serves a different feed', async () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
-        const expected = 'https://track.example.org/click?url=https://example.com/feed'
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://track.example.org/click?url=https://example.com/feed': {
@@ -3209,7 +3208,7 @@ describe('findCanonical', () => {
           },
         })
 
-        expect(await findCanonical(value, options)).toBe(expected)
+        expect(await findCanonical(value, options)).toBe(value)
       })
 
       it('should not fetch a self URL after an unwrapped URL that existsFn knows', async () => {
