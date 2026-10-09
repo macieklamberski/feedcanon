@@ -115,8 +115,8 @@ Only Tier 1 drops the query. To remove tracking params from the other tiers too,
 Each candidate is tested in order:
 
 1. Check if the URL exists in your database (via `existsFn`)
-   - If found, return immediately with that URL
-   - If found only with the query dropped, fetch it first and return it only if it serves the same feed
+   - If found, fetch it, or reuse the response if this call already fetched it, and return it if it serves the same feed
+   - If found but it serves a different feed or fails to fetch, skip it
 2. Fetch the candidate URL
 3. Compare with the initial response using the two-tier matching
 4. Return the first candidate that matches
@@ -139,7 +139,7 @@ This ensures secure connections when available.
 
 ## Deviations From URI Equivalence
 
-Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, unless your `existsFn` already knows the URL.
+Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, even when your `existsFn` already knows the URL.
 
 - **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
 - **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
