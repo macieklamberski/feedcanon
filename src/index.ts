@@ -349,6 +349,14 @@ const resolveCanonical = async (
           continue
         }
 
+        const sourceUrl = parseAndApplyRewrites(getSourceUrl(response))
+
+        // A candidate that redirects permanently is not where the feed lives, so its target is
+        // tested instead, known or not.
+        if (lookupUrl === url && sourceUrl && sourceUrl !== url) {
+          continue
+        }
+
         onMatch?.({ url: lookupUrl, response, feed: initialResponseFeed })
       }
 

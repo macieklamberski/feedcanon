@@ -2311,6 +2311,26 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return the target of a known candidate that redirects permanently', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://example.com/feed.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://example.com/feed.xml',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should prefer existing http URL over its https form', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'
