@@ -83,7 +83,9 @@ const resolveCanonical = async (
     return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
   }
 
-  // Prepare a URL by resolving protocols, relative paths, and applying rewrites.
+  // For URLs a person or markup wrote: the input URL and the feed's self link. resolveUrl repairs
+  // schemes, resolves relative paths and decodes character references, so a URL that was already
+  // fetched goes through parseAndApplyRewrites instead.
   const resolveAndApplyRewrites = (url: string, baseUrl?: string): string | undefined => {
     const resolved = resolveUrl(url, baseUrl)
 
