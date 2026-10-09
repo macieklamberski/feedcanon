@@ -17,12 +17,12 @@ import type {
 import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
 
 // A URL findCanonical returns, with the existsFn data when existsFn knows it, and the response
-// that served it, with its feed, when the URL was fetched.
+// that served it, with its feed.
 type CanonicalResult = {
   url: string
   data?: unknown
-  response?: FetchFnResponse
-  feed?: unknown
+  response: FetchFnResponse
+  feed: unknown
 }
 
 const permanentRedirectStatuses = [301, 308]
@@ -373,11 +373,11 @@ const resolveCanonical = async (
   }
 
   // Look a URL up in existsFn, including its form under the other protocol. A known form must serve
-  // the same feed in this call, unless it is the URL itself and isVerified says it already did.
+  // the same feed in this call, unless it is the URL of verifiedResult, which already did.
   // Returns false when the URL itself is known but serves a different feed.
   const findExistingUrl = async (
     url: string,
-    isVerified = true,
+    verifiedResult?: CanonicalResult,
   ): Promise<CanonicalResult | false | undefined> => {
     if (!existsFn) {
       return
@@ -401,7 +401,7 @@ const resolveCanonical = async (
         continue
       }
 
-      if (!isVerified || lookupUrl !== url) {
+      if (!verifiedResult || lookupUrl !== url) {
         const response = await fetchAndCompare(lookupUrl)
 
         if (!response) {
@@ -412,12 +412,20 @@ const resolveCanonical = async (
           continue
         }
 
+        const sourceUrl = parseAndApplyRewrites(getSourceUrl(response))
+
+        // A candidate that redirects permanently is not where the feed lives, so its target is
+        // tested instead, known or not.
+        if (lookupUrl === url && sourceUrl && sourceUrl !== url) {
+          continue
+        }
+
         reportMatch(lookupUrl, response)
 
         return { url: lookupUrl, data, response, feed: initialResponseFeed }
       }
 
-      return { url: lookupUrl, data }
+      return { ...verifiedResult, data }
     }
 
     if (isMismatch) {
@@ -427,18 +435,13 @@ const resolveCanonical = async (
 
   // An adopted result with its existsFn data when existsFn knows its URL.
   const findCanonicalResult = async (result: CanonicalResult): Promise<CanonicalResult> => {
-    const existingUrl = await findExistingUrl(result.url)
+    const existingUrl = await findExistingUrl(result.url, result)
 
     if (!existingUrl) {
       return result
     }
 
-    // The other protocol form of the URL comes back with its own response.
-    if (existingUrl.url !== result.url) {
-      return existingUrl
-    }
-
-    return { ...result, data: existingUrl.data }
+    return existingUrl
   }
 
   // A rewrite of a fetched URL names a URL nobody fetched, so it is used only once verified to
@@ -551,10 +554,7 @@ const resolveCanonical = async (
     if (response) {
       reportMatch(urlToTry, response)
       // A self URL whose response lands on a non-http URL is not trusted.
-      const selfResult = await adoptResponseUrl(response, urlToTry, {
-        url: initialResponseUrl,
-        response: initialResult.response ?? initialResponse,
-      })
+      const selfResult = await adoptResponseUrl(response, urlToTry, initialResult)
 
       if (selfResult.data != null) {
         return selfResult
@@ -615,7 +615,7 @@ const resolveCanonical = async (
         return initialResult
       }
 
-      const existingUrl = await findExistingUrl(candidateUrl, false)
+      const existingUrl = await findExistingUrl(candidateUrl)
 
       if (existingUrl) {
         return existingUrl
