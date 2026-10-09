@@ -207,14 +207,12 @@ export const defaultTiers: Array<Tier> = [
     stripWww: true,
     stripHostTrailingDot: true,
     stripTrailingSlash: true,
-    stripRootSlash: true,
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: false,
     stripQuery: true,
     stripEmptyQuery: true,
     normalizeEncoding: true,
-    normalizeUnicode: true,
   },
   // Tier 2: Strip www and trailing slash, keep query.
   {
@@ -223,14 +221,12 @@ export const defaultTiers: Array<Tier> = [
     stripWww: true,
     stripHostTrailingDot: true,
     stripTrailingSlash: true,
-    stripRootSlash: true,
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: true,
     stripQuery: false,
     stripEmptyQuery: true,
     normalizeEncoding: true,
-    normalizeUnicode: true,
   },
   // Tier 3: Keep www, strip trailing slash, keep query.
   {
@@ -239,14 +235,12 @@ export const defaultTiers: Array<Tier> = [
     stripWww: false,
     stripHostTrailingDot: true,
     stripTrailingSlash: true,
-    stripRootSlash: true,
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: true,
     stripQuery: false,
     stripEmptyQuery: true,
     normalizeEncoding: true,
-    normalizeUnicode: true,
   },
   // Tier 4: Keep www and trailing slash, keep query.
   {
@@ -255,13 +249,11 @@ export const defaultTiers: Array<Tier> = [
     stripWww: false,
     stripHostTrailingDot: true,
     stripTrailingSlash: false,
-    stripRootSlash: true,
     collapseSlashes: true,
     stripHash: true,
     sortQueryParams: true,
     stripQuery: false,
     stripEmptyQuery: true,
     normalizeEncoding: true,
-    normalizeUnicode: true,
   },
 ]
