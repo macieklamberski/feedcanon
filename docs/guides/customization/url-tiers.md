@@ -88,7 +88,7 @@ const url = await findCanonical('https://example.com/feed', {
 })
 ```
 
-A `cleanUrlFn` that only edits the query is trusted: Feedcanon uses its result without fetching it, so it should remove only params that do not change which feed the URL serves. A result with a different host or path, such as an unwrapped redirect link, is a URL nobody fetched yet. Feedcanon uses it only when `existsFn` already knows it or when it serves the same feed, which costs one extra request. Otherwise it keeps the URL the response came from.
+A `cleanUrlFn` that only edits the query is trusted: Feedcanon uses its result without fetching it, so it should remove only params that do not change which feed the URL serves. A result with a different host or path, such as an unwrapped redirect link, is a URL nobody fetched yet. Feedcanon uses it only when it serves the same feed, which costs one extra request, even when `existsFn` already knows it. Otherwise it keeps the URL the response came from. A verified result `existsFn` knows, under either protocol, ends the search like any other `existsFn` match.
 
 ### Preserve Query Params
 

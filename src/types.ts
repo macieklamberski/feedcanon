@@ -47,7 +47,7 @@ export type OnMatchFn<
   TResponse extends FetchFnResponse = FetchFnResponse,
 > = (data: { url: string; response: TResponse; feed: TFeed }) => void
 
-// Callback fired when existsFn finds a URL in the database.
+// Callback fired when existsFn found the URL findCanonical returns.
 export type OnExistsFn<T> = (data: { url: string; data: T }) => void
 
 // Options for findCanonical function.
@@ -65,7 +65,7 @@ export type FindCanonicalOptions<
   tiers?: Array<Tier> // Normalization tiers (cleanest to least clean)
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response
-  onExists?: OnExistsFn<TExisting> // Called when existsFn finds a URL
+  onExists?: OnExistsFn<TExisting> // Called when existsFn found the returned URL
 }
 
 // Options for fetch function.

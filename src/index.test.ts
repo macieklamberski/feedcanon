@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it, spyOn } from 'bun:test'
 import { defaultParser } from './defaults.js'
 import { findCanonical } from './index.js'
+import { wordpressProbe } from './probes/wordpress.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
   FetchFnResponse,
@@ -590,6 +591,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'http://example.com/feed': { body },
+            'http://www.example.com/feed': { body },
             'https://example.com/feed': {
               body,
               url: 'https://www.example.com/feed',
@@ -2007,6 +2009,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { body },
           }),
           existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
@@ -2030,8 +2033,16 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should check candidates in tier order', async () => {
+      it('should check candidates in tier order after the response URL', async () => {
         const value = 'https://www.example.com/feed/'
+        const expected = [
+          'https://www.example.com/feed/',
+          'http://www.example.com/feed/',
+          'https://example.com/feed',
+          'http://example.com/feed',
+          'https://www.example.com/feed',
+          'http://www.example.com/feed',
+        ]
         const body = '<feed></feed>'
         const checkedUrls: Array<string> = []
         const options = toOptions({
@@ -2046,7 +2057,7 @@ describe('findCanonical', () => {
 
         await findCanonical(value, options)
 
-        expect(checkedUrls[0]).toBe('https://example.com/feed')
+        expect(checkedUrls).toEqual(expected)
       })
 
       it('should continue testing when existsFn returns false', async () => {
@@ -2074,6 +2085,7 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
+            'https://www.example.com/feed': { body },
           }),
           existsFn: (url) => {
             checkedUrls.push(url)
@@ -2108,6 +2120,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { body },
           }),
           existsFn: (url) => (url === 'https://example.com/feed' ? 0 : undefined),
           parser: createMockParser(undefined),
@@ -2206,6 +2219,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://example.com/feed': { body },
+            'http://example.com/feed': { body },
           }),
           existsFn: (url) => (url === 'http://example.com/feed' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
@@ -2246,9 +2260,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return existing https URL for http input when https fails', async () => {
+      it('should not return existing https URL for http input when https fails', async () => {
         const value = 'http://example.com/feed'
-        const expected = 'https://example.com/feed'
+        const expected = 'http://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -2298,6 +2312,51 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should look up each URL in existsFn once', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const lookups: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'http://example.com/feed': {
+              body,
+              url: 'https://example.com/feed',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+          }),
+          existsFn: (url) => {
+            lookups.push(url)
+          },
+          parser: createMockParser('http://example.com/feed'),
+        })
+        const expected = ['https://example.com/feed', 'http://example.com/feed']
+
+        await findCanonical(value, options)
+
+        expect(lookups).toEqual(expected)
+      })
+
+      it('should return the target of a known candidate that redirects permanently', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://example.com/feed.xml'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://example.com/feed.xml',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should prefer existing http URL over its https form', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'
@@ -2320,6 +2379,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed': { body },
+            'http://www.example.com/feed': { body },
             'https://example.com/feed': {
               body,
               url: 'https://www.example.com/feed',
@@ -2340,6 +2400,7 @@ describe('findCanonical', () => {
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://www.example.com/feed': { body },
+            'http://feeds.example.org/feed': { body },
             'https://example.com/feed': {
               body,
               url: 'https://feeds.example.org/feed',
@@ -2351,6 +2412,205 @@ describe('findCanonical', () => {
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a known candidate that matched earlier in the call', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { body, url: 'ftp://example.com/feed' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser('https://example.com/feed'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch a known candidate again when it matched earlier in the call', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = ['https://www.example.com/feed/', 'https://example.com/feed']
+        const fetchCalls: Array<string> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { body, url: 'ftp://example.com/feed' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser('https://example.com/feed'),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should skip a known candidate that served a different feed earlier in the call', async () => {
+        const value = 'https://example.com/feed?id=1'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?id=1': { body: '<feed>category</feed>' },
+            'https://example.com/feed': { body: '<feed>all</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser('https://example.com/feed'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(value)
+      })
+
+      it('should skip a known candidate that fails to fetch and continue', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { status: 404 },
+            'https://www.example.com/feed': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip a known https form of the response URL when it serves a different feed', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'http://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body: '<feed>blog</feed>' },
+            'http://example.com/feed': { body: '<feed>blog</feed>' },
+            'https://www.example.com/feed': { body: '<feed>shop</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://www.example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip a known http form of a self URL that served a different feed', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+            'http://www.example.com/feed/': { body: '<feed>shop</feed>' },
+            'https://www.example.com/feed/': { body: '<feed>blog</feed>' },
+          }),
+          existsFn: (url) => (url === 'http://www.example.com/feed/' ? { id: 42 } : undefined),
+          parser: createMockParser('http://www.example.com/feed/'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch a known http form again when it served a different feed', async () => {
+        const value = 'https://example.com/feed'
+        const expected = [
+          'https://example.com/feed',
+          'http://www.example.com/feed/',
+          'https://www.example.com/feed/',
+        ]
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+            'http://www.example.com/feed/': { body: '<feed>shop</feed>' },
+            'https://www.example.com/feed/': { body: '<feed>blog</feed>' },
+          }),
+          existsFn: (url) => (url === 'http://www.example.com/feed/' ? { id: 42 } : undefined),
+          parser: createMockParser('http://www.example.com/feed/'),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should skip a known https form of a redirect target when it serves a different feed', async () => {
+        const value = 'http://www.example.com/feed?id=1'
+        const expected = 'http://example.com/other'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed?id=1': { body: '<feed>blog</feed>' },
+            'http://example.com/feed': {
+              body: '<feed>blog</feed>',
+              url: 'http://example.com/other',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+            'https://example.com/other': { body: '<feed>shop</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/other' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip a known https form of a cleaned URL when it serves a different feed', async () => {
+        const value = 'http://example.com/go/feed'
+        const expected = 'http://example.com/go/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/go/feed': { body: '<feed>blog</feed>' },
+            'https://example.com/feed': { body: '<feed>shop</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+          cleanUrlFn: (url) => url.replace('/go/feed', '/feed'),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not return a known https form that failed to fetch earlier', async () => {
+        const value = 'feed://example.com/feed'
+        const expected = 'http://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { status: 503 },
+            'http://example.com/feed': { body: '<feed></feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch a known https form again when it failed to fetch earlier', async () => {
+        const value = 'feed://example.com/feed'
+        const expected = ['https://example.com/feed', 'http://example.com/feed']
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { status: 503 },
+            'http://example.com/feed': { body: '<feed></feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
       })
     })
 
@@ -2703,6 +2963,27 @@ describe('findCanonical', () => {
         expect(matchCalls).toEqual(['http://example.com/feed', 'https://example.com/feed'])
       })
 
+      it('should call onMatch once for a URL a later phase reaches again', async () => {
+        const value = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const matchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser('https://example.com/?feed=rss2'),
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://example.com/?feed=rss2': { body },
+          }),
+          probes: [wordpressProbe],
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(['https://example.com/feed', 'https://example.com/?feed=rss2'])
+      })
+
       it('should include full response and feed in onMatch', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -2752,6 +3033,7 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { body },
           }),
           existsFn: (url) => {
             if (url === 'https://example.com/feed') {
@@ -2768,6 +3050,30 @@ describe('findCanonical', () => {
         expect(existsCallData).toEqual({ url: 'https://example.com/feed', data: existingData })
       })
 
+      it('should not call onExists for an http URL the HTTPS upgrade drops', async () => {
+        const value = 'http://www.example.com/feed'
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'http://example.org/feed' },
+          }),
+          existsFn: (url) => {
+            return url === 'http://example.org/feed' ? { id: 1 } : undefined
+          },
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual([])
+      })
+
       it('should return undefined when onExists throws', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
@@ -2775,6 +3081,7 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           fetchFn: createMockFetch({
             'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { body },
           }),
           existsFn: (url) => (url === 'https://example.com/feed' ? { id: 55 } : undefined),
           onExists: () => {
@@ -2887,14 +3194,58 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should not fetch an unwrapped URL that existsFn already knows', async () => {
+      it('should not return an unwrapped URL that existsFn knows when it serves a different feed', async () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
-        const expected = ['https://track.example.org/click?url=https://example.com/feed']
+        const expected = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+            },
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not return an unwrapped URL that existsFn knows when it fails to fetch', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed></feed>',
+            },
+            'https://example.com/feed': { status: 404 },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should fetch an unwrapped URL that existsFn knows once', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
         const fetchCalls: Array<string> = []
         const mockFetch = createMockFetch({
           'https://track.example.org/click?url=https://example.com/feed': {
             body: '<feed></feed>',
           },
+          'https://example.com/feed': { body: '<feed></feed>' },
         })
         const options = toOptions({
           fetchFn: (url) => {
@@ -2911,6 +3262,264 @@ describe('findCanonical', () => {
         await findCanonical(value, options)
 
         expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should return an unwrapped URL that existsFn knows over a valid self URL', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/rss': { body },
+          }),
+          parser: createMockParser('https://example.com/rss'),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should call onExists once for an unwrapped URL that existsFn knows', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [{ url: 'https://example.com/feed', data: { id: 1 } }]
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/rss': { body },
+          }),
+          parser: createMockParser('https://example.com/rss'),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual(expected)
+      })
+
+      it('should return the stored https form of an unwrapped http URL', async () => {
+        const value = 'https://track.example.org/click?url=http://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body: '<feed></feed>' },
+            'https://track.example.org/click?url=http://example.com/feed': {
+              body: '<feed></feed>',
+            },
+            'https://example.com/feed': { body: '<feed></feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a response URL that existsFn knows when the unwrapped URL serves a different feed', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': {
+              body: '<feed>newsletter</feed>',
+            },
+            'https://example.com/feed': { body: '<feed>blog</feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://track.example.org/click?url=https://example.com/feed'
+              ? { id: 1 }
+              : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(value)
+      })
+
+      it('should not fetch a self URL after an unwrapped URL that existsFn knows', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
+        const fetchCalls: Array<string> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body },
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/rss': { body },
+          }),
+          parser: createMockParser('https://example.com/rss'),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+          },
+          onFetch: ({ url }) => {
+            fetchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should return an unwrapped self URL target that existsFn knows', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://www.example.com/blog/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/blog/feed': { body },
+            'https://example.com/feed': { body },
+            'https://example.com/rss': {
+              body,
+              url: 'https://track.example.org/click?url=https://www.example.com/blog/feed',
+            },
+            'https://example.com/blog/feed': { body },
+          }),
+          parser: createMockParser('https://example.com/rss'),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://www.example.com/blog/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should call onExists once for an unwrapped self URL target that existsFn knows', async () => {
+        const value = 'https://example.com/feed'
+        const expected = [{ url: 'https://www.example.com/blog/feed', data: { id: 1 } }]
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/blog/feed': { body },
+            'https://example.com/feed': { body },
+            'https://example.com/rss': {
+              body,
+              url: 'https://track.example.org/click?url=https://www.example.com/blog/feed',
+            },
+          }),
+          parser: createMockParser('https://example.com/rss'),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://www.example.com/blog/feed' ? { id: 1 } : undefined
+          },
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual(expected)
+      })
+
+      it('should return an unwrapped probe target that existsFn knows', async () => {
+        const value = 'https://example.com/?feed=rss2'
+        const expected = 'https://www.example.com/blog/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/blog/feed': { body },
+            'https://example.com/?feed=rss2': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://track.example.org/click?url=https://www.example.com/blog/feed',
+            },
+            'https://example.com/blog/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          probes: [
+            {
+              match: (url) => url.searchParams.has('feed'),
+              getCandidates: () => ['https://example.com/feed'],
+            },
+          ],
+          existsFn: (url) => {
+            return url === 'https://www.example.com/blog/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should call onExists once for an unwrapped candidate target that existsFn knows', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = [{ url: 'https://example.com/blog/feed', data: { id: 1 } }]
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/blog/feed': { body },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://track.example.org/click?url=https://example.com/blog/feed',
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/blog/feed' ? { id: 1 } : undefined
+          },
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual(expected)
+      })
+
+      it('should call onExists once for an unwrapped HTTPS upgrade target that existsFn knows', async () => {
+        const value = 'http://example.com/feed'
+        const expected = [{ url: 'https://example.com/blog/feed', data: { id: 1 } }]
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/blog/feed': { body },
+            'http://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://track.example.org/click?url=https://example.com/blog/feed',
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          existsFn: (url) => {
+            return url === 'https://example.com/blog/feed' ? { id: 1 } : undefined
+          },
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual(expected)
       })
 
       it('should not fetch an unwrapped URL that was the requested URL', async () => {

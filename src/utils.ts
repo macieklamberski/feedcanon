@@ -20,12 +20,12 @@ export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => 
 }
 
 // Apply URL probes, testing each candidate via callback.
-// Returns first working candidate URL, or original if none work.
-export const applyProbes = async (
+// Returns what the callback returned for the first working candidate, or undefined if none work.
+export const applyProbes = async <T>(
   url: string,
   probes: Array<Probe>,
-  testCandidate: (url: string) => MaybePromise<string | undefined>,
-): Promise<string> => {
+  testCandidate: (url: string) => MaybePromise<T | undefined>,
+): Promise<T | undefined> => {
   let candidates: Array<string>
 
   // Only probe errors are swallowed. Errors from testCandidate carry the caller's callbacks.
@@ -35,7 +35,7 @@ export const applyProbes = async (
     const probe = probes.find((probe) => probe.match(parsed))
     candidates = probe ? probe.getCandidates(parsed) : []
   } catch {
-    return url
+    return
   }
 
   for (const candidate of candidates) {
@@ -45,8 +45,6 @@ export const applyProbes = async (
       return result
     }
   }
-
-  return url
 }
 
 // A registered relation name equals its IANA IRI form (RFC 4287 §4.2.7.2) and compares
