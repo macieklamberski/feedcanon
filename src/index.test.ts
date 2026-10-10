@@ -3669,6 +3669,26 @@ describe('findCanonical', () => {
         expect(fetchCalls).toEqual(expected)
       })
 
+      it('should keep the response URL when its cleaned form served a different feed', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://example.com/feed?doing_wp_cron=123'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed/': { body: '<feed>blog</feed>' },
+            'https://example.com/feed': { body: '<feed>shop</feed>' },
+            'https://www.example.com/feed': {
+              body: '<feed>blog</feed>',
+              url: 'https://example.com/feed?doing_wp_cron=123',
+              redirects: [{ url: 'https://www.example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should use an unwrapped URL when it serves the same feed', async () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
         const expected = 'https://example.com/feed'
