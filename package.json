@@ -45,13 +45,15 @@
     "docs:build": "vitepress build docs"
   },
   "dependencies": {
-    "entities": "^8.1.0"
+    "entities": "^8.1.0",
+    "http-link-header": "^1.1.4"
   },
   "peerDependencies": {
     "feedsmith": "^3.0.1"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "@types/http-link-header": "^1.0.7",
     "feedsmith": "^3.0.1",
     "kvalita": "^1.24.3",
     "ogier": "^1.5.0",

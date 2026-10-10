@@ -357,6 +357,23 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should use the Link header self link after a link without rel', async () => {
+        const value = 'https://example.com/feed?format=rss'
+        const expected = 'https://example.com/rss.xml'
+        const body = '<feed></feed>'
+        const link =
+          '<https://example.com/style.css>; type="text/css", <https://example.com/rss.xml>; rel="self"'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?format=rss': { body, headers: new Headers({ link }) },
+            'https://example.com/rss.xml': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should skip a Link header self link with an empty target', async () => {
         const value = 'https://example.com/feed?format=rss'
         const expected = 'https://example.com/rss.xml'

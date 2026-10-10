@@ -1,3 +1,4 @@
+import LinkHeader from 'http-link-header'
 import type { MaybePromise } from 'trousse'
 import { addMissingScheme, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
@@ -53,12 +54,6 @@ export const isRelation = (rel: string, name: string): boolean => {
   return rel.toLowerCase() === name || rel === `http://www.iana.org/assignments/relation/${name}`
 }
 
-// A link is `<uri-reference>` followed by parameters, which may hold commas inside quoted strings.
-const linkRegex = /<(?<target>[^>]*)>(?<params>(?:"[^"]*"|[^,"])*)/g
-// One `name=value` parameter. A quoted value may hold `;` and text that reads as a parameter.
-const paramRegex = /;\s*(?<name>[^=;\s"]+)\s*=\s*(?:"(?<quoted>[^"]*)"|(?<token>[^\s;]+))/g
-const whitespaceRegex = /\s+/
-
 // The target of the first link in a Link header whose rel includes "self".
 // See: https://www.rfc-editor.org/rfc/rfc8288#section-3.
 export const getLinkHeaderSelfUrl = (header: string | null): string | undefined => {
@@ -66,22 +61,25 @@ export const getLinkHeaderSelfUrl = (header: string | null): string | undefined 
     return
   }
 
-  for (const link of header.matchAll(linkRegex)) {
-    const target = link.groups?.target.trim()
+  try {
+    for (const ref of LinkHeader.parse(header).refs) {
+      const target = ref.uri.trim()
 
-    // An empty reference names the response URL itself, which is already matched.
-    if (!target) {
-      continue
+      // An empty reference names the response URL itself, which is already matched.
+      if (!target) {
+        continue
+      }
+
+      // A link without a rel parameter has none, whatever the package's types say.
+      if (!ref.rel) {
+        continue
+      }
+
+      if (isRelation(ref.rel, 'self')) {
+        return target
+      }
     }
-
-    const params = Array.from(link.groups?.params.matchAll(paramRegex) ?? [])
-    const rel = params.find((param) => param.groups?.name.toLowerCase() === 'rel')
-    const relTypes = (rel?.groups?.quoted ?? rel?.groups?.token)?.split(whitespaceRegex)
-
-    if (relTypes?.some((relType) => isRelation(relType, 'self'))) {
-      return target
-    }
-  }
+  } catch {}
 }
 
 export const createSignature = (

@@ -343,6 +343,22 @@ describe('getLinkHeaderSelfUrl', () => {
     expect(getLinkHeaderSelfUrl(value)).toBe(expected)
   })
 
+  it('should ignore rel inside quoted parameter with escaped quotes', () => {
+    const value =
+      '<https://example.com/atom.xml>; title="News \\"; rel=self \\""; rel="alternate", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should skip link without rel before self link', () => {
+    const value =
+      '<https://example.com/style.css>; type="text/css", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
   it('should skip self link with empty target', () => {
     const value = '<>; rel="self", <https://example.com/feed.xml>; rel="self"'
     const expected = 'https://example.com/feed.xml'
