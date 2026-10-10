@@ -146,7 +146,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       return parseFeed(body)
     } catch {}
   },
-  getSelfUrl: (parsed, url) => {
+  getSelfUrl: (parsed, responseUrl) => {
     // See: https://www.jsonfeed.org/version/1.1/, the feed_url field.
     if (parsed.format === 'json') {
       return parsed.feed.feed_url
@@ -160,13 +160,13 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
     }
 
     // Without the retrieval URL, only an absolute xml:base can resolve the href.
-    if (!url && !parseUrl(base)) {
+    if (!responseUrl && !parseUrl(base)) {
       return href
     }
 
     // A relative href resolves against xml:base, itself resolved against the retrieval URL (RFC
     // 4287 §2, RFC 3986 §5.1). Feedsmith keeps only the root element's xml:base.
-    const baseUrl = resolveUrl(base, url) ?? url
+    const baseUrl = resolveUrl(base, responseUrl) ?? responseUrl
 
     if (!baseUrl) {
       return href
@@ -174,7 +174,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 
     return resolveUrl(href, baseUrl)
   },
-  getSignature: (parsed, url) => {
+  getSignature: (parsed, responseUrl, comparedUrls = []) => {
     // Neutralize dynamic fields before generating signature to ensure feeds that differ only in
     // self URL or timestamps are considered semantically identical.
 
@@ -214,7 +214,12 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       }
     }
 
-    const urls = contentUrl ? [url, contentUrl] : [url]
+    const urls = [responseUrl, ...comparedUrls]
+
+    if (contentUrl) {
+      urls.push(contentUrl)
+    }
+
     return neutralizeUrls(signature, urls)
   },
 }

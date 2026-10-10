@@ -2151,6 +2151,95 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(expected)
       })
+
+      describe('feed served from two hosts', () => {
+        it('should match a self URL on another host when its body links to that host', async () => {
+          const value = 'http://blog.example.org/feeds/comments/default'
+          const expected = 'https://feeds.example.com/1/comments/default'
+          const createBody = (protocol: string) => {
+            return `
+              <feed xmlns="http://www.w3.org/2005/Atom">
+                <id>tag:example.com,1999:blog-1.comments</id>
+                <title>Example Blog</title>
+                <link rel="self" href="${protocol}://feeds.example.com/1/comments/default"/>
+                <link rel="alternate" href="http://blog.example.org/"/>
+                <author>
+                  <name>Jane</name>
+                  <uri>http://feeds.example.com/profile/1</uri>
+                </author>
+              </feed>
+            `
+          }
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://blog.example.org/feeds/comments/default': { body: createBody('http') },
+              'http://feeds.example.com/1/comments/default': { body: createBody('http') },
+              'https://feeds.example.com/1/comments/default': { body: createBody('https') },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should match a second self URL on another host after the first one fails', async () => {
+          const value = 'https://blog.example.org/feed'
+          const expected = 'https://feeds.example.com/feed'
+          const createBody = (updated: string) => {
+            return `
+              <feed xmlns="http://www.w3.org/2005/Atom">
+                <title>Example Blog</title>
+                <updated>${updated}</updated>
+                <link rel="self" href="https://feeds.example.com/feed"/>
+                <link rel="alternate" href="https://blog.example.org/"/>
+                <author>
+                  <name>Jane</name>
+                  <uri>https://feeds.example.com/profile/1</uri>
+                </author>
+              </feed>
+            `
+          }
+          const otherBody = `
+            <feed xmlns="http://www.w3.org/2005/Atom">
+              <title>Another Blog</title>
+            </feed>
+          `
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://blog.example.org/feed': {
+                body: createBody('2024-01-01T00:00:00Z'),
+                headers: new Headers({ link: '<https://mirror.example.net/feed>; rel="self"' }),
+              },
+              'https://mirror.example.net/feed': { body: otherBody },
+              'https://feeds.example.com/feed': { body: createBody('2024-01-02T00:00:00Z') },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should pass the URL of the other feed to a custom parser', async () => {
+          const value = 'https://blog.example.org/feed'
+          const expected = 'https://feeds.example.com/feed'
+          const parser: ParserAdapter<string> = {
+            parse: (body) => body,
+            getSelfUrl: () => 'https://feeds.example.com/feed',
+            getSignature: (_parsed, responseUrl, comparedUrls = []) => {
+              return [responseUrl, ...comparedUrls].sort().join(' ')
+            },
+          }
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://blog.example.org/feed': { body: '<feed>a</feed>' },
+              'https://feeds.example.com/feed': { body: '<feed>b</feed>' },
+            }),
+            parser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
     })
   })
 

@@ -208,7 +208,9 @@ const resolveCanonical = async (
     return
   }
 
-  let initialResponseSignature: string | undefined
+  // A signature neutralizes the hosts of both compared URLs, so the initial feed has one signature
+  // per compared host.
+  const initialResponseSignatures = new Map<string, string>()
 
   // Phase 2: Extract and normalize self URLs.
   const selfRequestUrls: Array<string> = []
@@ -299,13 +301,20 @@ const resolveCanonical = async (
 
     // A signature that throws fails this comparison only, as a parse that throws does.
     try {
-      if (!initialResponseSignature) {
-        initialResponseSignature = parser.getSignature(initialResponseFeed, initialBaseUrl)
+      const comparedHost = parseUrl(comparedResponseUrl)?.host ?? ''
+      let initialResponseSignature = initialResponseSignatures.get(comparedHost)
+
+      if (initialResponseSignature === undefined) {
+        initialResponseSignature = parser.getSignature(initialResponseFeed, initialBaseUrl, [
+          comparedResponseUrl,
+        ])
+        initialResponseSignatures.set(comparedHost, initialResponseSignature)
       }
 
       const comparedResponseSignature = parser.getSignature(
         comparedResponseFeed,
         comparedResponseUrl,
+        [initialBaseUrl],
       )
 
       return initialResponseSignature === comparedResponseSignature
