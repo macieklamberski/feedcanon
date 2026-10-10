@@ -6,17 +6,28 @@ title: "Customization: Data Fetching"
 
 By default, Feedcanon uses native `fetch` to perform HTTP requests. You can use any HTTP client by providing a custom `fetchFn` that handles requests and returns responses.
 
-The default fetch gives up after 30 seconds, and the timeout covers reading the body too. It sends an `Accept` header that prefers feed media types ([RFC 9110 §12.5.1](https://www.rfc-editor.org/rfc/rfc9110#section-12.5.1)), unless the `headers` you pass set one. It fetches any http or https URL it's given, including the self URL a feed declares. That URL can point at a private address, like `localhost` or a cloud metadata endpoint. If you run Feedcanon on URLs from untrusted sources, pass a `fetchFn` that blocks private addresses and caps the body size.
+The default fetch gives up after 30 seconds, and the timeout covers reading the body too. It fetches any http or https URL it's given, including the self URL a feed declares. That URL can point at a private address, like `localhost` or a cloud metadata endpoint. If you run Feedcanon on URLs from untrusted sources, pass a `fetchFn` that blocks private addresses and caps the body size.
 
 Below are copy-paste examples for popular HTTP clients. See the [`FetchFnResponse`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) type for the full interface.
 
+The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself never passes it, so every request it makes is a GET. The type also allows HEAD and POST, so one fetch function can serve Feedcanon and any other code that sends those requests.
+
+::: details Default fetch headers
+- **`Accept`.** The default fetch sends an `Accept` header that prefers feed media types ([RFC 9110 §12.5.1](https://www.rfc-editor.org/rfc/rfc9110#section-12.5.1)), unless the `headers` you pass set one.
+- **Credentials.** When a redirect moves to another origin, the default fetch drops the `Authorization`, `Cookie` and `Proxy-Authorization` headers you passed, so credentials for one site never reach another.
+:::
+
 ## Redirects
 
-The default fetch follows up to 20 redirects itself and lists each one in the response's `redirects` field, as the URL that was requested and the status it returned. A redirect to anything other than an http or https URL throws, as it does with `fetch`. Feedcanon reads that list to decide which URL to keep. A 301 or 308 is a permanent move, so the target replaces the URL that was requested. A 302, 303 or 307 is temporary, so Feedcanon keeps the URL from before that redirect, even when the chain moves on from there. A chain of 301 and then 302 ends on the 301 target.
+The default fetch follows up to 20 redirects itself and lists each one in the response's `redirects` field. Feedcanon reads that list to decide which URL to keep. A 301 or 308 is a permanent move, so the target replaces the URL that was requested. A 302, 303 or 307 is temporary, so Feedcanon keeps the URL from before that redirect.
 
 A custom `fetchFn` can fill `redirects` the same way. Without it, Feedcanon uses the final `url` whatever the redirect status was.
 
-The second argument, `FetchFnOptions`, carries the method, the headers and a string body. Feedcanon itself never passes it, so every request it makes is a GET. The type also allows HEAD and POST, so one fetch function can serve Feedcanon and any other code that sends those requests. When a redirect moves to another origin, the default fetch drops the `Authorization`, `Cookie` and `Proxy-Authorization` headers you passed, so credentials for one site never reach another.
+::: details Redirect chains
+- **The `redirects` field** lists each redirect as the URL that was requested and the status it returned.
+- **A temporary redirect** keeps the URL from before it, even when the chain moves on from there. A chain of 301 and then 302 ends on the 301 target.
+- **A redirect to anything other than an http or https URL** throws, as it does with `fetch`.
+:::
 
 ## Axios
 

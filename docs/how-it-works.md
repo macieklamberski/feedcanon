@@ -20,11 +20,12 @@ The process starts by fetching the input URL:
 4. Parse the feed to ensure it's valid
 5. Keep the URL the response came from, following only permanent redirects (see [Redirects](/guides/customization/data-fetching#redirects))
 
-If your `existsFn` knows the URL kept in step 5, it is returned right away. Phases 3, 4, 6 and 7 do the same with every URL they adopt: a URL your `existsFn` knows ends the search.
+If any step fails, the function returns `undefined`. A URL your `existsFn` knows ends the search, at whichever phase adopts it.
 
-If any step fails, the function returns `undefined`. The same goes for an error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse` or `getSelfUrl` on the initial response: the promise never rejects. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
-
-A feed pseudo-scheme like `feed://` or `itpc://` doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
+::: details Errors and feed pseudo-schemes
+- **Errors.** The promise never rejects. An error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse` or `getSelfUrl` on the initial response, makes the function return `undefined`. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
+- **`feed://` and `itpc://`.** A feed pseudo-scheme doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
+:::
 
 ### 2. Self URL Extraction
 
@@ -41,8 +42,9 @@ Many feeds declare their canonical URL using `atom:link rel="self"`:
 </feed>
 ```
 
-The parser extracts this self URL from the feed content. This declared URL often represents the feed author's preferred canonical form.
+The parser extracts this self URL from the feed content. This declared URL often represents the feed author's preferred canonical form. A server can also declare it in the HTTP `Link` response header.
 
+::: details Self URL sources and the Link header
 The default parser reads the self URL from:
 
 - The Atom link whose `rel` is `self` or its IANA form `http://www.iana.org/assignments/relation/self`, in any case for the short name ([RFC 4287 §4.2.7.2](https://www.rfc-editor.org/rfc/rfc4287#section-4.2.7.2), [RFC 8288 §2.1.1](https://www.rfc-editor.org/rfc/rfc8288#section-2.1.1))
@@ -58,10 +60,11 @@ Link: <https://example.com/feed.xml>; rel="self"
 ```
 
 When the header has a self link, it takes precedence over the one in the feed, as [WebSub](https://www.w3.org/TR/websub/#discovery) specifies. The feed's self link is tried only when the header's fails validation. The header's `rel` matches the same way as the feed's, IANA form included. A relative URL in the header is resolved against the response URL. Both go through the same rewrites and cleaning.
+:::
 
 ### 3. Self URL Validation
 
-If a self URL exists and differs from the adopted URL, the response URL after permanent redirects and cleaning, Feedcanon validates it:
+If a self URL exists and differs from the URL kept in Phase 1, Feedcanon validates it:
 
 1. Fetch the self URL
 2. Compare the response with the initial fetch
@@ -110,19 +113,30 @@ https://www.example.com/feed/?id=123&utm_source=twitter
 
 Only Tier 1 drops the query. To remove tracking params from the other tiers too, pass a `cleanUrlFn`, which runs on the response URL before the tiers (see [URL Tiers](/guides/customization/url-tiers#strip-tracking-params)).
 
+::: details Deviations from URI equivalence
+Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, even when your `existsFn` already knows the URL.
+
+- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
+- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
+- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
+:::
+
 ### 6. Candidate Testing
 
 Each candidate is tested in order:
 
 1. Check if the URL exists in your database (via `existsFn`)
-   - If found, fetch it, or reuse the response if this call already fetched it, and return it if it serves the same feed
-   - If found but it serves a different feed or fails to fetch, skip it
+   - If found and it serves the same feed, return it
 2. Fetch the candidate URL
 3. Compare with the initial response using the two-tier matching
 4. Return the first candidate that matches
-   - If it redirects permanently, return the redirect target instead, checked against your `existsFn` like any candidate
 
 This ensures the cleanest working URL is selected.
+
+::: details Known candidates and redirects
+- **A candidate `existsFn` knows** is fetched before it is returned, or its response reused if this call already fetched it. One that serves a different feed or fails to fetch is skipped.
+- **A candidate that redirects permanently** is not where the feed lives, so its redirect target is returned instead, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate.
+:::
 
 ### 7. HTTPS Upgrade
 
@@ -130,20 +144,16 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 
 1. Replace `http://` with `https://`
 2. Fetch and compare with the initial response
-3. If it matches and doesn't redirect back to HTTP, test the HTTPS forms of the cleaner candidates that failed over HTTP, as in candidate testing, and return the first that matches or the HTTPS URL
-4. If the HTTPS URL redirects permanently, return its target instead, as in candidate testing
-
-An HTTP and an HTTPS entry URL of the same feed reach the same result this way. When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
+3. If it matches, return the HTTPS URL
 
 This ensures secure connections when available.
 
-## Deviations From URI Equivalence
-
-Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, even when your `existsFn` already knows the URL.
-
-- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
-- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
-- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
+::: details Redirects and cleaner candidates
+- **An HTTPS URL that redirects back to HTTP** is not served over HTTPS, so the HTTP URL is kept.
+- **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
+- **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
+- **Cost.** When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
+:::
 
 ## Matching Strategy
 
