@@ -471,10 +471,37 @@ const resolveCanonical = async (
 
     reportMatch(rewrittenUrl, rewrittenResponse)
 
-    // A rewritten URL that redirects permanently is not where the feed lives, so its target is.
     const targetUrl = getFetchedSourceUrl(rewrittenResponse, rewrittenUrl) ?? rewrittenUrl
 
-    return adoptCleanedUrl(targetUrl, rewrittenUrl, rewrittenResponse)
+    if (targetUrl === rewrittenUrl) {
+      return adoptCleanedUrl(rewrittenUrl, rewrittenUrl, rewrittenResponse)
+    }
+
+    // A rewritten URL that redirects permanently is not where the feed lives, so its target is.
+    return adoptRedirectTarget(targetUrl, rewrittenResponse)
+  }
+
+  const hasFailed = (url: string): boolean => {
+    return comparedResponses.has(url) && !comparedResponses.get(url)
+  }
+
+  const isSameLocation = (url: string, otherUrl: string): boolean => {
+    const parsed = parseUrl(url)
+    const otherParsed = parseUrl(otherUrl)
+
+    return parsed?.origin === otherParsed?.origin && parsed?.pathname === otherParsed?.pathname
+  }
+
+  // The redirect target of a verified URL, with its query cleaned. A target the cleaner moves to
+  // another origin or path names one more URL nobody fetched, so it is kept as it is.
+  const adoptRedirectTarget = (targetUrl: string, response: FetchFnResponse): CanonicalResult => {
+    const cleanedTargetUrl = cleanUrlFn(targetUrl)
+
+    if (!isSameLocation(targetUrl, cleanedTargetUrl) || hasFailed(cleanedTargetUrl)) {
+      return { url: targetUrl, response, feed: initialResponseFeed }
+    }
+
+    return { url: cleanedTargetUrl, response, feed: initialResponseFeed }
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
@@ -485,17 +512,6 @@ const resolveCanonical = async (
     requestUrl: string,
     response: FetchFnResponse,
   ): Promise<CanonicalResult> => {
-    const hasFailed = (url: string): boolean => {
-      return comparedResponses.has(url) && !comparedResponses.get(url)
-    }
-
-    const isSameLocation = (url: string, otherUrl: string): boolean => {
-      const parsed = parseUrl(url)
-      const otherParsed = parseUrl(otherUrl)
-
-      return parsed?.origin === otherParsed?.origin && parsed?.pathname === otherParsed?.pathname
-    }
-
     const cleanedUrl = cleanUrlFn(responseUrl)
 
     // A cleaned URL that failed earlier in the call is not trusted, even for a query-only edit.
@@ -517,14 +533,8 @@ const resolveCanonical = async (
 
     // A cleaned URL that redirects permanently is not where the feed lives, so its target is.
     const targetUrl = getFetchedSourceUrl(cleanedResponse, cleanedUrl) ?? cleanedUrl
-    const cleanedTargetUrl = cleanUrlFn(targetUrl)
 
-    // A target the cleaner moves to another origin or path names one more URL nobody fetched.
-    if (!isSameLocation(targetUrl, cleanedTargetUrl) || hasFailed(cleanedTargetUrl)) {
-      return { url: targetUrl, response: cleanedResponse, feed: initialResponseFeed }
-    }
-
-    return { url: cleanedTargetUrl, response: cleanedResponse, feed: initialResponseFeed }
+    return adoptRedirectTarget(targetUrl, cleanedResponse)
   }
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
