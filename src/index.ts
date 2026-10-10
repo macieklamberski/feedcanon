@@ -749,28 +749,28 @@ const resolveCanonical = async (
     return winningResult
   }
 
-  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
   const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
-  const adoptedResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
-  let targetResult = adoptedResult
-
-  if (adoptedResult.url !== httpsUrl) {
-    targetResult = await preferHttpsTarget(httpsUrl, await findCanonicalResult(adoptedResult))
-  }
-
-  if (targetResult.data != null) {
-    return targetResult
-  }
 
   // An https URL whose response ends on http, through any redirect, is not served over https.
-  if (isServedOverHttp(targetResult.response.url)) {
-    return winningResult
+  // The https form of its permanent redirect target still can be.
+  if (isServedOverHttp(httpsResponse.url)) {
+    const sourceResult = { url: sourceUrl, response: httpsResponse, feed: initialResponseFeed }
+    const httpsTargetResult = await preferHttpsTarget(httpsUrl, sourceResult)
+
+    if (httpsTargetResult === sourceResult) {
+      return winningResult
+    }
+
+    return httpsTargetResult
   }
 
   reportMatch(httpsUrl, httpsResponse)
 
+  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
+  const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
+
   if (targetResult.url !== httpsUrl) {
-    return targetResult
+    return preferHttpsTarget(httpsUrl, await findCanonicalResult(targetResult))
   }
 
   // A cleaner candidate that failed over http can still serve the feed over https. A winner that
