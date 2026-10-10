@@ -64,6 +64,20 @@ export const defaultFetch: FetchFn = async (url, options) => {
       signal,
       redirect: 'manual',
     })
+
+    // A browser hides a manual redirect behind an opaque response without a status or Location,
+    // so the request is repeated with fetch following redirects. Their statuses stay unknown.
+    if (response.type === 'opaqueredirect') {
+      const followedResponse = await fetch(requestUrl, { method, headers, body, signal })
+
+      return {
+        headers: followedResponse.headers,
+        body: await followedResponse.text(),
+        url: followedResponse.url,
+        status: followedResponse.status,
+      }
+    }
+
     const location = response.headers.get('location')
 
     if (!redirectStatuses.includes(response.status) || !location) {

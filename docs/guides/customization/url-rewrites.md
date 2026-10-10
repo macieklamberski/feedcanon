@@ -62,6 +62,7 @@ Transforms Blogger and Blogspot URLs to canonical form. Since Blogger/Blogspot U
 |------|-----|
 | `https://example.blogspot.co.uk/feeds/posts/default` | `https://example.blogspot.com/feeds/posts/default` |
 | `https://example.blogspot.de/atom.xml` | `https://example.blogspot.com/feeds/posts/default` |
+| `http://www.example.blogspot.com/feeds/posts/default` | `https://example.blogspot.com/feeds/posts/default` |
 | `http://blogger.com/feeds/123/posts/default` | `https://www.blogger.com/feeds/123/posts/default` |
 
 Transformations applied:
@@ -69,6 +70,7 @@ Transformations applied:
 - Legacy paths: `/atom.xml` → `/feeds/posts/default`, `/rss.xml` → `/feeds/posts/default?alt=rss`
 - HTTP → HTTPS
 - `blogger.com` → `www.blogger.com`
+- `www.example.blogspot.com` → `example.blogspot.com`, since the Blogspot certificate does not cover the `www` form
 - Strips Blogger API params that do not change which feed is served: `alt=atom`, `alt=json`, an empty `alt` and `v`
 - Keeps `alt=rss`, which selects the RSS version of the feed
 - Keeps `redirect`: without `redirect=false`, a blog that set up FeedBurner redirects its feed there, and the FeedBurner feed can carry different content

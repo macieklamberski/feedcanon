@@ -24,7 +24,7 @@ If any step fails, the function returns `undefined`. A URL your `existsFn` knows
 
 ::: details Errors and feed pseudo-schemes
 - **Errors.** The promise never rejects. An error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse` or `getSelfUrl` on the initial response, makes the function return `undefined`. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
-- **`feed://` and `itpc://`.** A feed pseudo-scheme doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
+- **`feed://` and `itpc://`.** A feed pseudo-scheme doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. When a rewrite maps both forms to the same URL, as `bloggerRewrite` does by forcing https, that URL is fetched once. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
 :::
 
 ### 2. Self URL Extraction
@@ -135,7 +135,7 @@ This ensures the cleanest working URL is selected.
 
 ::: details Known candidates and redirects
 - **A candidate `existsFn` knows** is fetched before it is returned, or its response reused if this call already fetched it. One that serves a different feed or fails to fetch is skipped.
-- **A candidate that redirects permanently** is not where the feed lives, so the search moves to its redirect target, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate, and its own cleaner candidates are tested once, so every entry URL of a feed reaches the same result.
+- **A candidate that redirects permanently** is not where the feed lives, so the search moves to its redirect target, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate, and its own cleaner candidates are tested once, so every entry URL of a feed reaches the same result. When the target is the candidate's own form under the other protocol, the URL your `existsFn` knows is returned, so the feed is not stored twice.
 - **An HTTPS candidate that redirects permanently to HTTP** uses the HTTPS form of that target when it serves the feed. Otherwise the HTTP target is used.
 :::
 
@@ -151,7 +151,7 @@ This ensures secure connections when available.
 
 ::: details Redirects and cleaner candidates
 - **An HTTPS URL that redirects back to HTTP** is not served over HTTPS, so the HTTP URL is kept.
-- **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
+- **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. One that redirects permanently to an HTTP URL is ignored, unless `existsFn` knows that URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
 - **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
 - **Cost.** When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
 - **A permanent redirect target served over HTTP** is returned under its HTTPS form when that serves the feed.

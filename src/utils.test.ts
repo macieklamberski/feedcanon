@@ -335,11 +335,51 @@ describe('getLinkHeaderSelfUrl', () => {
     expect(getLinkHeaderSelfUrl(value)).toBe(expected)
   })
 
+  it('should ignore rel inside quoted parameter', () => {
+    const value =
+      '<https://example.com/atom.xml>; title="News; rel=self daily"; rel="alternate", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should ignore rel inside quoted parameter with escaped quotes', () => {
+    const value =
+      '<https://example.com/atom.xml>; title="News \\"; rel=self \\""; rel="alternate", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should skip link without rel before self link', () => {
+    const value =
+      '<https://example.com/style.css>; type="text/css", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should skip self link with empty target', () => {
+    const value = '<>; rel="self", <https://example.com/feed.xml>; rel="self"'
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
   it('should return relative target as is', () => {
     const value = '</feed.xml>; rel="self"'
     const expected = '/feed.xml'
 
     expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
+  it('should handle a long run of parameters in linear time', () => {
+    const value = `<https://example.com/feed.xml>${'; title="News'.repeat(20000)}`
+    const start = performance.now()
+    getLinkHeaderSelfUrl(value)
+    const elapsed = performance.now() - start
+
+    expect(elapsed).toBeLessThan(1000)
   })
 
   it('should return undefined when no link has rel self', () => {

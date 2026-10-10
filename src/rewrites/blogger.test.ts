@@ -216,6 +216,13 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
+    it('should strip www from a blogspot host', () => {
+      const value = new URL('https://www.example.blogspot.com/feeds/posts/default')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
     it('should normalize .blogspot.in to .blogspot.com', () => {
       const value = new URL('https://example.blogspot.in/feeds/posts/default')
       const expected = 'https://example.blogspot.com/feeds/posts/default'
