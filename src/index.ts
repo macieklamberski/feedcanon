@@ -488,6 +488,13 @@ const resolveCanonical = async (
     const cleaned = parseUrl(cleanedUrl)
     const isSameLocation =
       received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
+    const hasCleanedUrlFailed =
+      comparedResponses.has(cleanedUrl) && !comparedResponses.get(cleanedUrl)
+
+    // A cleaned URL that failed earlier in the call is not trusted, even for a query-only edit.
+    if (hasCleanedUrlFailed) {
+      return { url: responseUrl, response, feed: initialResponseFeed }
+    }
 
     if (isSameLocation || cleanedUrl === requestUrl) {
       return { url: cleanedUrl, response, feed: initialResponseFeed }
