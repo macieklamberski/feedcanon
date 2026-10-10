@@ -186,10 +186,6 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       continue
     }
 
-    if (!hosts.has(stripWww(parsed.host).toLowerCase())) {
-      continue
-    }
-
     // Root-relative form with the trailing slash collapsed (the root path stays `/`).
     let path = parsed.pathname
     if (path.length > 1 && path.endsWith('/')) {
