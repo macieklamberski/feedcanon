@@ -324,9 +324,8 @@ const resolveCanonical = async (
   }
 
   // The final URL of the initial response served it too, so a later phase does not fetch it again.
-  if (!comparedResponses.has(initialResponseUrlRaw)) {
-    comparedResponses.set(initialResponseUrlRaw, initialResponse)
-  }
+  // This also clears the failure above when the http fallback was served by that https form.
+  comparedResponses.set(initialResponseUrlRaw, initialResponse)
 
   // Whether a response landed on http, the final URL after every redirect.
   const isServedOverHttp = (finalUrl: string): boolean => {
