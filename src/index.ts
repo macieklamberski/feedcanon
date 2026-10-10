@@ -531,9 +531,13 @@ const resolveCanonical = async (
 
     reportMatch(cleanedUrl, cleanedResponse)
 
-    // A cleaned URL that redirects permanently is not where the feed lives, so its target is.
     const targetUrl = getFetchedSourceUrl(cleanedResponse, cleanedUrl) ?? cleanedUrl
 
+    if (targetUrl === cleanedUrl) {
+      return { url: cleanedUrl, response: cleanedResponse, feed: initialResponseFeed }
+    }
+
+    // A cleaned URL that redirects permanently is not where the feed lives, so its target is.
     return adoptRedirectTarget(targetUrl, cleanedResponse)
   }
 

@@ -2008,21 +2008,28 @@ describe('findCanonical', () => {
       const value = 'https://example.com/feed'
       const expected = 'https://example.org/feed'
       const body = '<feed></feed>'
+      const hostRewrite: Rewrite = {
+        match: (url) => url.hostname === 'old.example.com',
+        rewrite: (url) => {
+          url.hostname = 'new.example.com'
+          return url
+        },
+      }
       const options = toOptions({
         fetchFn: createMockFetch({
           'https://example.com/feed': {
             body,
-            url: 'https://feeds2.feedburner.com/example',
+            url: 'https://old.example.com/feed',
             redirects: [{ url: 'https://example.com/feed', status: 301 }],
           },
-          'https://feeds.feedburner.com/example': {
+          'https://new.example.com/feed': {
             body,
             url: 'https://example.org/feed',
-            redirects: [{ url: 'https://feeds.feedburner.com/example', status: 301 }],
+            redirects: [{ url: 'https://new.example.com/feed', status: 301 }],
           },
         }),
         parser: createMockParser(undefined),
-        rewrites: [feedburnerRewrite],
+        rewrites: [hostRewrite],
       })
 
       expect(await findCanonical(value, options)).toBe(expected)
