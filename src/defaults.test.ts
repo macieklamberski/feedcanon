@@ -3,7 +3,7 @@ import { defaultFetch, defaultParser } from './defaults.js'
 import type { DefaultParserResult, FetchFnResponse } from './types.js'
 
 describe('defaultFetch', () => {
-  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status'>
+  type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status' | 'type'>
 
   const createFetchMock = (
     implementation: (url: string, options?: RequestInit) => Response | Promise<Response>,
@@ -18,6 +18,7 @@ describe('defaultFetch', () => {
       text: partial.text ?? (async () => ''),
       url: partial.url ?? '',
       status: partial.status ?? 200,
+      type: partial.type ?? 'basic',
     }
 
     // @ts-expect-error: This is for testing purposes.
@@ -300,6 +301,29 @@ describe('defaultFetch', () => {
         { url: 'http://example.com/rss', status: 301 },
         { url: 'https://example.com/rss', status: 302 },
       ],
+    }
+
+    expect(await defaultFetch('http://example.com/rss')).toEqual(expected)
+  })
+
+  it('should follow redirects through fetch when a manual redirect comes back opaque', async () => {
+    fetchSpy.mockImplementation(
+      createFetchMock((url: string, options?: RequestInit) => {
+        if (options?.redirect === 'manual') {
+          return createMockResponse({ url, status: 0, type: 'opaqueredirect' })
+        }
+
+        return createMockResponse({
+          url: 'https://example.com/feed.xml',
+          text: async () => '<rss></rss>',
+        })
+      }),
+    )
+    const expected: FetchFnResponse = {
+      url: 'https://example.com/feed.xml',
+      body: '<rss></rss>',
+      headers: expect.any(Headers),
+      status: 200,
     }
 
     expect(await defaultFetch('http://example.com/rss')).toEqual(expected)
