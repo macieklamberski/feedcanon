@@ -726,6 +726,11 @@ const resolveCanonical = async (
     return targetResult
   }
 
+  // A URL existsFn knows wins once it served the feed, over http too, so no duplicate is stored.
+  if (httpsCandidateResult.data != null) {
+    return httpsCandidateResult
+  }
+
   // An https candidate that redirects permanently to an http URL is not served over https.
   if (isServedOverHttp(httpsCandidateResult.url)) {
     return targetResult

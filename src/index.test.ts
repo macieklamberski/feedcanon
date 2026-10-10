@@ -811,6 +811,30 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return stored HTTP URL when cleaner HTTPS candidate redirects permanently to it', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'http://feeds.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'http://example.com/feed': { status: 404 },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://feeds.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          existsFn: (url) => {
+            return url === 'http://feeds.example.com/feed' ? { id: 1 } : undefined
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should not retry cleaner candidates over HTTPS when a redirect target won', async () => {
         const value = 'http://www.example.com/feed'
         const expected = 'https://feeds.example.org/feed'
@@ -3309,7 +3333,7 @@ describe('findCanonical', () => {
         expect(existsCallData).toEqual({ url: 'https://example.com/feed', data: existingData })
       })
 
-      it('should not call onExists for an http URL the HTTPS upgrade drops', async () => {
+      it('should call onExists for a stored http URL a cleaner HTTPS candidate redirects to', async () => {
         const value = 'http://www.example.com/feed'
         const existsCalls: Array<{ url: string; data: unknown }> = []
         const body = '<feed></feed>'
@@ -3330,7 +3354,7 @@ describe('findCanonical', () => {
 
         await findCanonical(value, options)
 
-        expect(existsCalls).toEqual([])
+        expect(existsCalls).toEqual([{ url: 'http://example.org/feed', data: { id: 1 } }])
       })
 
       it('should return undefined when onExists throws', async () => {
