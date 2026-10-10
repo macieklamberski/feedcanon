@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it, spyOn } from 'bun:test'
 import { defaultParser } from './defaults.js'
 import { findCanonical } from './index.js'
 import { wordpressProbe } from './probes/wordpress.js'
+import { bloggerRewrite } from './rewrites/blogger.js'
 import { feedburnerRewrite } from './rewrites/feedburner.js'
 import type {
   FetchFnResponse,
@@ -2002,6 +2003,20 @@ describe('findCanonical', () => {
       await findCanonical(value, options)
 
       expect(canonicalData).toEqual(expected)
+    })
+
+    it('should resolve an http www Blogspot URL to the https URL without www', async () => {
+      const value = 'http://www.example.blogspot.com/feeds/posts/default'
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.blogspot.com/feeds/posts/default': { body: '<feed></feed>' },
+        }),
+        parser: createMockParser(undefined),
+        rewrites: [bloggerRewrite],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
 
     it('should normalize FeedBurner aliases to canonical domain', async () => {

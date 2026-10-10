@@ -6,6 +6,9 @@ const bloggerRegex = /^(www\.|beta\.)?blogger\.com$/
 // Matches *.blogspot.com and the country-specific TLDs like *.blogspot.co.uk, *.blogspot.de.
 const blogspotRegex = /\.blogspot\.(com|(co|com)\.[a-z]{2}|[a-z]{2})$/i
 
+// Matches the www label in front of a blog's name, as in www.example.blogspot.com.
+const blogspotWwwRegex = /^www\.(?=[^.]+\.blogspot\.com$)/
+
 const redundantAltValues = ['atom', 'json', '']
 
 export const bloggerRewrite: Rewrite = {
@@ -30,6 +33,10 @@ export const bloggerRewrite: Rewrite = {
     // Rewrite legacy feed URLs to modern format - atom.xml and rss.xml are backward-compatible.
     if (isBlogspot) {
       rewritten.hostname = rewritten.hostname.replace(blogspotRegex, '.blogspot.com')
+
+      // The Blogspot certificate does not cover the www host of a blog, so its https form cannot
+      // be fetched. It serves the same feed as the host without www.
+      rewritten.hostname = rewritten.hostname.replace(blogspotWwwRegex, '')
 
       if (rewritten.pathname === '/atom.xml') {
         rewritten.pathname = '/feeds/posts/default'
