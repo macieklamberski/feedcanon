@@ -4,7 +4,7 @@ title: Using Callbacks
 
 # Using Callbacks
 
-Feedcanon provides callbacks to track progress and hook into the resolution flow. Callbacks are called synchronously and not awaited. If a callback throws, or `existsFn` throws or rejects, `findCanonical` stops and returns `undefined`. A rejection from an async callback is not caught, so handle it inside the callback.
+Feedcanon provides callbacks to track progress and hook into the resolution flow:
 
 | Callback | Fires when | Data |
 |----------|------------|------|
@@ -12,6 +12,10 @@ Feedcanon provides callbacks to track progress and hook into the resolution flow
 | `onMatch` | URL matches initial response | `{ url, response, feed }` |
 | `onExists` | The returned URL was found by `existsFn` | `{ url, data }` |
 | `onCanonical` | Once, with the returned URL | `{ url, response, feed }` |
+
+::: details Errors and async callbacks
+Callbacks are called synchronously and not awaited. If a callback throws, or `existsFn` throws or rejects, `findCanonical` stops and returns `undefined`. A rejection from an async callback is not caught, so handle it inside the callback.
+:::
 
 ## onFetch
 
@@ -45,7 +49,7 @@ The `response` object contains:
 
 ## onMatch
 
-Fires when a URL candidate produces content matching the initial response. It also fires once for the input URL, right after the feed is parsed and before any candidate is tested. If rewrites are configured, the URL reported is the rewritten one. Each URL is reported once per call, even when several steps match it.
+Fires when a URL candidate produces content matching the initial response. It also fires once for the input URL, right after the feed is parsed and before any candidate is tested. If rewrites are configured, the URL reported is the rewritten one. Each URL is reported once per call.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -78,7 +82,7 @@ The callback receives:
 
 ## onExists
 
-Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned once it serves the same feed, without further testing. A URL Feedcanon has not fetched yet in the call is fetched once to check that. The one exception is a `cleanUrlFn` result that only edits the query, which is trusted without a fetch.
+Use `existsFn` to check if URLs already exist in your database. When found, that URL is returned once it serves the same feed, without further testing.
 
 ```typescript
 import { findCanonical } from 'feedcanon'
@@ -94,12 +98,19 @@ const url = await findCanonical('https://example.com/feed', {
 ```
 
 The `existsFn` function:
-- Receives each URL Feedcanon adopts or tests as a candidate, then the same URL under the other protocol: the http form of an https candidate, the https form of an http one
-- Has a known form under the other protocol checked first: Feedcanon accepts it only once it serves the same feed, and skips it when it serves a different feed or cannot be fetched
+- Receives each URL Feedcanon adopts or tests as a candidate, then the same URL under the other protocol
 - Returns your data if URL exists, `null` or `undefined` otherwise
 - Triggers early termination when a match is found
 
-The `onExists` callback fires once, with the URL and your database record. It fires only when `existsFn` found the URL that `findCanonical` returns. A known URL that is then dropped does not fire it, such as an http URL the HTTPS upgrade passes over.
+The `onExists` callback fires once, with the URL and your database record, when `existsFn` found the URL that `findCanonical` returns.
+
+::: details How a known URL is verified
+- **One lookup per URL.** Each URL is looked up once per call, and its answer reused when a later phase adopts it again.
+- **Verification.** A known URL Feedcanon has not fetched yet in the call is fetched once to check that it serves the same feed. The one exception is a `cleanUrlFn` result that only edits the query, which is trusted without a fetch.
+- **The other protocol.** After each URL, `existsFn` receives its form under the other protocol: the http form of an https URL, the https form of an http one. A known form is accepted only once it serves the same feed, and skipped when it serves a different feed or cannot be fetched.
+- **A known URL that is dropped** does not fire `onExists`, such as an http URL the HTTPS upgrade passes over.
+- **`onCanonical` for a known URL** carries the response that verified it, since Feedcanon returns a URL only after it served the same feed in the call.
+:::
 
 ## onCanonical
 
@@ -123,7 +134,7 @@ The callback receives:
 | `response` | `FetchFnResponse` | The response that served the URL |
 | `feed` | `TFeed` | Parsed feed object |
 
-A URL `existsFn` knows comes with the response that verified it, since Feedcanon returns a URL only after it served the same feed in the call. The callback does not fire when `findCanonical` returns `undefined`.
+The callback does not fire when `findCanonical` returns `undefined`.
 
 ## Examples
 
