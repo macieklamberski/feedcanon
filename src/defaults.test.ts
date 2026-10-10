@@ -762,6 +762,20 @@ describe('defaultParser', () => {
       expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
     })
 
+    it('should return self href as is with scheme-less xml:base and no retrieval URL', async () => {
+      const value = `
+        <?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom" xml:base="example.com/blog/">
+          <title>Test</title>
+          <link rel="self" href="feed.atom"/>
+        </feed>
+      `
+      const parsed = await parseOrThrow(value)
+      const expected = 'feed.atom'
+
+      expect(defaultParser.getSelfUrl(parsed)).toBe(expected)
+    })
+
     it('should keep absolute self href when xml:base is set', async () => {
       const value = `
         <?xml version="1.0"?>
