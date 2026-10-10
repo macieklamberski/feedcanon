@@ -108,7 +108,7 @@ The `onExists` callback fires once, with the URL and your database record, when 
 - **One lookup per URL.** Each URL is looked up once per call, and its answer reused when a later phase adopts it again.
 - **Verification.** A known URL Feedcanon has not fetched yet in the call is fetched once to check that it serves the same feed. The one exception is a `cleanUrlFn` result that only edits the query, which is trusted without a fetch.
 - **The other protocol.** After each URL, `existsFn` receives its form under the other protocol: the http form of an https URL, the https form of an http one. A known form is accepted only once it serves the same feed, and skipped when it serves a different feed or cannot be fetched.
-- **A known URL that is skipped** does not fire `onExists`: one that serves a different feed or cannot be fetched.
+- **A known URL that is skipped** does not fire `onExists`: one that serves a different feed, cannot be fetched, or redirects permanently to another URL.
 - **`onCanonical` for a known URL** carries the response that verified it, since Feedcanon returns a URL only after it served the same feed in the call.
 :::
 

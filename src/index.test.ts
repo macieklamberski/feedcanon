@@ -3335,6 +3335,7 @@ describe('findCanonical', () => {
 
       it('should call onExists for a stored http URL a cleaner HTTPS candidate redirects to', async () => {
         const value = 'http://www.example.com/feed'
+        const expected = [{ url: 'http://example.org/feed', data: { id: 1 } }]
         const existsCalls: Array<{ url: string; data: unknown }> = []
         const body = '<feed></feed>'
         const options = toOptions({
@@ -3354,7 +3355,7 @@ describe('findCanonical', () => {
 
         await findCanonical(value, options)
 
-        expect(existsCalls).toEqual([{ url: 'http://example.org/feed', data: { id: 1 } }])
+        expect(existsCalls).toEqual(expected)
       })
 
       it('should return undefined when onExists throws', async () => {
