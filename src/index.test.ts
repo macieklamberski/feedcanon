@@ -732,38 +732,6 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return a rewritten HTTPS redirect target that redirects temporarily to HTTP', async () => {
-        const value = 'http://example.com/feed'
-        const expected = 'https://example.com/feed/'
-        const body = '<feed></feed>'
-        const hostRewrite: Rewrite = {
-          match: (url) => url.hostname === 'old.example.com',
-          rewrite: (url) => {
-            url.hostname = 'example.com'
-            return url
-          },
-        }
-        const options = toOptions({
-          fetchFn: createMockFetch({
-            'http://example.com/feed': { body },
-            'https://example.com/feed': {
-              body,
-              url: 'https://old.example.com/feed/',
-              redirects: [{ url: 'https://example.com/feed', status: 301 }],
-            },
-            'https://example.com/feed/': {
-              body,
-              url: 'http://old.example.com/feed/',
-              redirects: [{ url: 'https://example.com/feed/', status: 302 }],
-            },
-          }),
-          parser: createMockParser(undefined),
-          rewrites: [hostRewrite],
-        })
-
-        expect(await findCanonical(value, options)).toBe(expected)
-      })
-
       it('should not retry cleaner candidates over HTTPS when a redirect target won', async () => {
         const value = 'http://www.example.com/feed'
         const expected = 'https://feeds.example.org/feed'
@@ -918,6 +886,38 @@ describe('findCanonical', () => {
             'https://example.com/a&amp;b/feed': { body },
           }),
           parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a rewritten HTTPS redirect target that redirects temporarily to HTTP', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://example.com/feed/'
+        const body = '<feed></feed>'
+        const hostRewrite: Rewrite = {
+          match: (url) => url.hostname === 'old.example.com',
+          rewrite: (url) => {
+            url.hostname = 'example.com'
+            return url
+          },
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://old.example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'https://example.com/feed/': {
+              body,
+              url: 'http://old.example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed/', status: 302 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          rewrites: [hostRewrite],
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
