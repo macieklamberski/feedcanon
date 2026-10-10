@@ -20,7 +20,7 @@ The process starts by fetching the input URL:
 4. Parse the feed to ensure it's valid
 5. Keep the URL the response came from, following only permanent redirects (see [Redirects](/guides/customization/data-fetching#redirects))
 
-If your `existsFn` knows the URL kept in step 5, it is returned right away. Phases 3, 4, 6 and 7 do the same with every URL they adopt: a URL your `existsFn` knows ends the search.
+A URL your `existsFn` knows ends the search, at whichever phase adopts it.
 
 If any step fails, the function returns `undefined`. The same goes for an error thrown by the parser, `existsFn`, `cleanUrlFn` or a callback at any phase: the promise never rejects.
 
