@@ -561,6 +561,39 @@ const resolveCanonical = async (
     return findCanonicalResult(await adoptRewrittenUrl(sourceUrl, requestUrl, response))
   }
 
+  // An https URL that redirects permanently to http leaves https, so the https form of its target
+  // is used when that serves the feed. A target existsFn knows is kept as it is.
+  const adoptHttpsTarget = async (
+    requestUrl: string,
+    targetResult: CanonicalResult,
+  ): Promise<CanonicalResult> => {
+    const isHttpsToHttp =
+      requestUrl.startsWith('https://') && targetResult.url.startsWith('http://')
+
+    if (targetResult.data != null || !isHttpsToHttp) {
+      return targetResult
+    }
+
+    const httpsTargetUrl = upgradeScheme(targetResult.url)
+    const httpsTargetResponse = await fetchAndCompare(httpsTargetUrl)
+
+    if (!httpsTargetResponse || isServedOverHttp(httpsTargetResponse.url)) {
+      return targetResult
+    }
+
+    if (getFetchedSourceUrl(httpsTargetResponse, httpsTargetUrl) !== httpsTargetUrl) {
+      return targetResult
+    }
+
+    reportMatch(httpsTargetUrl, httpsTargetResponse)
+
+    return findCanonicalResult({
+      url: httpsTargetUrl,
+      response: httpsTargetResponse,
+      feed: initialResponseFeed,
+    })
+  }
+
   const initialResult = await adoptResponseUrl(initialResponse, initialRequestUrl, {
     url: initialResponseUrlRaw,
     response: initialResponse,
@@ -629,29 +662,36 @@ const resolveCanonical = async (
     candidateSource = probeResult
   }
 
-  const candidateSourceUrl = candidateSource.url
-
   // Phase 5: Generate Candidates.
-  // Include candidateSource so Phase 7 finds the winning URL's place in the tier order. Testing
-  // skips it, since it was verified and looked up when adopted.
-  const candidateUrls = new Set(
-    tiers
-      .map((tier) => {
-        // A tier can strip the scheme, and the parser accepts only absolute URLs.
-        const normalizedUrl = addMissingScheme(normalizeUrl(candidateSourceUrl, tier))
+  // Include the source so Phase 7 finds the winning URL's place in the tier order. Testing skips
+  // it, since it was verified and looked up when adopted.
+  const generateCandidateUrls = (sourceUrl: string): Set<string> => {
+    const urls = new Set(
+      tiers
+        .map((tier) => {
+          // A tier can strip the scheme, and the parser accepts only absolute URLs.
+          const normalizedUrl = addMissingScheme(normalizeUrl(sourceUrl, tier))
 
-        return parseAndApplyRewrites(normalizedUrl)
-      })
-      .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
-  )
-  candidateUrls.add(candidateSourceUrl)
+          return parseAndApplyRewrites(normalizedUrl)
+        })
+        .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
+    )
+    urls.add(sourceUrl)
+
+    return urls
+  }
+
+  let candidateUrls = generateCandidateUrls(candidateSource.url)
 
   // Phase 6: Test Candidates (in tier order, first match wins).
   // Returns the first candidate that serves the feed, with its existsFn data when existsFn knows
   // it, which ends the search before the HTTPS upgrade.
-  const testCandidates = async (urls: Iterable<string>): Promise<CanonicalResult | undefined> => {
+  const testCandidates = async (
+    urls: Iterable<string>,
+    isRestartAllowed = false,
+  ): Promise<CanonicalResult | undefined> => {
     for (const candidateUrl of urls) {
-      if (candidateUrl === candidateSourceUrl) {
+      if (candidateUrl === candidateSource.url) {
         continue
       }
 
@@ -681,29 +721,47 @@ const resolveCanonical = async (
           return { url: candidateUrl, response: candidateResponse, feed: initialResponseFeed }
         }
 
-        // A candidate that redirects permanently is not where the feed lives, so its target is the
-        // result, known or not. A response URL kept because its cleaned form failed verification
-        // matches uncleaned. Both were looked up in existsFn when adopted.
-        const knownResult = [candidateSource, initialResult].find(({ url }) => {
+        // A candidate that redirects permanently is not where the feed lives, so the search moves
+        // to its target, known or not. A response URL kept because its cleaned form failed
+        // verification matches uncleaned. Both were looked up in existsFn when adopted.
+        let adoptedResult = [candidateSource, initialResult].find(({ url }) => {
           return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
         })
 
-        if (knownResult) {
-          return knownResult
+        if (!adoptedResult) {
+          adoptedResult = await findCanonicalResult(
+            await adoptRewrittenUrl(candidateResponseUrl, candidateUrl, candidateResponse),
+          )
         }
 
-        const targetResult = await adoptRewrittenUrl(
-          candidateResponseUrl,
-          candidateUrl,
-          candidateResponse,
-        )
+        const targetResult = await adoptHttpsTarget(candidateUrl, adoptedResult)
 
-        return findCanonicalResult(targetResult)
+        // A target that is the source itself was tested already, so the search ends on it.
+        if (targetResult.url === candidateSource.url) {
+          return candidateSource
+        }
+
+        if (targetResult.data != null || !isRestartAllowed) {
+          return targetResult
+        }
+
+        // The target is where the feed lives, so its own candidates are tested once, as when the
+        // call starts at the target. Every entry URL of the feed then reaches the same result.
+        candidateSource = targetResult
+        candidateUrls = generateCandidateUrls(targetResult.url)
+
+        const restartResult = await testCandidates(candidateUrls)
+
+        if (restartResult) {
+          return restartResult
+        }
+
+        return targetResult
       }
     }
   }
 
-  const candidateResult = await testCandidates(candidateUrls)
+  const candidateResult = await testCandidates(candidateUrls, true)
 
   if (candidateResult?.data != null) {
     return candidateResult
@@ -720,23 +778,36 @@ const resolveCanonical = async (
   const httpsUrl = upgradeScheme(winningUrl)
   const httpsResponse = await fetchAndCompare(httpsUrl)
 
-  // An https URL whose response ends on http, through any redirect, is not served over https.
-  if (!httpsResponse || isServedOverHttp(httpsResponse.url)) {
+  if (!httpsResponse) {
     return winningResult
+  }
+
+  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
+
+  // An https URL whose response ends on http, through any redirect, is not served over https.
+  // The https form of its permanent redirect target still can be.
+  if (isServedOverHttp(httpsResponse.url)) {
+    const sourceResult = { url: sourceUrl, response: httpsResponse, feed: initialResponseFeed }
+    const httpsTargetResult = await adoptHttpsTarget(httpsUrl, sourceResult)
+
+    if (httpsTargetResult === sourceResult) {
+      return winningResult
+    }
+
+    return httpsTargetResult
   }
 
   reportMatch(httpsUrl, httpsResponse)
 
   // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
-  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
   const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
 
   if (targetResult.url !== httpsUrl) {
-    return findCanonicalResult(targetResult)
+    return adoptHttpsTarget(httpsUrl, await findCanonicalResult(targetResult))
   }
 
-  // A cleaner candidate that failed over http can still serve the feed over https. A redirect
-  // target that won Phase 6 is not a candidate, so it gets no retry. Phase 6 looked up both
+  // A cleaner candidate that failed over http can still serve the feed over https. A winner that
+  // is not a candidate, such as a second redirect target, gets no retry. Phase 6 looked up both
   // protocol forms of the winning URL, so httpsUrl is not looked up again.
   if (!candidateUrls.has(winningUrl)) {
     return targetResult

@@ -135,7 +135,8 @@ This ensures the cleanest working URL is selected.
 
 ::: details Known candidates and redirects
 - **A candidate `existsFn` knows** is fetched before it is returned, or its response reused if this call already fetched it. One that serves a different feed or fails to fetch is skipped.
-- **A candidate that redirects permanently** is not where the feed lives, so its redirect target is returned instead, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate. When the target is the candidate's own form under the other protocol, the URL your `existsFn` knows is returned, so the feed is not stored twice.
+- **A candidate that redirects permanently** is not where the feed lives, so the search moves to its redirect target, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate, and its own cleaner candidates are tested once, so every entry URL of a feed reaches the same result. When the target is the candidate's own form under the other protocol, the URL your `existsFn` knows is returned, so the feed is not stored twice.
+- **An HTTPS candidate that redirects permanently to HTTP** uses the HTTPS form of that target when it serves the feed. Otherwise the HTTP target is used.
 :::
 
 ### 7. HTTPS Upgrade
@@ -153,6 +154,7 @@ This ensures secure connections when available.
 - **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. One that redirects permanently to an HTTP URL is ignored, unless `existsFn` knows that URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
 - **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
 - **Cost.** When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
+- **A permanent redirect target served over HTTP** is returned under its HTTPS form when that serves the feed.
 :::
 
 ## Matching Strategy
