@@ -99,10 +99,6 @@ const resolveCanonical = async (
     onMatch,
   } = options ?? {}
 
-  const tidyQuery = (url: string): string => {
-    return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
-  }
-
   // For URLs a person or markup wrote: the input URL and the feed's self link. resolveUrl repairs
   // schemes, resolves relative paths and decodes character references, so a URL that was already
   // fetched goes through parseAndApplyRewrites instead.
@@ -155,7 +151,8 @@ const resolveCanonical = async (
   if (httpInputUrl !== resolveFeedScheme(trimmedInputUrl)) {
     const httpRequestUrl = resolveAndApplyRewrites(httpInputUrl)
 
-    if (httpRequestUrl) {
+    // A rewrite that forces https, such as bloggerRewrite, maps both forms to one URL.
+    if (httpRequestUrl && httpRequestUrl !== initialRequestUrl) {
       initialRequestUrls.push(httpRequestUrl)
     }
   }
@@ -201,7 +198,10 @@ const resolveCanonical = async (
   }
   // The URL that served the initial body. Self URLs resolve against it, and its signature uses it,
   // as a compared response's signature uses the URL that served that body.
-  const initialBaseUrl = tidyQuery(initialResponseUrlRaw)
+  const initialBaseUrl = normalizeUrl(initialResponseUrlRaw, {
+    sortQueryParams: true,
+    stripEmptyQuery: true,
+  })
 
   const initialResponseBody = initialResponse.body
   if (!initialResponseBody) {
@@ -325,9 +325,8 @@ const resolveCanonical = async (
   }
 
   // The final URL of the initial response served it too, so a later phase does not fetch it again.
-  if (!comparedResponses.has(initialResponseUrlRaw)) {
-    comparedResponses.set(initialResponseUrlRaw, initialResponse)
-  }
+  // This also clears the failure above when the http fallback was served by that https form.
+  comparedResponses.set(initialResponseUrlRaw, initialResponse)
 
   // Whether a response landed on http, the final URL after every redirect.
   const isServedOverHttp = (finalUrl: string): boolean => {
@@ -488,6 +487,13 @@ const resolveCanonical = async (
     const cleaned = parseUrl(cleanedUrl)
     const isSameLocation =
       received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
+    const hasCleanedUrlFailed =
+      comparedResponses.has(cleanedUrl) && !comparedResponses.get(cleanedUrl)
+
+    // A cleaned URL that failed earlier in the call is not trusted, even for a query-only edit.
+    if (hasCleanedUrlFailed) {
+      return { url: responseUrl, response, feed: initialResponseFeed }
+    }
 
     if (isSameLocation || cleanedUrl === requestUrl) {
       return { url: cleanedUrl, response, feed: initialResponseFeed }
