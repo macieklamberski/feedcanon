@@ -78,7 +78,7 @@ const url = await findCanonical('http://www.example.com/feed/?utm_source=twitter
 // 'https://example.com/feed'
 ```
 
-Returns `undefined` if the feed is invalid or unreachable, or if the parser, `existsFn`, `cleanUrlFn` or a callback throws. It never rejects.
+Returns `undefined` if the feed is invalid or unreachable, or if `existsFn`, `cleanUrlFn` or a callback throws. A parser that throws on the initial response does the same. It never rejects.
 
 ### Using Callbacks
 
