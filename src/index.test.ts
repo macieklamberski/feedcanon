@@ -2035,6 +2035,37 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
+    it('should keep a rewritten URL that redirects permanently back to a URL the rewrite matches', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://new.example.com/feed'
+      const body = '<feed></feed>'
+      const hostRewrite: Rewrite = {
+        match: (url) => url.hostname === 'old.example.com',
+        rewrite: (url) => {
+          url.hostname = 'new.example.com'
+          return url
+        },
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': {
+            body,
+            url: 'https://old.example.com/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 301 }],
+          },
+          'https://new.example.com/feed': {
+            body,
+            url: 'https://old.example.com/feed',
+            redirects: [{ url: 'https://new.example.com/feed', status: 301 }],
+          },
+        }),
+        parser: createMockParser(undefined),
+        rewrites: [hostRewrite],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     it('should not move the permanent redirect target of a rewritten fetched URL', async () => {
       const value = 'https://example.com/feed'
       const expected = 'https://www.example.com/feed'

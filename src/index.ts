@@ -473,7 +473,8 @@ const resolveCanonical = async (
 
     const targetUrl = getFetchedSourceUrl(rewrittenResponse, rewrittenUrl) ?? rewrittenUrl
 
-    if (targetUrl === rewrittenUrl) {
+    // A target the rewrites would change again undoes the rewrite, so the rewritten URL is kept.
+    if (targetUrl === rewrittenUrl || applyRewrites(targetUrl, rewrites) !== targetUrl) {
       return adoptCleanedUrl(rewrittenUrl, rewrittenUrl, rewrittenResponse)
     }
 
