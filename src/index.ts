@@ -485,20 +485,25 @@ const resolveCanonical = async (
     requestUrl: string,
     response: FetchFnResponse,
   ): Promise<CanonicalResult> => {
+    const hasFailed = (url: string): boolean => {
+      return comparedResponses.has(url) && !comparedResponses.get(url)
+    }
+
+    const isSameLocation = (url: string, otherUrl: string): boolean => {
+      const parsed = parseUrl(url)
+      const otherParsed = parseUrl(otherUrl)
+
+      return parsed?.origin === otherParsed?.origin && parsed?.pathname === otherParsed?.pathname
+    }
+
     const cleanedUrl = cleanUrlFn(responseUrl)
-    const received = parseUrl(responseUrl)
-    const cleaned = parseUrl(cleanedUrl)
-    const isSameLocation =
-      received?.origin === cleaned?.origin && received?.pathname === cleaned?.pathname
-    const hasCleanedUrlFailed =
-      comparedResponses.has(cleanedUrl) && !comparedResponses.get(cleanedUrl)
 
     // A cleaned URL that failed earlier in the call is not trusted, even for a query-only edit.
-    if (hasCleanedUrlFailed) {
+    if (hasFailed(cleanedUrl)) {
       return { url: responseUrl, response, feed: initialResponseFeed }
     }
 
-    if (isSameLocation || cleanedUrl === requestUrl) {
+    if (isSameLocation(responseUrl, cleanedUrl) || cleanedUrl === requestUrl) {
       return { url: cleanedUrl, response, feed: initialResponseFeed }
     }
 
@@ -512,8 +517,14 @@ const resolveCanonical = async (
 
     // A cleaned URL that redirects permanently is not where the feed lives, so its target is.
     const targetUrl = getFetchedSourceUrl(cleanedResponse, cleanedUrl) ?? cleanedUrl
+    const cleanedTargetUrl = cleanUrlFn(targetUrl)
 
-    return { url: targetUrl, response: cleanedResponse, feed: initialResponseFeed }
+    // A target the cleaner moves to another origin or path names one more URL nobody fetched.
+    if (!isSameLocation(targetUrl, cleanedTargetUrl) || hasFailed(cleanedTargetUrl)) {
+      return { url: targetUrl, response: cleanedResponse, feed: initialResponseFeed }
+    }
+
+    return { url: cleanedTargetUrl, response: cleanedResponse, feed: initialResponseFeed }
   }
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
