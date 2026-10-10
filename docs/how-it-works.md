@@ -113,6 +113,14 @@ https://www.example.com/feed/?id=123&utm_source=twitter
 
 Only Tier 1 drops the query. To remove tracking params from the other tiers too, pass a `cleanUrlFn`, which runs on the response URL before the tiers (see [URL Tiers](/guides/customization/url-tiers#strip-tracking-params)).
 
+::: details Deviations from URI equivalence
+Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, even when your `existsFn` already knows the URL.
+
+- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
+- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
+- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
+:::
+
 ### 6. Candidate Testing
 
 Each candidate is tested in order:
@@ -146,14 +154,6 @@ This ensures secure connections when available.
 - **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
 - **Cost.** When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
 :::
-
-## Deviations From URI Equivalence
-
-Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, even when your `existsFn` already knows the URL.
-
-- **Empty query.** A bare `?` is dropped, though [RFC 3986 §6.2.3](https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3) keeps it significant.
-- **`www.` and trailing slash.** A host and a path segment are significant ([RFC 3986 §3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)), so `/feed/` and `/feed` can be different resources. Feedcanon tries the shorter form and keeps it only when the feed matches.
-- **http and https.** Different protocols name different origins ([RFC 9110 §4.2.2](https://www.rfc-editor.org/rfc/rfc9110#section-4.2.2)). Feedcanon treats them as one feed when both serve it and prefers https.
 
 ## Matching Strategy
 
