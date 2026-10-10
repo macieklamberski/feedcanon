@@ -11,6 +11,7 @@ Feedcanon provides callbacks to track progress and hook into the resolution flow
 | `onFetch` | After each HTTP response | `{ url, response }` |
 | `onMatch` | URL matches initial response | `{ url, response, feed }` |
 | `onExists` | The returned URL was found by `existsFn` | `{ url, data }` |
+| `onCanonical` | Once, with the returned URL | `{ url, response, feed }` |
 
 ## onFetch
 
@@ -100,6 +101,30 @@ The `existsFn` function:
 
 The `onExists` callback fires once, with the URL and your database record. It fires only when `existsFn` found the URL that `findCanonical` returns. A known URL that is then dropped does not fire it, such as an http URL the HTTPS upgrade passes over.
 
+## onCanonical
+
+Fires once, right before `findCanonical` returns a URL, with that URL and the response that served it. This is the place to read the canonical response, for example to store its ETag or Last-Modified header next to the URL. `onMatch` fires for every URL serving the same feed, in the order Feedcanon reaches them, so the last match is not always the returned URL.
+
+```typescript
+import { findCanonical } from 'feedcanon'
+
+const url = await findCanonical('http://www.example.com/feed/', {
+  onCanonical: ({ url, response, feed }) => {
+    console.log(url, response.headers.get('etag'))
+  },
+})
+```
+
+The callback receives:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `url` | `string` | The URL `findCanonical` returns |
+| `response` | `FetchFnResponse` | The response that served the URL |
+| `feed` | `TFeed` | Parsed feed object |
+
+A URL `existsFn` knows comes with the response that verified it, since Feedcanon returns a URL only after it served the same feed in the call. The callback does not fire when `findCanonical` returns `undefined`.
+
 ## Examples
 
 ### Logging
@@ -170,6 +195,10 @@ const url = await findCanonical('https://example.com/feed', {
 
   onExists: ({ url, data }) => {
     console.log(`Exists: ${url} (id: ${data.id})`)
+  },
+
+  onCanonical: ({ url, response }) => {
+    console.log(`Canonical: ${url} (${response.status})`)
   },
 })
 ```
