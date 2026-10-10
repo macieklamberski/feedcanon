@@ -472,7 +472,10 @@ const resolveCanonical = async (
 
     reportMatch(rewrittenUrl, rewrittenResponse)
 
-    return adoptCleanedUrl(rewrittenUrl, rewrittenUrl, rewrittenResponse)
+    // A rewritten URL that redirects permanently is not where the feed lives, so its target is.
+    const targetUrl = getFetchedSourceUrl(rewrittenResponse, rewrittenUrl) ?? rewrittenUrl
+
+    return adoptCleanedUrl(targetUrl, rewrittenUrl, rewrittenResponse)
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
@@ -501,7 +504,10 @@ const resolveCanonical = async (
 
     reportMatch(cleanedUrl, cleanedResponse)
 
-    return { url: cleanedUrl, response: cleanedResponse, feed: initialResponseFeed }
+    // A cleaned URL that redirects permanently is not where the feed lives, so its target is.
+    const targetUrl = getFetchedSourceUrl(cleanedResponse, cleanedUrl) ?? cleanedUrl
+
+    return { url: targetUrl, response: cleanedResponse, feed: initialResponseFeed }
   }
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
