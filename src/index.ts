@@ -720,8 +720,13 @@ const resolveCanonical = async (
     return targetResult
   }
 
+  // An https candidate that redirects permanently to an http URL is not served over https.
+  if (isServedOverHttp(httpsCandidateResult.url)) {
+    return targetResult
+  }
+
   // An https candidate whose response ends on http is not served over https either.
-  if (isServedOverHttp(httpsCandidateResult.response?.url ?? httpsCandidateResult.url)) {
+  if (isServedOverHttp(httpsCandidateResult.response.url)) {
     return targetResult
   }
 

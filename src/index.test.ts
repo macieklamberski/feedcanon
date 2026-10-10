@@ -732,6 +732,34 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep HTTPS winner when cleaner HTTPS candidate redirects back to HTTP served from HTTPS', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': {
+              body,
+              url: 'https://cdn.example.com/feed',
+              redirects: [{ url: 'http://www.example.com/feed', status: 302 }],
+            },
+            'http://example.com/feed': { status: 404 },
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://cdn.example.com/feed',
+              redirects: [
+                { url: 'https://example.com/feed', status: 301 },
+                { url: 'http://www.example.com/feed', status: 302 },
+              ],
+            },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should not retry cleaner candidates over HTTPS when a redirect target won', async () => {
         const value = 'http://www.example.com/feed'
         const expected = 'https://feeds.example.org/feed'
