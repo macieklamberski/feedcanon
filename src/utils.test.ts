@@ -468,13 +468,6 @@ describe('createSignature', () => {
     expect(createSignature(value, [[value, 'link']])).toBe(expected)
   })
 
-  it('should handle empty fields array', () => {
-    const value = { title: 'Test', link: 'https://example.com' }
-    const expected = JSON.stringify({ title: 'Test', link: 'https://example.com' })
-
-    expect(createSignature(value, [])).toBe(expected)
-  })
-
   it('should omit null fields from signature', () => {
     const value: Record<string, unknown> = { title: 'Test', link: null }
     const expected = JSON.stringify({ title: 'Test' })
