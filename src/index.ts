@@ -328,9 +328,9 @@ const resolveCanonical = async (
   // This also clears the failure above when the http fallback was served by that https form.
   comparedResponses.set(initialResponseUrlRaw, initialResponse)
 
-  // Whether a response landed on http, the final URL after every redirect.
-  const isServedOverHttp = (finalUrl: string): boolean => {
-    return !!parseHttpUrl(finalUrl)?.startsWith('http://')
+  // Whether a URL is http: the final URL a response landed on, or the URL a result is kept under.
+  const isServedOverHttp = (url: string): boolean => {
+    return !!parseHttpUrl(url)?.startsWith('http://')
   }
 
   // The URL a response fetched for requestUrl is kept under. A response that ends at requestUrl,
@@ -758,8 +758,18 @@ const resolveCanonical = async (
     return targetResult
   }
 
-  // An https candidate whose response ends on http is not served over https either.
-  if (isServedOverHttp(httpsCandidateResult.response?.url ?? httpsCandidateResult.url)) {
+  // A URL existsFn knows wins once it served the feed, over http too, so no duplicate is stored.
+  if (httpsCandidateResult.data != null) {
+    return httpsCandidateResult
+  }
+
+  const isHttpsCandidateOverHttp =
+    isServedOverHttp(httpsCandidateResult.url) ||
+    isServedOverHttp(httpsCandidateResult.response.url)
+
+  // An https candidate that redirects permanently to an http URL, or whose response ends on
+  // http, is not served over https.
+  if (isHttpsCandidateOverHttp) {
     return targetResult
   }
 
