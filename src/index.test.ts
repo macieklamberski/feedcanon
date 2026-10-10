@@ -4383,6 +4383,61 @@ describe('findCanonical', () => {
       expect(fetchCalls).toEqual(['https://example.com/feed', 'http://example.com/feed'])
     })
 
+    it('should return the https URL that served the http fallback through a 302', async () => {
+      const value = 'feed://example.com/feed'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const fetchCalls: Array<string> = []
+      const options = toOptions({
+        fetchFn: (url: string) => {
+          fetchCalls.push(url)
+
+          if (url === 'https://example.com/feed' && fetchCalls.length === 1) {
+            throw new Error('Connection refused')
+          }
+
+          return {
+            status: 200,
+            url: 'https://example.com/feed',
+            body,
+            headers: new Headers(),
+            redirects: [{ url: 'http://example.com/feed', status: 302 }],
+          }
+        },
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should not fetch https again when it served the http fallback through a 302', async () => {
+      const value = 'feed://example.com/feed'
+      const body = '<feed></feed>'
+      const fetchCalls: Array<string> = []
+      const options = toOptions({
+        fetchFn: (url: string) => {
+          fetchCalls.push(url)
+
+          if (url === 'https://example.com/feed' && fetchCalls.length === 1) {
+            throw new Error('Connection refused')
+          }
+
+          return {
+            status: 200,
+            url: 'https://example.com/feed',
+            body,
+            headers: new Headers(),
+            redirects: [{ url: 'http://example.com/feed', status: 302 }],
+          }
+        },
+        parser: createMockParser(undefined),
+      })
+
+      await findCanonical(value, options)
+
+      expect(fetchCalls).toEqual(['https://example.com/feed', 'http://example.com/feed'])
+    })
+
     it('should fall back to http when https returns non-2xx for feed:// input URL', async () => {
       const value = 'feed://example.com/feed'
       const expected = 'http://example.com/feed'
