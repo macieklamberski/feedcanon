@@ -4,7 +4,7 @@ title: "Customization: URL Rewrites"
 
 # Customize URL Rewrites
 
-Rewrites transform known URLs right after they are resolved and before they are fetched or compared. They also run on the URLs a server answers with, a response URL or a redirect target. Feedcanon has not fetched that rewritten form, so it fetches it once and uses it only if it serves the same feed. Otherwise it keeps the URL the server sent. They're useful for:
+Rewrites transform known URLs right after they are resolved and before they are fetched or compared. They also run on the URLs a server answers with, a response URL or a redirect target. Feedcanon has not fetched that rewritten form, so it fetches it once and uses it only if it serves the same feed. Otherwise it keeps the URL the server sent. When the rewritten form redirects permanently, the redirect target is used, and `cleanUrlFn` may only edit its query. A target a rewrite would change again is ignored, so the rewritten form is kept. Rewrites are useful for:
 
 - Consolidating domain aliases to a single canonical domain
 - Transforming platform-specific URL patterns

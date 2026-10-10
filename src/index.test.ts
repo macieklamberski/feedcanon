@@ -2057,6 +2057,104 @@ describe('findCanonical', () => {
       expect(canonicalData).toEqual(expected)
     })
 
+    it('should use the permanent redirect target of a rewritten fetched URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://example.org/feed'
+      const body = '<feed></feed>'
+      const hostRewrite: Rewrite = {
+        match: (url) => url.hostname === 'old.example.com',
+        rewrite: (url) => {
+          url.hostname = 'new.example.com'
+          return url
+        },
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': {
+            body,
+            url: 'https://old.example.com/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 301 }],
+          },
+          'https://new.example.com/feed': {
+            body,
+            url: 'https://example.org/feed',
+            redirects: [{ url: 'https://new.example.com/feed', status: 301 }],
+          },
+        }),
+        parser: createMockParser(undefined),
+        rewrites: [hostRewrite],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should keep a rewritten URL that redirects permanently back to a URL the rewrite matches', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://new.example.com/feed'
+      const body = '<feed></feed>'
+      const hostRewrite: Rewrite = {
+        match: (url) => url.hostname === 'old.example.com',
+        rewrite: (url) => {
+          url.hostname = 'new.example.com'
+          return url
+        },
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': {
+            body,
+            url: 'https://old.example.com/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 301 }],
+          },
+          'https://new.example.com/feed': {
+            body,
+            url: 'https://old.example.com/feed',
+            redirects: [{ url: 'https://new.example.com/feed', status: 301 }],
+          },
+        }),
+        parser: createMockParser(undefined),
+        rewrites: [hostRewrite],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should not move the permanent redirect target of a rewritten fetched URL', async () => {
+      const value = 'https://example.com/feed'
+      const expected = 'https://www.example.com/feed'
+      const body = '<feed></feed>'
+      const hostRewrite: Rewrite = {
+        match: (url) => url.hostname === 'old.example.com',
+        rewrite: (url) => {
+          url.hostname = 'new.example.com'
+          return url
+        },
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': {
+            body,
+            url: 'https://old.example.com/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 301 }],
+          },
+          'https://new.example.com/feed': {
+            body,
+            url: 'https://www.example.com/feed',
+            redirects: [{ url: 'https://new.example.com/feed', status: 301 }],
+          },
+          'https://moved.example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+        rewrites: [hostRewrite],
+        tiers: [],
+        cleanUrlFn: (url) => {
+          return url.replace('https://www.example.com/', 'https://moved.example.com/')
+        },
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     it('should resolve an http www Blogspot URL to the https URL without www', async () => {
       const value = 'http://www.example.blogspot.com/feeds/posts/default'
       const expected = 'https://example.blogspot.com/feeds/posts/default'
@@ -3867,6 +3965,178 @@ describe('findCanonical', () => {
         await findCanonical(value, options)
 
         expect(matchCalls).toEqual(expected)
+      })
+
+      it('should use the permanent redirect target of an unwrapped URL', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should clean the query of the permanent redirect target of an unwrapped URL', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed/?doing_wp_cron=123',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: (url) => {
+            return stripWpCron(unwrapTracker(url))
+          },
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not unwrap the permanent redirect target of an unwrapped URL', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://www.example.com/feed/?url=https://other.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed/?url=https://other.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'https://other.example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch the unwrapped form of a permanent redirect target', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
+        const fetchCalls: Array<string> = []
+        const body = '<feed></feed>'
+        const mockFetch = createMockFetch({
+          'https://track.example.org/click?url=https://example.com/feed': { body },
+          'https://example.com/feed': {
+            body,
+            url: 'https://www.example.com/feed/?url=https://other.example.com/feed',
+            redirects: [{ url: 'https://example.com/feed', status: 301 }],
+          },
+          'https://other.example.com/feed': { body },
+        })
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+            return mockFetch(url)
+          },
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should pass the response of an unwrapped URL with its redirect target to onCanonical', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = {
+          url: 'https://www.example.com/feed/',
+          responseUrl: 'https://www.example.com/feed/',
+        }
+        const body = '<feed></feed>'
+        let canonicalData: { url: string; responseUrl?: string } | undefined
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          onCanonical: ({ url, response }) => {
+            canonicalData = { url, responseUrl: response?.url }
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(canonicalData).toEqual(expected)
+      })
+
+      it('should report an unwrapped URL that redirects permanently once through onMatch', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = [
+          'https://track.example.org/click?url=https://example.com/feed',
+          'https://example.com/feed',
+        ]
+        const matchCalls: Array<string> = []
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
+      })
+
+      it('should keep an unwrapped URL that redirects temporarily', async () => {
+        const value = 'https://track.example.org/click?url=https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://track.example.org/click?url=https://example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed/',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: unwrapTracker,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
       })
 
       it('should keep the response URL when the unwrapped URL serves a different feed', async () => {
