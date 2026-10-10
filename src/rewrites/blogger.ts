@@ -46,10 +46,9 @@ export const bloggerRewrite: Rewrite = {
       }
     }
 
-    // Strip v (GData API version, deprecated and now ignored). The other API params stay:
-    // without `redirect=false`, a blog that set up FeedBurner redirects its feed there, and the
-    // FeedBurner feed can carry different content. Pagination, date filters and `orderby` select
-    // a different set of posts.
+    // Strip v (GData API version, now ignored). The other API params stay: without
+    // `redirect=false` a blog with FeedBurner set up redirects its feed there, which can carry
+    // different content, and pagination, date filters and `orderby` select other posts.
     rewritten.searchParams.delete('v')
 
     // Strip alt=atom and alt=json (Atom is the default, JSON is same content).
