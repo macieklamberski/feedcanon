@@ -439,15 +439,36 @@ const resolveCanonical = async (
     }
   }
 
-  // An adopted result with its existsFn data when existsFn knows its URL.
+  // An adopted result with its existsFn data when existsFn knows its URL, or the final URL of
+  // its response.
   const findCanonicalResult = async (result: CanonicalResult): Promise<CanonicalResult> => {
     const existingUrl = await findExistingUrl(result.url, result)
 
-    if (!existingUrl) {
+    if (existingUrl) {
+      return existingUrl
+    }
+
+    // A response kept under the URL before a temporary redirect was served by its final URL too.
+    // A final URL existsFn knows wins, so a feed stored under it is not stored twice.
+    const finalUrl = parseHttpUrl(result.response.url)
+
+    if (!finalUrl) {
       return result
     }
 
-    return existingUrl
+    const finalResult = adoptRedirectTarget(finalUrl, result.response)
+
+    if (finalResult.url === result.url) {
+      return result
+    }
+
+    const existingFinalUrl = await findExistingUrl(finalResult.url, finalResult)
+
+    if (!existingFinalUrl) {
+      return result
+    }
+
+    return existingFinalUrl
   }
 
   // A rewrite of a fetched URL names a URL nobody fetched, so it is used only once verified to

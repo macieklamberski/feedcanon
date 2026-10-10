@@ -2828,6 +2828,106 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return a known final URL of a temporary redirect', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://feeds.example.org/blog'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body: '<feed></feed>',
+              url: 'https://feeds.example.org/blog',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          existsFn: (url) => (url === 'https://feeds.example.org/blog' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a known https form of the http final URL of a temporary redirect', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://feeds.example.org/blog'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'http://feeds.example.org/blog',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+            'https://feeds.example.org/blog': { body },
+          }),
+          existsFn: (url) => (url === 'https://feeds.example.org/blog' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a known final URL of a temporary redirect with its query cleaned', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://feeds.example.org/blog'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body: '<feed></feed>',
+              url: 'https://feeds.example.org/blog?doing_wp_cron=123',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          existsFn: (url) => (url === 'https://feeds.example.org/blog' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return the known requested URL over the known final URL of a temporary redirect', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/feed'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body: '<feed></feed>',
+              url: 'https://feeds.example.org/blog',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          existsFn: () => ({ id: 42 }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not fetch a known final URL of a temporary redirect again', async () => {
+        const value = 'https://example.com/feed'
+        const expected = ['https://example.com/feed']
+        const fetchCalls: Array<string> = []
+        const mockFetch = createMockFetch({
+          'https://example.com/feed': {
+            body: '<feed></feed>',
+            url: 'https://feeds.example.org/blog',
+            redirects: [{ url: 'https://example.com/feed', status: 302 }],
+          },
+        })
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+            return mockFetch(url)
+          },
+          existsFn: (url) => (url === 'https://feeds.example.org/blog' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
       it('should look up each URL in existsFn once', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -3586,6 +3686,30 @@ describe('findCanonical', () => {
     })
 
     describe('onExists', () => {
+      it('should call onExists for a known final URL of a temporary redirect', async () => {
+        const value = 'https://example.com/feed'
+        const expected = [{ url: 'https://feeds.example.org/blog', data: { id: 42 } }]
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body: '<feed></feed>',
+              url: 'https://feeds.example.org/blog',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+          }),
+          existsFn: (url) => (url === 'https://feeds.example.org/blog' ? { id: 42 } : undefined),
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+          parser: createMockParser(undefined),
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual(expected)
+      })
+
       it('should call onExists when existsFn finds match with data', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
