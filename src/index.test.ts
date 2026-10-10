@@ -1321,6 +1321,92 @@ describe('findCanonical', () => {
         })
       })
 
+      describe('https redirecting permanently to http www', () => {
+        const entryUrls: Array<string> = [
+          'http://example.com/feed',
+          'https://example.com/feed',
+          'http://www.example.com/feed',
+          'https://www.example.com/feed',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the https www URL', async (value) => {
+          const expected = 'https://www.example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/feed': { body },
+              'https://example.com/feed': {
+                body,
+                url: 'http://www.example.com/feed',
+                redirects: [{ url: 'https://example.com/feed', status: 301 }],
+              },
+              'http://www.example.com/feed': { body },
+              'https://www.example.com/feed': { body },
+            }),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
+      describe('https redirecting permanently to http www, then temporarily to https', () => {
+        const entryUrls: Array<string> = [
+          'http://example.com/feed',
+          'https://example.com/feed',
+          'http://www.example.com/feed',
+          'https://www.example.com/feed',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the https www URL', async (value) => {
+          const expected = 'https://www.example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/feed': { body },
+              'https://example.com/feed': {
+                body,
+                url: 'https://www.example.com/feed',
+                redirects: [
+                  { url: 'https://example.com/feed', status: 301 },
+                  { url: 'http://www.example.com/feed', status: 302 },
+                ],
+              },
+              'http://www.example.com/feed': {
+                body,
+                url: 'https://www.example.com/feed',
+                redirects: [{ url: 'http://www.example.com/feed', status: 302 }],
+              },
+              'https://www.example.com/feed': { body },
+            }),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
+      describe('self URL candidate redirecting to the URL with the trailing slash', () => {
+        const entryUrls: Array<string> = ['https://example.com/feed', 'https://example.com/feed/']
+
+        it.each(entryUrls)('should resolve %s to the URL with no slash', async (value) => {
+          const expected = 'https://example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/feed': { body },
+              'https://example.com/feed/': { body },
+              'https://www.example.com/rss/': { body },
+              'https://example.com/rss': {
+                body,
+                url: 'https://example.com/feed/',
+                redirects: [{ url: 'https://example.com/rss', status: 301 }],
+              },
+            }),
+            parser: createMockParser('https://www.example.com/rss/'),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
       describe('trailing slash added by a redirect', () => {
         const entryUrls: Array<string> = ['https://example.com/feed', 'https://example.com/feed/']
 

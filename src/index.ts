@@ -597,6 +597,39 @@ const resolveCanonical = async (
     candidateSource = probeResult
   }
 
+  // An https URL that redirects permanently to http leaves https, so the https form of its target
+  // is used when that serves the feed. A target existsFn knows is kept as it is.
+  const preferHttpsTarget = async (
+    requestUrl: string,
+    targetResult: CanonicalResult,
+  ): Promise<CanonicalResult> => {
+    const isHttpsToHttp =
+      requestUrl.startsWith('https://') && targetResult.url.startsWith('http://')
+
+    if (targetResult.data != null || !isHttpsToHttp) {
+      return targetResult
+    }
+
+    const httpsUrl = upgradeScheme(targetResult.url)
+    const httpsResponse = await fetchAndCompare(httpsUrl)
+
+    if (!httpsResponse || isServedOverHttp(httpsResponse.url)) {
+      return targetResult
+    }
+
+    if (getFetchedSourceUrl(httpsResponse, httpsUrl) !== httpsUrl) {
+      return targetResult
+    }
+
+    reportMatch(httpsUrl, httpsResponse)
+
+    return findCanonicalResult({
+      url: httpsUrl,
+      response: httpsResponse,
+      feed: initialResponseFeed,
+    })
+  }
+
   // Phase 5: Generate Candidates.
   // Include the source so Phase 7 finds the winning URL's place in the tier order. Testing skips
   // it, since it was verified and looked up when adopted.
@@ -656,23 +689,24 @@ const resolveCanonical = async (
           return { url: candidateUrl, response: candidateResponse, feed: initialResponseFeed }
         }
 
-        // A candidate that redirects permanently is not where the feed lives, so its target is the
-        // result, known or not. A response URL kept because its cleaned form failed verification
-        // matches uncleaned. Both were looked up in existsFn when adopted.
-        const knownResult = [candidateSource, initialResult].find(({ url }) => {
+        // A candidate that redirects permanently is not where the feed lives, so the search moves
+        // to its target, known or not. A response URL kept because its cleaned form failed
+        // verification matches uncleaned. Both were looked up in existsFn when adopted.
+        let adoptedResult = [candidateSource, initialResult].find(({ url }) => {
           return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
         })
 
-        if (knownResult) {
-          return knownResult
+        if (!adoptedResult) {
+          adoptedResult = await findCanonicalResult(
+            await adoptRewrittenUrl(candidateResponseUrl, candidateUrl, candidateResponse),
+          )
         }
 
-        const adoptedResult = await adoptRewrittenUrl(
-          candidateResponseUrl,
-          candidateUrl,
-          candidateResponse,
-        )
-        const targetResult = await findCanonicalResult(adoptedResult)
+        const targetResult = await preferHttpsTarget(candidateUrl, adoptedResult)
+
+        if (targetResult.url === candidateSource.url) {
+          return candidateSource
+        }
 
         if (targetResult.data != null || !canRestart) {
           return targetResult
@@ -711,19 +745,32 @@ const resolveCanonical = async (
   const httpsUrl = upgradeScheme(winningUrl)
   const httpsResponse = await fetchAndCompare(httpsUrl)
 
+  if (!httpsResponse) {
+    return winningResult
+  }
+
+  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
+  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
+  const adoptedResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
+  let targetResult = adoptedResult
+
+  if (adoptedResult.url !== httpsUrl) {
+    targetResult = await preferHttpsTarget(httpsUrl, await findCanonicalResult(adoptedResult))
+  }
+
+  if (targetResult.data != null) {
+    return targetResult
+  }
+
   // An https URL whose response ends on http, through any redirect, is not served over https.
-  if (!httpsResponse || isServedOverHttp(httpsResponse.url)) {
+  if (isServedOverHttp(targetResult.response.url)) {
     return winningResult
   }
 
   reportMatch(httpsUrl, httpsResponse)
 
-  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
-  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
-  const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
-
   if (targetResult.url !== httpsUrl) {
-    return findCanonicalResult(targetResult)
+    return targetResult
   }
 
   // A cleaner candidate that failed over http can still serve the feed over https. A winner that
