@@ -597,29 +597,36 @@ const resolveCanonical = async (
     candidateSource = probeResult
   }
 
-  const candidateSourceUrl = candidateSource.url
-
   // Phase 5: Generate Candidates.
-  // Include candidateSource so Phase 7 finds the winning URL's place in the tier order. Testing
-  // skips it, since it was verified and looked up when adopted.
-  const candidateUrls = new Set(
-    tiers
-      .map((tier) => {
-        // A tier can strip the scheme, and the parser accepts only absolute URLs.
-        const normalizedUrl = addMissingScheme(normalizeUrl(candidateSourceUrl, tier))
+  // Include the source so Phase 7 finds the winning URL's place in the tier order. Testing skips
+  // it, since it was verified and looked up when adopted.
+  const generateCandidateUrls = (sourceUrl: string): Set<string> => {
+    const urls = new Set(
+      tiers
+        .map((tier) => {
+          // A tier can strip the scheme, and the parser accepts only absolute URLs.
+          const normalizedUrl = addMissingScheme(normalizeUrl(sourceUrl, tier))
 
-        return parseAndApplyRewrites(normalizedUrl)
-      })
-      .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
-  )
-  candidateUrls.add(candidateSourceUrl)
+          return parseAndApplyRewrites(normalizedUrl)
+        })
+        .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
+    )
+    urls.add(sourceUrl)
+
+    return urls
+  }
+
+  let candidateUrls = generateCandidateUrls(candidateSource.url)
 
   // Phase 6: Test Candidates (in tier order, first match wins).
   // Returns the first candidate that serves the feed, with its existsFn data when existsFn knows
   // it, which ends the search before the HTTPS upgrade.
-  const testCandidates = async (urls: Iterable<string>): Promise<CanonicalResult | undefined> => {
+  const testCandidates = async (
+    urls: Iterable<string>,
+    canRestart = false,
+  ): Promise<CanonicalResult | undefined> => {
     for (const candidateUrl of urls) {
-      if (candidateUrl === candidateSourceUrl) {
+      if (candidateUrl === candidateSource.url) {
         continue
       }
 
@@ -660,18 +667,34 @@ const resolveCanonical = async (
           return knownResult
         }
 
-        const targetResult = await adoptRewrittenUrl(
+        const adoptedResult = await adoptRewrittenUrl(
           candidateResponseUrl,
           candidateUrl,
           candidateResponse,
         )
+        const targetResult = await findCanonicalResult(adoptedResult)
 
-        return findCanonicalResult(targetResult)
+        if (targetResult.data != null || !canRestart) {
+          return targetResult
+        }
+
+        // The target is where the feed lives, so its own candidates are tested once, as when the
+        // call starts at the target. Every entry URL of the feed then reaches the same result.
+        candidateSource = targetResult
+        candidateUrls = generateCandidateUrls(targetResult.url)
+
+        const restartResult = await testCandidates(candidateUrls)
+
+        if (restartResult) {
+          return restartResult
+        }
+
+        return targetResult
       }
     }
   }
 
-  const candidateResult = await testCandidates(candidateUrls)
+  const candidateResult = await testCandidates(candidateUrls, true)
 
   if (candidateResult?.data != null) {
     return candidateResult
@@ -703,8 +726,8 @@ const resolveCanonical = async (
     return findCanonicalResult(targetResult)
   }
 
-  // A cleaner candidate that failed over http can still serve the feed over https. A redirect
-  // target that won Phase 6 is not a candidate, so it gets no retry. Phase 6 looked up both
+  // A cleaner candidate that failed over http can still serve the feed over https. A winner that
+  // is not a candidate, such as a second redirect target, gets no retry. Phase 6 looked up both
   // protocol forms of the winning URL, so httpsUrl is not looked up again.
   if (!candidateUrls.has(winningUrl)) {
     return targetResult

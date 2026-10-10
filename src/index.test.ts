@@ -1240,6 +1240,34 @@ describe('findCanonical', () => {
         })
       })
 
+      describe('http redirecting to https with a trailing slash', () => {
+        const entryUrls: Array<string> = [
+          'http://example.com/feed',
+          'http://example.com/feed/',
+          'https://example.com/feed',
+          'https://example.com/feed/',
+        ]
+
+        it.each(entryUrls)('should resolve %s to the https URL with no slash', async (value) => {
+          const expected = 'https://example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/feed': {
+                body,
+                url: 'https://example.com/feed/',
+                redirects: [{ url: 'http://example.com/feed', status: 301 }],
+              },
+              'http://example.com/feed/': { body },
+              'https://example.com/feed': { body },
+              'https://example.com/feed/': { body },
+            }),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+      })
+
       describe('http redirecting to https', () => {
         const entryUrls: Array<string> = ['http://example.com/feed', 'https://example.com/feed']
 

@@ -135,7 +135,7 @@ This ensures the cleanest working URL is selected.
 
 ::: details Known candidates and redirects
 - **A candidate `existsFn` knows** is fetched before it is returned, or its response reused if this call already fetched it. One that serves a different feed or fails to fetch is skipped.
-- **A candidate that redirects permanently** is not where the feed lives, so its redirect target is returned instead, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate.
+- **A candidate that redirects permanently** is not where the feed lives, so the search moves to its redirect target, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate, and its own cleaner candidates are tested once, so every entry URL of a feed reaches the same result.
 :::
 
 ### 7. HTTPS Upgrade
