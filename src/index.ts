@@ -529,6 +529,39 @@ const resolveCanonical = async (
     return findCanonicalResult(await adoptRewrittenUrl(sourceUrl, requestUrl, response))
   }
 
+  // An https URL that redirects permanently to http leaves https, so the https form of its target
+  // is used when that serves the feed. A target existsFn knows is kept as it is.
+  const adoptHttpsTarget = async (
+    requestUrl: string,
+    targetResult: CanonicalResult,
+  ): Promise<CanonicalResult> => {
+    const isHttpsToHttp =
+      requestUrl.startsWith('https://') && targetResult.url.startsWith('http://')
+
+    if (targetResult.data != null || !isHttpsToHttp) {
+      return targetResult
+    }
+
+    const httpsTargetUrl = upgradeScheme(targetResult.url)
+    const httpsTargetResponse = await fetchAndCompare(httpsTargetUrl)
+
+    if (!httpsTargetResponse || isServedOverHttp(httpsTargetResponse.url)) {
+      return targetResult
+    }
+
+    if (getFetchedSourceUrl(httpsTargetResponse, httpsTargetUrl) !== httpsTargetUrl) {
+      return targetResult
+    }
+
+    reportMatch(httpsTargetUrl, httpsTargetResponse)
+
+    return findCanonicalResult({
+      url: httpsTargetUrl,
+      response: httpsTargetResponse,
+      feed: initialResponseFeed,
+    })
+  }
+
   const initialResult = await adoptResponseUrl(initialResponse, initialRequestUrl, {
     url: initialResponseUrlRaw,
     response: initialResponse,
@@ -597,39 +630,6 @@ const resolveCanonical = async (
     candidateSource = probeResult
   }
 
-  // An https URL that redirects permanently to http leaves https, so the https form of its target
-  // is used when that serves the feed. A target existsFn knows is kept as it is.
-  const preferHttpsTarget = async (
-    requestUrl: string,
-    targetResult: CanonicalResult,
-  ): Promise<CanonicalResult> => {
-    const isHttpsToHttp =
-      requestUrl.startsWith('https://') && targetResult.url.startsWith('http://')
-
-    if (targetResult.data != null || !isHttpsToHttp) {
-      return targetResult
-    }
-
-    const httpsUrl = upgradeScheme(targetResult.url)
-    const httpsResponse = await fetchAndCompare(httpsUrl)
-
-    if (!httpsResponse || isServedOverHttp(httpsResponse.url)) {
-      return targetResult
-    }
-
-    if (getFetchedSourceUrl(httpsResponse, httpsUrl) !== httpsUrl) {
-      return targetResult
-    }
-
-    reportMatch(httpsUrl, httpsResponse)
-
-    return findCanonicalResult({
-      url: httpsUrl,
-      response: httpsResponse,
-      feed: initialResponseFeed,
-    })
-  }
-
   // Phase 5: Generate Candidates.
   // Include the source so Phase 7 finds the winning URL's place in the tier order. Testing skips
   // it, since it was verified and looked up when adopted.
@@ -656,7 +656,7 @@ const resolveCanonical = async (
   // it, which ends the search before the HTTPS upgrade.
   const testCandidates = async (
     urls: Iterable<string>,
-    canRestart = false,
+    isRestartAllowed = false,
   ): Promise<CanonicalResult | undefined> => {
     for (const candidateUrl of urls) {
       if (candidateUrl === candidateSource.url) {
@@ -702,13 +702,14 @@ const resolveCanonical = async (
           )
         }
 
-        const targetResult = await preferHttpsTarget(candidateUrl, adoptedResult)
+        const targetResult = await adoptHttpsTarget(candidateUrl, adoptedResult)
 
+        // A target that is the source itself was tested already, so the search ends on it.
         if (targetResult.url === candidateSource.url) {
           return candidateSource
         }
 
-        if (targetResult.data != null || !canRestart) {
+        if (targetResult.data != null || !isRestartAllowed) {
           return targetResult
         }
 
@@ -755,7 +756,7 @@ const resolveCanonical = async (
   // The https form of its permanent redirect target still can be.
   if (isServedOverHttp(httpsResponse.url)) {
     const sourceResult = { url: sourceUrl, response: httpsResponse, feed: initialResponseFeed }
-    const httpsTargetResult = await preferHttpsTarget(httpsUrl, sourceResult)
+    const httpsTargetResult = await adoptHttpsTarget(httpsUrl, sourceResult)
 
     if (httpsTargetResult === sourceResult) {
       return winningResult
@@ -770,7 +771,7 @@ const resolveCanonical = async (
   const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
 
   if (targetResult.url !== httpsUrl) {
-    return preferHttpsTarget(httpsUrl, await findCanonicalResult(targetResult))
+    return adoptHttpsTarget(httpsUrl, await findCanonicalResult(targetResult))
   }
 
   // A cleaner candidate that failed over http can still serve the feed over https. A winner that
