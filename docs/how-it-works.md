@@ -24,7 +24,7 @@ If any step fails, the function returns `undefined`. A URL your `existsFn` knows
 
 ::: details Errors and feed pseudo-schemes
 - **Errors.** The promise never rejects. An error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse` or `getSelfUrl` on the initial response, makes the function return `undefined`. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
-- **`feed://` and `itpc://`.** A feed pseudo-scheme doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
+- **`feed://` and `itpc://`.** A feed pseudo-scheme doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. When a rewrite maps both forms to the same URL, as `bloggerRewrite` does by forcing https, that URL is fetched once. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
 :::
 
 ### 2. Self URL Extraction

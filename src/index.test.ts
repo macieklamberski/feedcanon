@@ -4543,6 +4543,33 @@ describe('findCanonical', () => {
       expect(fetchCalls).toEqual(['https://example.com/feed'])
     })
 
+    it('should fetch once when a rewrite maps both forms of feed:// input URL to one URL', async () => {
+      const value = 'feed://example.com/feed'
+      const fetchCalls: Array<string> = []
+      const httpsRewrite: Rewrite = {
+        match: () => true,
+        rewrite: (url) => {
+          const rewritten = new URL(url)
+          rewritten.protocol = 'https:'
+
+          return rewritten
+        },
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/feed': { status: 503 },
+        }),
+        parser: createMockParser(undefined),
+        rewrites: [httpsRewrite],
+        onFetch: ({ url }) => {
+          fetchCalls.push(url)
+        },
+      })
+
+      expect(await findCanonical(value, options)).toBeUndefined()
+      expect(fetchCalls).toEqual(['https://example.com/feed'])
+    })
+
     it('should not fall back to http when https input URL fails', async () => {
       const value = 'https://example.com/feed'
       const fetchCalls: Array<string> = []
