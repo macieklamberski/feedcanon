@@ -155,7 +155,8 @@ const resolveCanonical = async (
   if (httpInputUrl !== resolveFeedScheme(trimmedInputUrl)) {
     const httpRequestUrl = resolveAndApplyRewrites(httpInputUrl)
 
-    if (httpRequestUrl) {
+    // A rewrite that forces https, such as bloggerRewrite, maps both forms to one URL.
+    if (httpRequestUrl && httpRequestUrl !== initialRequestUrl) {
       initialRequestUrls.push(httpRequestUrl)
     }
   }
