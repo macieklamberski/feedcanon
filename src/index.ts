@@ -99,10 +99,6 @@ const resolveCanonical = async (
     onMatch,
   } = options ?? {}
 
-  const tidyQuery = (url: string): string => {
-    return normalizeUrl(url, { sortQueryParams: true, stripEmptyQuery: true })
-  }
-
   // For URLs a person or markup wrote: the input URL and the feed's self link. resolveUrl repairs
   // schemes, resolves relative paths and decodes character references, so a URL that was already
   // fetched goes through parseAndApplyRewrites instead.
@@ -201,7 +197,10 @@ const resolveCanonical = async (
   }
   // The URL that served the initial body. Self URLs resolve against it, and its signature uses it,
   // as a compared response's signature uses the URL that served that body.
-  const initialBaseUrl = tidyQuery(initialResponseUrlRaw)
+  const initialBaseUrl = normalizeUrl(initialResponseUrlRaw, {
+    sortQueryParams: true,
+    stripEmptyQuery: true,
+  })
 
   const initialResponseBody = initialResponse.body
   if (!initialResponseBody) {
