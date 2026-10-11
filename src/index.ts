@@ -1,5 +1,6 @@
 import {
   addMissingScheme,
+  createUrlVariants,
   isHttpUrl,
   normalizeUrl,
   parseUrl,
@@ -830,30 +831,8 @@ const resolveCanonical = async (
   const lessCleanUrls = new Set<string>()
 
   for (const candidateUrl of [...candidateUrls, winningUrl]) {
-    const parsed = parseUrl(candidateUrl)
-
-    if (!parsed) {
-      continue
-    }
-
-    const hostnames = [parsed.hostname]
-    const pathnames = [parsed.pathname]
-
-    if (!parsed.hostname.startsWith('www.')) {
-      hostnames.push(`www.${parsed.hostname}`)
-    }
-
-    if (!parsed.pathname.endsWith('/')) {
-      pathnames.push(`${parsed.pathname}/`)
-    }
-
-    for (const hostname of hostnames) {
-      for (const pathname of pathnames) {
-        const lessCleanUrl = new URL(parsed.href)
-        lessCleanUrl.hostname = hostname
-        lessCleanUrl.pathname = pathname
-        lessCleanUrls.add(lessCleanUrl.href)
-      }
+    for (const variantUrl of createUrlVariants(candidateUrl)) {
+      lessCleanUrls.add(variantUrl)
     }
   }
 

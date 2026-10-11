@@ -3695,6 +3695,30 @@ describe('findCanonical', () => {
 
           expect(fetchedUrls).toEqual(expected)
         })
+
+        it('should look up no trailing slash form after a file extension', async () => {
+          const value = 'https://example.com/feed.xml'
+          const lookups: Array<string> = []
+          const expected = [
+            'https://example.com/feed.xml',
+            'http://example.com/feed.xml',
+            'https://www.example.com/feed.xml',
+            'http://www.example.com/feed.xml',
+          ]
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/feed.xml': { body },
+            }),
+            existsFn: (url) => {
+              lookups.push(url)
+            },
+            parser: createMockParser(undefined),
+          })
+
+          await findCanonical(value, options)
+
+          expect(lookups).toEqual(expected)
+        })
       })
     })
 
