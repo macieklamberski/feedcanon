@@ -4072,6 +4072,77 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep the response URL when its cleaned form serves a different feed later', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=123'
+        const expected = 'https://example.com/feed?doing_wp_cron=123'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
+            'https://example.com/feed': { body: '<feed>other</feed>' },
+          }),
+          parser: createMockParser('http://example.com/feed?doing_wp_cron=123'),
+          cleanUrlFn: stripWpCron,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep the response URL when its cleaned form fails to fetch later', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=123'
+        const expected = 'https://example.com/feed?doing_wp_cron=123'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
+            'https://example.com/feed': { status: 500 },
+          }),
+          parser: createMockParser('http://example.com/feed?doing_wp_cron=123'),
+          cleanUrlFn: stripWpCron,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep the response URL when a probe finds its cleaned form serving a different feed', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=123'
+        const expected = 'https://example.com/feed?doing_wp_cron=123'
+        const cleanedUrlProbe: Probe = {
+          match: () => true,
+          getCandidates: () => ['https://example.com/feed'],
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
+            'https://example.com/feed': { body: '<feed>other</feed>' },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
+          probes: [cleanedUrlProbe],
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should pass the response URL to onCanonical when its cleaned form fails later', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=123'
+        const expected = 'https://example.com/feed?doing_wp_cron=123'
+        let canonicalUrl: string | undefined
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
+            'https://example.com/feed': { status: 500 },
+          }),
+          parser: createMockParser('http://example.com/feed?doing_wp_cron=123'),
+          cleanUrlFn: stripWpCron,
+          onCanonical: ({ url }) => {
+            canonicalUrl = url
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(canonicalUrl).toBe(expected)
+      })
+
       it('should use an unwrapped URL when it serves the same feed', async () => {
         const value = 'https://track.example.org/click?url=https://example.com/feed'
         const expected = 'https://example.com/feed'

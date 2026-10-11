@@ -594,16 +594,20 @@ const resolveCanonical = async (
     })
   }
 
-  const initialResult = await adoptResponseUrl(initialResponse, initialRequestUrl, {
-    url: initialResponseUrlRaw,
-    response: initialResponse,
-  })
+  const adoptInitialResponse = (): Promise<CanonicalResult> => {
+    return adoptResponseUrl(initialResponse, initialRequestUrl, {
+      url: initialResponseUrlRaw,
+      response: initialResponse,
+    })
+  }
+
+  let initialResult = await adoptInitialResponse()
 
   if (initialResult.data != null) {
     return initialResult
   }
 
-  const initialResponseUrl = initialResult.url
+  let initialResponseUrl = initialResult.url
 
   // Phase 3: Validate self URLs.
   // Try each self URL, then its alternate protocol if it fails (e.g., feed:// resolved to https://
@@ -660,6 +664,24 @@ const resolveCanonical = async (
 
   if (probeResult) {
     candidateSource = probeResult
+  }
+
+  // A cleaned response URL trusted without a fetch fails when a self URL or a probe names it and
+  // it does not serve the feed. The response is adopted again, which keeps the URL it came from.
+  if (hasFailed(initialResponseUrl)) {
+    const isCandidateSource = candidateSource === initialResult
+
+    initialResult = await adoptInitialResponse()
+
+    if (initialResult.data != null) {
+      return initialResult
+    }
+
+    initialResponseUrl = initialResult.url
+
+    if (isCandidateSource) {
+      candidateSource = initialResult
+    }
   }
 
   // Phase 5: Generate Candidates.
