@@ -5679,6 +5679,22 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBe(expected)
     })
 
+    it('should use probe candidate when its response URL is not http', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body },
+          'https://example.com/feed': { body, url: 'ftp://example.com/feed' },
+        }),
+        parser: createMockParser(undefined),
+        probes: [createProbe('feed', '/feed')],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     it('should keep original URL when probe candidates fail', async () => {
       const value = 'https://example.com/?feed=rss2'
       const expected = 'https://example.com/?feed=rss2'
