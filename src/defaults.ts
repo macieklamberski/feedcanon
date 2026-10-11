@@ -159,12 +159,12 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       return href
     }
 
-    // Without the retrieval URL, only an absolute xml:base can resolve the href.
+    // Without the response URL, only an absolute xml:base can resolve the href.
     if (!responseUrl && !parseUrl(base)) {
       return href
     }
 
-    // A relative href resolves against xml:base, itself resolved against the retrieval URL (RFC
+    // A relative href resolves against xml:base, itself resolved against the response URL (RFC
     // 4287 §2, RFC 3986 §5.1). Feedsmith keeps only the root element's xml:base.
     const baseUrl = resolveUrl(base, responseUrl) ?? responseUrl
 
