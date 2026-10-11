@@ -4122,6 +4122,30 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should call onExists for a known response URL when its cleaned form fails later', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=123'
+        const expected = [{ url: 'https://example.com/feed?doing_wp_cron=123', data: { id: 1 } }]
+        const existsCalls: Array<{ url: string; data: unknown }> = []
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
+            'https://example.com/feed': { status: 500 },
+          }),
+          parser: createMockParser('http://example.com/feed?doing_wp_cron=123'),
+          cleanUrlFn: stripWpCron,
+          existsFn: (url) => {
+            return url === 'https://example.com/feed?doing_wp_cron=123' ? { id: 1 } : undefined
+          },
+          onExists: ({ url, data }) => {
+            existsCalls.push({ url, data })
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(existsCalls).toEqual(expected)
+      })
+
       it('should pass the response URL to onCanonical when its cleaned form fails later', async () => {
         const value = 'https://example.com/feed?doing_wp_cron=123'
         const expected = 'https://example.com/feed?doing_wp_cron=123'
