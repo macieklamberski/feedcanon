@@ -2350,6 +2350,31 @@ describe('findCanonical', () => {
 
           expect(await findCanonical(value, options)).toBe(expected)
         })
+
+        it('should pass each URL of the other feed to a custom parser when two share a host', async () => {
+          const value = 'https://blog.example.org/feed'
+          const expected = 'https://feeds.example.com/feed'
+          const parser: ParserAdapter<string> = {
+            parse: (body) => body,
+            getSelfUrl: () => 'https://feeds.example.com/feed',
+            getSignature: (parsed, responseUrl, comparedUrls = []) => {
+              return [parsed.split(' ')[0], responseUrl, ...comparedUrls].sort().join(' ')
+            },
+          }
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://blog.example.org/feed': {
+                body: 'blog one',
+                headers: new Headers({ link: '<https://feeds.example.com/old>; rel="self"' }),
+              },
+              'https://feeds.example.com/old': { body: 'shop one' },
+              'https://feeds.example.com/feed': { body: 'blog two' },
+            }),
+            parser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
       })
     })
   })
