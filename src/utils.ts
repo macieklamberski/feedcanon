@@ -54,6 +54,8 @@ export const isRelation = (rel: string, name: string): boolean => {
   return rel.toLowerCase() === name || rel === `http://www.iana.org/assignments/relation/${name}`
 }
 
+const whitespaceRunRegex = /\s{2,}/g
+
 // The target of the first link in a Link header whose rel includes "self".
 // See: https://www.rfc-editor.org/rfc/rfc8288#section-3.
 export const getLinkHeaderSelfUrl = (header: string | null): string | undefined => {
@@ -62,7 +64,10 @@ export const getLinkHeaderSelfUrl = (header: string | null): string | undefined 
   }
 
   try {
-    for (const ref of LinkHeader.parse(header).refs) {
+    // The package trims in quadratic time, so a long run of whitespace is collapsed first.
+    const collapsedHeader = header.replace(whitespaceRunRegex, ' ')
+
+    for (const ref of LinkHeader.parse(collapsedHeader).refs) {
       const target = ref.uri.trim()
 
       // An empty reference names the response URL itself, which is already matched.

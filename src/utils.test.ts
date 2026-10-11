@@ -382,6 +382,22 @@ describe('getLinkHeaderSelfUrl', () => {
     expect(elapsed).toBeLessThan(1000)
   })
 
+  it('should handle a long run of whitespace in linear time', () => {
+    const value = `<https://example.com/feed.xml>; rel="self"${' '.repeat(200_000)}x`
+    const start = performance.now()
+    getLinkHeaderSelfUrl(value)
+    const elapsed = performance.now() - start
+
+    expect(elapsed).toBeLessThan(1000)
+  })
+
+  it('should return self link followed by a run of whitespace', () => {
+    const value = `<https://example.com/feed.xml>; rel="self"${' '.repeat(100)}; title="News"`
+    const expected = 'https://example.com/feed.xml'
+
+    expect(getLinkHeaderSelfUrl(value)).toBe(expected)
+  })
+
   it('should return undefined when no link has rel self', () => {
     const value = '<https://hub.example.com/>; rel="hub"'
 
