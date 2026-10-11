@@ -71,3 +71,13 @@ const url = await findCanonical('http://www.example.com/feed/', {
 ```
 
 See [Using Callbacks](/guides/callbacks) for the full guide.
+
+## Using the CLI
+
+To check a feed from a terminal, run the `feedcanon` command. It prints the canonical URL and logs every request it made:
+
+```bash
+npx feedcanon http://www.example.com/feed/
+```
+
+See [CLI](/cli) for the options and output.
