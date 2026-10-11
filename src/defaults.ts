@@ -220,7 +220,9 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
       urls.push(contentUrl)
     }
 
-    return neutralizeUrls(signature, urls)
+    // With compared URLs the hosts are kept and only the URL form is neutralized, so a link to
+    // one host never equals a link to the other.
+    return neutralizeUrls(signature, urls, comparedUrls.length > 0)
   },
 }
 

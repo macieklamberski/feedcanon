@@ -548,6 +548,42 @@ describe('createSignature', () => {
 })
 
 describe('neutralizeUrls', () => {
+  describe('kept host', () => {
+    it('should keep the host and drop the scheme', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'http://example.com/post/1' })
+      const expected = JSON.stringify({ link: '//example.com/post/1' })
+
+      expect(neutralizeUrls(value, [url], true)).toBe(expected)
+    })
+
+    it('should keep the host without www', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'https://www.example.com/post/1' })
+      const expected = JSON.stringify({ link: '//example.com/post/1' })
+
+      expect(neutralizeUrls(value, [url], true)).toBe(expected)
+    })
+
+    it('should keep the host and drop the trailing slash', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'https://example.com/post/1/' })
+      const expected = JSON.stringify({ link: '//example.com/post/1' })
+
+      expect(neutralizeUrls(value, [url], true)).toBe(expected)
+    })
+
+    it('should keep different hosts apart', () => {
+      const urls = ['https://example.com/feed', 'https://example.org/feed']
+      const value = JSON.stringify({
+        links: ['https://example.com/post', 'https://example.org/post'],
+      })
+      const expected = JSON.stringify({ links: ['//example.com/post', '//example.org/post'] })
+
+      expect(neutralizeUrls(value, urls, true)).toBe(expected)
+    })
+  })
+
   describe('same-domain normalization', () => {
     it('should normalize https same-domain URL to root-relative path', () => {
       const url = 'https://example.com/feed'
