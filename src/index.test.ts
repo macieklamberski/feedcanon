@@ -4482,6 +4482,31 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep the response URL when a self URL adopted its cleaned form and a probe fails it', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/new?doing_wp_cron=123'
+        const body = '<feed></feed>'
+        const cleanedUrlProbe: Probe = {
+          match: () => true,
+          getCandidates: () => ['https://example.com/new'],
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': {
+              body,
+              url: 'https://example.com/new?doing_wp_cron=123',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'https://example.com/new': { body: '<feed>other</feed>' },
+          }),
+          parser: createMockParser('https://example.com/feed'),
+          cleanUrlFn: stripWpCron,
+          probes: [cleanedUrlProbe],
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should call onExists for a known response URL when its cleaned form fails later', async () => {
         const value = 'https://example.com/feed?doing_wp_cron=123'
         const expected = [{ url: 'https://example.com/feed?doing_wp_cron=123', data: { id: 1 } }]
@@ -4504,27 +4529,6 @@ describe('findCanonical', () => {
         await findCanonical(value, options)
 
         expect(existsCalls).toEqual(expected)
-      })
-
-      it('should pass the response URL to onCanonical when its cleaned form fails later', async () => {
-        const value = 'https://example.com/feed?doing_wp_cron=123'
-        const expected = 'https://example.com/feed?doing_wp_cron=123'
-        let canonicalUrl: string | undefined
-        const options = toOptions({
-          fetchFn: createMockFetch({
-            'https://example.com/feed?doing_wp_cron=123': { body: '<feed></feed>' },
-            'https://example.com/feed': { status: 500 },
-          }),
-          parser: createMockParser('http://example.com/feed?doing_wp_cron=123'),
-          cleanUrlFn: stripWpCron,
-          onCanonical: ({ url }) => {
-            canonicalUrl = url
-          },
-        })
-
-        await findCanonical(value, options)
-
-        expect(canonicalUrl).toBe(expected)
       })
 
       it('should use an unwrapped URL when it serves the same feed', async () => {

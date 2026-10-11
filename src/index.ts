@@ -699,7 +699,8 @@ const resolveCanonical = async (
   // A cleaned response URL trusted without a fetch fails when a self URL or a probe names it and
   // it does not serve the feed. The response is adopted again, which keeps the URL it came from.
   if (hasFailed(initialResponseUrl)) {
-    const isCandidateSource = candidateSource === initialResult
+    // A self URL can adopt the same cleaned URL as a result of its own.
+    const isCandidateSource = candidateSource.url === initialResponseUrl
 
     initialResult = await adoptInitialResponse()
 
