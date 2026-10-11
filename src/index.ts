@@ -1,5 +1,6 @@
 import {
   addMissingScheme,
+  createUrlVariants,
   isHttpUrl,
   normalizeUrl,
   parseUrl,
@@ -389,6 +390,7 @@ const resolveCanonical = async (
   const findExistingUrl = async (
     url: string,
     verifiedResult?: CanonicalResult,
+    isRedirectKept = false,
   ): Promise<CanonicalResult | false | undefined> => {
     if (!existsFn) {
       return
@@ -431,7 +433,7 @@ const resolveCanonical = async (
 
         // A candidate that redirects permanently is not where the feed lives, so its target is
         // tested instead, known or not.
-        if (lookupUrl === url && sourceUrl && sourceUrl !== url) {
+        if (lookupUrl === url && sourceUrl && sourceUrl !== url && !isRedirectKept) {
           continue
         }
 
@@ -822,6 +824,25 @@ const resolveCanonical = async (
 
   const winningResult = candidateResult ?? candidateSource
   const winningUrl = winningResult.url
+
+  // The tiers only remove www. and the trailing slash, and testing stops at the first candidate
+  // that serves the feed. A feed stored under a form less clean than the winner is found here,
+  // so the caller does not store it twice. A stored form that redirects to the winner is kept.
+  const lessCleanUrls = new Set<string>()
+
+  for (const candidateUrl of [...candidateUrls, winningUrl]) {
+    for (const variantUrl of createUrlVariants(candidateUrl)) {
+      lessCleanUrls.add(variantUrl)
+    }
+  }
+
+  for (const lessCleanUrl of lessCleanUrls) {
+    const existingUrl = await findExistingUrl(lessCleanUrl, undefined, true)
+
+    if (existingUrl) {
+      return existingUrl
+    }
+  }
 
   // Phase 7: HTTPS Upgrade on winning URL.
   if (!winningUrl.startsWith('http://')) {
