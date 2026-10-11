@@ -141,12 +141,12 @@ const neutralizeHost = (url: string): string | undefined => {
   return stripWww(host).toLowerCase()
 }
 
-export const neutralizeUrls = (text: string, urls: Array<string>): string => {
-  // Rewrites each occurrence of a feed's own URL to a root-relative form, so content differing only
-  // in URL form (http/https, www/non-www, trailing slash, host casing) produces identical output.
-  // Each URL is located by scanning for the scheme and parsed with the URL API for host comparison:
-  // the feed-supplied host is never interpolated into a pattern, which is what previously made this
-  // a ReDoS injection point.
+// Rewrites each URL on the hosts of the given URLs to one form, so content differing only in
+// scheme, www, trailing slash or host casing produces identical output. The host is dropped,
+// leaving a root-relative URL, unless isHostKept is set.
+export const neutralizeUrls = (text: string, urls: Array<string>, isHostKept = false): string => {
+  // Each URL is located by scanning for the scheme and parsed with the URL API for host
+  // comparison, so a feed-supplied host is never interpolated into a pattern.
   const hosts = new Set(urls.map(neutralizeHost).filter(Boolean))
   if (hosts.size === 0) {
     return text
@@ -197,7 +197,9 @@ export const neutralizeUrls = (text: string, urls: Array<string>): string => {
       path = path.slice(0, -1)
     }
 
-    result += decodedText.slice(lastIndex, start) + path + parsed.search + parsed.hash
+    const host = isHostKept ? `//${stripWww(parsed.host).toLowerCase()}` : ''
+
+    result += decodedText.slice(lastIndex, start) + host + path + parsed.search + parsed.hash
     lastIndex = end
   }
 

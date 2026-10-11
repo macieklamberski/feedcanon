@@ -46,7 +46,7 @@ Return a string representing the feed's identity. Two feeds are treated as the s
 getSignature: (feed: Feed, responseUrl: string, comparedUrls?: Array<string>) => string
 ```
 
-The `responseUrl` argument is the URL the feed was fetched from. The `comparedUrls` argument holds the URLs of the feeds it is compared with. The default parser neutralizes URLs on the hosts of both, so two copies that differ only in protocol, `www` or trailing slash still match, even when they are served from different hosts. A custom parser can ignore both.
+The `responseUrl` argument is the URL the feed was fetched from. The `comparedUrls` argument holds the URLs of the feeds it is compared with. Feedcanon asks for two signatures of each feed. The first call passes no `comparedUrls`, and the default parser reduces URLs on the feed's own host to their path, so two copies that each link their own host match. The second call passes them, and the default parser keeps every host and only drops protocol, `www` and trailing slash, so two copies on different hosts that link the same URLs match, while feeds that link each other's host do not. A custom parser can ignore both.
 
 Build the signature from fields that stay the same between requests:
 - Feed title and description
