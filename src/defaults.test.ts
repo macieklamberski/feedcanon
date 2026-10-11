@@ -1414,5 +1414,73 @@ describe('defaultParser', () => {
 
       expect(signature1).toBe(signature2)
     })
+
+    describe('comparedUrls', () => {
+      it('should neutralize a URL on a compared host', async () => {
+        const value = `
+          <?xml version="1.0"?>
+          <rss version="2.0">
+            <channel>
+              <title>Test</title>
+              <item>
+                <link>https://feeds.example.com/post/1</link>
+              </item>
+            </channel>
+          </rss>
+        `
+        const responseUrl = 'https://example.org/feed'
+        const comparedUrls = ['https://feeds.example.com/feed']
+        const expected = '{"title":"Test","items":[{"link":"/post/1"}]}'
+        const parsed = await parseOrThrow(value)
+        const signature = defaultParser.getSignature(parsed, responseUrl, comparedUrls)
+
+        expect(signature).toBe(expected)
+      })
+
+      it('should neutralize URLs on every compared host', async () => {
+        const value = `
+          <?xml version="1.0"?>
+          <rss version="2.0">
+            <channel>
+              <title>Test</title>
+              <item>
+                <link>https://feeds.example.com/post/1</link>
+              </item>
+              <item>
+                <link>https://mirror.example.net/post/2</link>
+              </item>
+            </channel>
+          </rss>
+        `
+        const responseUrl = 'https://example.org/feed'
+        const comparedUrls = ['https://feeds.example.com/feed', 'https://mirror.example.net/feed']
+        const expected = '{"title":"Test","items":[{"link":"/post/1"},{"link":"/post/2"}]}'
+        const parsed = await parseOrThrow(value)
+        const signature = defaultParser.getSignature(parsed, responseUrl, comparedUrls)
+
+        expect(signature).toBe(expected)
+      })
+
+      it('should keep a URL on a host outside the compared hosts', async () => {
+        const value = `
+          <?xml version="1.0"?>
+          <rss version="2.0">
+            <channel>
+              <title>Test</title>
+              <item>
+                <link>https://other.example.net/post/1</link>
+              </item>
+            </channel>
+          </rss>
+        `
+        const responseUrl = 'https://example.org/feed'
+        const comparedUrls = ['https://feeds.example.com/feed']
+        const expected = '{"title":"Test","items":[{"link":"https://other.example.net/post/1"}]}'
+        const parsed = await parseOrThrow(value)
+        const signature = defaultParser.getSignature(parsed, responseUrl, comparedUrls)
+
+        expect(signature).toBe(expected)
+      })
+    })
   })
 })

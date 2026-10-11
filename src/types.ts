@@ -8,8 +8,8 @@ export type DefaultParserResult = ReturnType<typeof import('feedsmith').parseFee
 // Parser adapter interface for generic feed parser support.
 export type ParserAdapter<T> = {
   parse: (body: string) => MaybePromise<T | undefined>
-  getSelfUrl: (parsed: T, url?: string) => string | undefined
-  getSignature: (parsed: T, url: string) => string
+  getSelfUrl: (parsed: T, responseUrl?: string) => string | undefined
+  getSignature: (parsed: T, responseUrl: string, comparedUrls?: Array<string>) => string
 }
 
 // URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
