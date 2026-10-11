@@ -297,7 +297,17 @@ const resolveCanonical = async (
 
     // A signature that throws fails this comparison only, as a parse that throws does.
     try {
-      // Each side gets the URL of the other, so the initial feed is signed once per comparison.
+      // Each feed with its own host dropped: copies that each link their own host match.
+      const isSameWithOwnHosts =
+        parser.getSignature(initialResponseFeed, initialBaseUrl) ===
+        parser.getSignature(comparedResponseFeed, comparedResponseUrl)
+
+      if (isSameWithOwnHosts) {
+        return true
+      }
+
+      // Each side gets the URL of the other and keeps hosts, so copies that link the same hosts
+      // and differ only in URL form match too. Feeds that link each other's host do not.
       const initialResponseSignature = parser.getSignature(initialResponseFeed, initialBaseUrl, [
         comparedResponseUrl,
       ])

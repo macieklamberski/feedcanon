@@ -171,7 +171,8 @@ When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls
 
 - Volatile fields are left out: `lastBuildDate`, `pubDate`, `link` and `generator` in RSS, `updated` and `generator` in Atom, `link` in RDF, `feed_url` in JSON Feed
 - The self link is cleared
-- URLs on the host of either compared feed or on the site's host are reduced to their path, so differences in protocol, `www` or trailing slash do not count
+- URLs on the feed's own host or on the site's host are reduced to their path, so differences in protocol, `www` or trailing slash do not count
+- Feeds on two different hosts also match when they link the same URLs and differ only in protocol, `www` or trailing slash. Feeds that link each other's host do not
 
 If signatures match, the feeds are considered equivalent even if the raw content differs.
 
