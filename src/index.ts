@@ -239,10 +239,14 @@ const resolveCanonical = async (
 
   reportMatch(initialRequestUrl, initialResponse)
 
+  // A fetchFn written without types can return no Headers object, which carries no Link header.
+  const hasHeaders = typeof initialResponse.headers?.get === 'function'
+  const linkHeader = hasHeaders ? initialResponse.headers.get('link') : null
+
   // A self link in the Link header takes precedence over one in the feed body. The header is an
   // HTTP field, not markup, so its URL is parsed without decoding character references.
   // See: https://www.w3.org/TR/websub/#discovery.
-  const linkHeaderSelfUrl = getLinkHeaderSelfUrl(initialResponse.headers.get('link'))
+  const linkHeaderSelfUrl = getLinkHeaderSelfUrl(linkHeader)
   const feedSelfUrl = parser.getSelfUrl(initialResponseFeed, initialBaseUrl)
   const declaredSelfUrls: Array<string | undefined> = []
 
