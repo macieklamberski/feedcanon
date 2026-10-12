@@ -150,7 +150,7 @@ If the winning URL uses HTTP, Feedcanon attempts an HTTPS upgrade:
 This ensures secure connections when available.
 
 ::: details Redirects and cleaner candidates
-- **An HTTPS URL that redirects back to HTTP** is not served over HTTPS, so the HTTP URL is kept.
+- **An HTTPS URL that redirects back to HTTP** is not served over HTTPS. The HTTPS form of the URL it ended on is tried next, and the HTTP URL is kept when that does not serve the feed.
 - **An HTTP winner that is not served directly,** because its response ended on another URL, gets the HTTPS form of that URL tried next. It is returned when it serves the feed over HTTPS.
 - **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. One that redirects permanently to an HTTP URL is ignored, unless `existsFn` knows that URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
 - **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
