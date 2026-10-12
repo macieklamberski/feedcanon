@@ -1563,6 +1563,23 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should not return a cleaned input URL that fails when a self URL names it as a candidate', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=1'
+        const expected = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=1': { body },
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': { status: 404 },
+          }),
+          parser: createMockParser('https://www.example.com/feed/'),
+          cleanUrlFn: stripWpCron,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should not trust a cleaned input URL the call saw redirect permanently', async () => {
         const value = 'https://example.com/feed?doing_wp_cron=1'
         const expected = 'https://www.example.com/feed/'
