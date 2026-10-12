@@ -921,6 +921,22 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should retry cleaner candidates over HTTPS when the HTTP URL has unsorted query params', async () => {
+        const value = 'http://example.com/feed?b=1&a=2'
+        const expected = 'https://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed?b=1&a=2': { body },
+            'https://example.com/feed?b=1&a=2': { body },
+            'https://example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should not retry cleaner candidates over HTTPS when a redirect target won', async () => {
         const value = 'http://www.example.com/feed'
         const expected = 'https://feeds.example.org/feed'
@@ -1146,6 +1162,23 @@ describe('findCanonical', () => {
           fetchFn: createMockFetch({
             'https://www.example.com/feed': { body },
             'https://example.com/feed': { body, url: 'https://canonical.example.com/feed' },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return the second redirect target without testing its candidates', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 'https://www.example.net/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'https://www.example.org/feed' },
+            'https://example.org/feed': { body, url: 'https://www.example.net/feed' },
+            'https://example.net/feed': { body },
           }),
           parser: createMockParser(undefined),
         })
@@ -3366,6 +3399,57 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return a known redirect target of a candidate over a cleaner URL of the target', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 'https://example.org/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'https://example.org/feed/' },
+            'https://example.org/feed': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.org/feed/' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a known http redirect target of a candidate over its https form', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 'http://example.org/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'http://example.org/feed' },
+            'https://example.org/feed': { body },
+          }),
+          existsFn: (url) => (url === 'http://example.org/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return a known http candidate over its https form', async () => {
+        const value = 'http://www.example.com/feed'
+        const expected = 'http://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed': { body },
+            'http://example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          existsFn: (url) => (url === 'http://example.com/feed' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should return a known candidate that matched earlier in the call', async () => {
         const value = 'https://www.example.com/feed/'
         const expected = 'https://example.com/feed'
@@ -3939,6 +4023,83 @@ describe('findCanonical', () => {
         await findCanonical(value, options)
 
         expect(matchCalls).toEqual(['http://example.com/feed', 'https://example.com/feed'])
+      })
+
+      it('should call onMatch for a known candidate', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = ['https://www.example.com/feed', 'https://example.com/feed']
+        const body = '<feed></feed>'
+        const matchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
+      })
+
+      it('should call onMatch for a rewritten redirect target', async () => {
+        const value = 'https://example.org/feed'
+        const expected = ['https://example.org/feed', 'https://example.com/feed']
+        const body = '<feed></feed>'
+        const matchCalls: Array<string> = []
+        const hostRewrite: Rewrite = {
+          match: (url) => url.hostname === 'old.example.com',
+          rewrite: (url) => {
+            url.hostname = 'example.com'
+            return url
+          },
+        }
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://example.org/feed': { body, url: 'https://old.example.com/feed' },
+            'https://example.com/feed': { body },
+          }),
+          rewrites: [hostRewrite],
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
+      })
+
+      it('should call onMatch for the HTTPS form of an HTTP redirect target', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = [
+          'https://www.example.com/feed',
+          'https://example.com/feed',
+          'https://example.org/feed',
+        ]
+        const body = '<feed></feed>'
+        const matchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'http://example.org/feed' },
+            'https://example.org/feed': { body },
+          }),
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
       })
 
       it('should call onMatch once for a URL a later phase reaches again', async () => {
