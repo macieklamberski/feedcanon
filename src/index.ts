@@ -734,7 +734,7 @@ const resolveCanonical = async (
         continue
       }
 
-      // Use initial response URL if it's the cleanest candidate, verified and looked up in Phase 1.
+      // A candidate equal to the initial response URL was verified and looked up when adopted.
       if (candidateUrl === initialResult.url) {
         return initialResult
       }
