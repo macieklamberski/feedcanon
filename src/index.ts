@@ -94,7 +94,7 @@ const resolveCanonical = async (
     existsFn,
     tiers = defaultTiers,
     rewrites = [],
-    probes,
+    probes = [],
     onFetch,
     onMatch,
   } = options ?? {}
@@ -679,7 +679,7 @@ const resolveCanonical = async (
 
   // Phase 4: Apply URL probes.
   // Test alternate URL forms (e.g., WordPress query param -> path conversion).
-  const probeResult = await applyProbes(candidateSource.url, probes ?? [], async (candidateUrl) => {
+  const probeResult = await applyProbes(candidateSource.url, probes, async (candidateUrl) => {
     const response = await fetchAndCompare(candidateUrl)
 
     if (response) {

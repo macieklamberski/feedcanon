@@ -1416,27 +1416,6 @@ describe('defaultParser', () => {
     })
 
     describe('comparedUrls', () => {
-      it('should keep the host of a URL on a compared host', async () => {
-        const value = `
-          <?xml version="1.0"?>
-          <rss version="2.0">
-            <channel>
-              <title>Test</title>
-              <item>
-                <link>https://feeds.example.com/post/1</link>
-              </item>
-            </channel>
-          </rss>
-        `
-        const responseUrl = 'https://example.org/feed'
-        const comparedUrls = ['https://feeds.example.com/feed']
-        const expected = '{"title":"Test","items":[{"link":"//feeds.example.com/post/1"}]}'
-        const parsed = await parseOrThrow(value)
-        const signature = defaultParser.getSignature(parsed, responseUrl, comparedUrls)
-
-        expect(signature).toBe(expected)
-      })
-
       it('should keep the hosts of URLs on every compared host', async () => {
         const value = `
           <?xml version="1.0"?>

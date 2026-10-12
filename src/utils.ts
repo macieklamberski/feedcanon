@@ -156,7 +156,6 @@ export const neutralizeUrls = (text: string, urls: Array<string>, isHostKept = f
 
   let result = ''
   let lastIndex = 0
-  urlSchemeRegex.lastIndex = 0
 
   for (
     let match = urlSchemeRegex.exec(decodedText);
