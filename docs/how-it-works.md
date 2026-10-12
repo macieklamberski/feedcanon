@@ -151,6 +151,7 @@ This ensures secure connections when available.
 
 ::: details Redirects and cleaner candidates
 - **An HTTPS URL that redirects back to HTTP** is not served over HTTPS, so the HTTP URL is kept.
+- **An HTTP winner that is not served directly,** because its response ended on another URL, gets the HTTPS form of that URL tried next. It is returned when it serves the feed over HTTPS.
 - **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. One that redirects permanently to an HTTP URL is ignored, unless `existsFn` knows that URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
 - **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
 - **Cost.** When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
