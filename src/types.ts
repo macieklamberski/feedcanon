@@ -29,9 +29,9 @@ export type Tier = Omit<
   NormalizeOptions,
   'stripQueryParams' | 'stripRootSlash' | 'normalizeUnicode'
 > & {
-  /** @deprecated No effect in a tier: candidates are parsed as URLs, which restores the root `/`. */
+  /** @deprecated No effect in a tier: candidates are parsed as URLs, restoring the root `/`. */
   stripRootSlash?: boolean
-  /** @deprecated No effect in a tier: candidates come from a parsed URL, already percent-encoded. */
+  /** @deprecated No effect in a tier: candidates come from a parsed, percent-encoded URL. */
   normalizeUnicode?: boolean
 }
 

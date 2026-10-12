@@ -1371,8 +1371,8 @@ describe('neutralizeUrls', () => {
 
     it('should neutralize an own URL inside an encoded foreign URL', () => {
       const url = 'https://example.com/feed'
-      const value = 'u=http%3A%2F%2Fforeign.org%2F%3Fu%3Dhttp%3A%2F%2Fexample.com%2Fpost'
-      const expected = 'u=http://foreign.org/?u=/post'
+      const value = 'u=http%3A%2F%2Fexample.org%2F%3Fu%3Dhttp%3A%2F%2Fexample.com%2Fpost'
+      const expected = 'u=http://example.org/?u=/post'
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
@@ -1387,8 +1387,8 @@ describe('neutralizeUrls', () => {
 
     it('should not neutralize an encoded URL with a lookalike host', () => {
       const url = 'https://example.com/feed'
-      const value = 'u=http%3A%2F%2Fexample.com.evil.org%2Fpost'
-      const expected = 'u=http://example.com.evil.org/post'
+      const value = 'u=http%3A%2F%2Fexample.com.example.org%2Fpost'
+      const expected = 'u=http://example.com.example.org/post'
 
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })

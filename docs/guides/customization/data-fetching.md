@@ -24,7 +24,7 @@ The default fetch follows up to 20 redirects itself and lists each one in the re
 A custom `fetchFn` can fill `redirects` the same way. Without it, Feedcanon uses the final `url` whatever the redirect status was.
 
 ::: details Redirect chains
-- **The `redirects` field** lists each redirect as the URL that was requested and the status it returned.
+- **The `redirects` field** lists each redirect as the URL that was requested and the status it returned, typed as `FetchFnRedirect`.
 - **A temporary redirect** keeps the URL from before it, even when the chain moves on from there. A chain of 301 and then 302 ends on the 301 target.
 - **A redirect to anything other than an http or https URL** throws, as it does with `fetch`.
 - **In a browser** `fetch` hides the status and target of a redirect it does not follow. The default fetch then lets `fetch` follow redirects, and Feedcanon uses the final URL whatever the redirect status was.
