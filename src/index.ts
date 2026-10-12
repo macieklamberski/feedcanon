@@ -20,9 +20,17 @@ import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
 // that served it, with its feed.
 type CanonicalResult = {
   url: string
+  uncleanedUrl?: string // The URL the response came from, when url is its unfetched cleaned form
   data?: unknown
   response: FetchFnResponse
   feed: unknown
+}
+
+// What testing a list of candidates ends on. A result is moved when it is the target of a
+// permanent redirect that existsFn does not know, which is where the search goes on.
+type CandidateTest = {
+  result: CanonicalResult
+  isMoved: boolean
 }
 
 const permanentRedirectStatuses = [301, 308]
@@ -84,9 +92,17 @@ const resolveCanonical = async (
     tiers = defaultTiers,
     rewrites = [],
     probes = [],
+    maxHops: maxHopsOption,
     onFetch,
     onMatch,
   } = options ?? {}
+
+  // Infinity would never run out, so only a finite number replaces the default.
+  let maxHops = 20
+
+  if (maxHopsOption !== undefined && Number.isFinite(maxHopsOption)) {
+    maxHops = maxHopsOption
+  }
 
   // For URLs a person or markup wrote: the input URL and the feed's self link. resolveUrl repairs
   // schemes, resolves relative paths and decodes character references. A URL a server sent is
@@ -147,6 +163,9 @@ const resolveCanonical = async (
     }
   }
 
+  // Redirects in every response the call has received.
+  let hopCount = 0
+
   // Fetch a URL and report it to onFetch. Returns the response only when it is a 2xx.
   const fetchSuccess = async (url: string): Promise<FetchFnResponse | undefined> => {
     // A rewrite or a probe can hand over anything, and only an http URL is ever requested.
@@ -168,6 +187,15 @@ const resolveCanonical = async (
     }
 
     onFetch?.({ url, response })
+
+    // A fetchFn that lists no redirects still shows one when the response ended elsewhere.
+    let redirectCount = response.redirects?.length ?? 0
+
+    if (redirectCount === 0 && parseHttpUrl(response.url) !== url) {
+      redirectCount = 1
+    }
+
+    hopCount += redirectCount
 
     if (response.status < 200 || response.status >= 300) {
       return
@@ -539,7 +567,7 @@ const resolveCanonical = async (
       return createResult(url, response)
     }
 
-    return createResult(cleanedUrl, response)
+    return { ...createResult(cleanedUrl, response), uncleanedUrl: url }
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
@@ -558,7 +586,7 @@ const resolveCanonical = async (
     }
 
     if (isSameLocation(responseUrl, cleanedUrl) || cleanedUrl === requestUrl) {
-      return createResult(cleanedUrl, response)
+      return { ...createResult(cleanedUrl, response), uncleanedUrl: responseUrl }
     }
 
     const cleanedResponse = await fetchAndCompare(cleanedUrl)
@@ -715,190 +743,211 @@ const resolveCanonical = async (
     }
   }
 
-  // Phase 5: Generate Candidates.
-  // Include the source so Phase 7 finds the winning URL's place in the tier order.
-  const generateCandidateUrls = (sourceUrl: string): Set<string> => {
-    const urls = new Set(
-      tiers
-        .map((tier) => {
-          // A tier can strip the scheme, and the parser accepts only absolute URLs.
-          const normalizedUrl = addMissingScheme(normalizeUrl(sourceUrl, tier))
+  const startedUrls: Array<string> = []
 
-          return parseAndApplyRewrites(normalizedUrl)
-        })
-        .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
-    )
-    urls.add(sourceUrl)
+  // A target is searched from once, and only while the call has seen no more than maxHops
+  // redirects, so a server that names a new URL each time cannot keep the search going. A
+  // cleanUrlFn that does so spends no redirect, so the searches are counted too: a redirect
+  // gives two targets at most, the cleaned one and the one as sent.
+  const isSearchable = (result: CanonicalResult): boolean => {
+    if (startedUrls.includes(result.url)) {
+      return false
+    }
 
-    return urls
+    return hopCount <= maxHops && startedUrls.length <= maxHops * 2
   }
-
-  let candidateUrls = generateCandidateUrls(candidateSource.url)
 
   // Phase 6: Test Candidates (in tier order, first match wins).
   // Returns the first candidate that serves the feed, with its existsFn data when existsFn knows
-  // it, which ends the search before the HTTPS upgrade.
+  // it. A candidate that redirects permanently gives its target, marked as moved.
   const testCandidates = async (
     urls: Iterable<string>,
-    { isRestartAllowed = false, isVerifiedReused = true } = {},
-  ): Promise<CanonicalResult | undefined> => {
+    source: CanonicalResult,
+    { isVerifiedReused = true } = {},
+  ): Promise<CandidateTest | undefined> => {
     for (const candidateUrl of urls) {
       // The source was verified when adopted. Reaching it means no earlier tier served the feed,
       // so it wins over every later one.
-      if (isVerifiedReused && candidateUrl === candidateSource.url) {
+      if (isVerifiedReused && candidateUrl === source.url) {
         return
-      }
-
-      // A candidate equal to the initial response URL was verified and looked up when adopted.
-      if (isVerifiedReused && candidateUrl === initialResult.url) {
-        return initialResult
       }
 
       const existingUrl = await findExistingUrl(candidateUrl)
 
       if (existingUrl) {
-        return existingUrl
+        return { result: existingUrl, isMoved: false }
       }
 
       const candidateResponse = await fetchAndCompare(candidateUrl)
 
-      if (candidateResponse) {
-        const candidateResponseUrl = getFetchedSourceUrl(candidateResponse, candidateUrl)
-
-        if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
-          return createResult(candidateUrl, candidateResponse)
-        }
-
-        // A candidate that redirects permanently is not where the feed lives, so the search moves
-        // to its target, known or not. A response URL kept because its cleaned form failed
-        // verification matches uncleaned. Both were looked up in existsFn when adopted.
-        const adoptedResults = isVerifiedReused ? [candidateSource, initialResult] : []
-        let adoptedResult = adoptedResults.find(({ url }) => {
-          return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
-        })
-
-        if (!adoptedResult) {
-          adoptedResult = await findCanonicalResult(
-            await adoptRewrittenUrl(candidateResponseUrl, candidateUrl, candidateResponse),
-          )
-        }
-
-        const targetResult = await adoptHttpsTarget(candidateUrl, adoptedResult)
-
-        // A target that is the source itself was tested already, so the search ends on it.
-        if (targetResult.url === candidateSource.url) {
-          return candidateSource
-        }
-
-        if (targetResult.data != null || !isRestartAllowed) {
-          return targetResult
-        }
-
-        // The target is where the feed lives, so its own candidates are tested once, as when the
-        // call starts at the target. Every entry URL of the feed then reaches the same result.
-        candidateSource = targetResult
-        candidateUrls = generateCandidateUrls(targetResult.url)
-
-        const restartResult = await testCandidates(candidateUrls)
-
-        if (restartResult) {
-          return restartResult
-        }
-
-        return targetResult
-      }
-    }
-  }
-
-  const candidateResult = await testCandidates(candidateUrls, { isRestartAllowed: true })
-
-  if (candidateResult?.data != null) {
-    return candidateResult
-  }
-
-  const winningResult = candidateResult ?? candidateSource
-  const winningUrl = winningResult.url
-
-  // Phase 7: HTTPS Upgrade on winning URL.
-  if (!winningUrl.startsWith('http://')) {
-    return winningResult
-  }
-
-  // An https URL replaces an http winner when it serves the feed over https, or existsFn knows it.
-  // Results verified earlier are not reused: they hold the response of another request, which
-  // says nothing about how the URL itself is served.
-  const testHttpsUrl = async (url: string): Promise<CanonicalResult | undefined> => {
-    const result = await testCandidates([url], { isVerifiedReused: false })
-
-    if (!result || result.data != null) {
-      return result
-    }
-
-    // A cleaned URL can carry the response of the URL it was cleaned from. Its own response, when
-    // the call has one, is the one that says how it is served.
-    const response = comparedResponses.get(result.url) ?? result.response
-
-    if (isServedOverHttp(result.url) || isServedOverHttp(response.url)) {
-      return
-    }
-
-    return result
-  }
-
-  const httpsUrl = upgradeScheme(winningUrl)
-  const httpsResult = await testHttpsUrl(httpsUrl)
-
-  // The https form of the URL the winner's response ended on, then of the URL its https form's
-  // response ended on, is tried next: rewritten and cleaned, then rewritten, then as it is.
-  if (!httpsResult) {
-    const httpsResponse = comparedResponses.get(httpsUrl)
-    const endUrls = [winningResult.response.url]
-
-    if (httpsResponse) {
-      endUrls.push(httpsResponse.url)
-    }
-
-    for (const endUrl of endUrls) {
-      const finalUrl = parseHttpUrl(endUrl)
-
-      if (!finalUrl) {
+      if (!candidateResponse) {
         continue
       }
 
-      const httpsFinalUrl = upgradeScheme(finalUrl)
-      const rewrittenFinalUrl = applyRewrites(httpsFinalUrl, rewrites)
+      const candidateResponseUrl = getFetchedSourceUrl(candidateResponse, candidateUrl)
 
-      // Each form is tested alone, most wanted first: one that serves the feed but ends on http
-      // must not end the search.
-      for (const url of [cleanUrlFn(rewrittenFinalUrl), rewrittenFinalUrl, httpsFinalUrl]) {
-        const httpsFinalResult = await testHttpsUrl(url)
+      if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
+        return { result: createResult(candidateUrl, candidateResponse), isMoved: false }
+      }
 
-        if (httpsFinalResult) {
-          return httpsFinalResult
+      // A candidate that redirects permanently is not where the feed lives, so the search moves
+      // to its target, known or not. A response URL kept because its cleaned form failed
+      // verification matches uncleaned. Both were looked up in existsFn when adopted.
+      const adoptedResults = isVerifiedReused ? [source, initialResult] : []
+      let adoptedResult = adoptedResults.find(({ url }) => {
+        return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
+      })
+
+      if (!adoptedResult) {
+        adoptedResult = await findCanonicalResult(
+          await adoptRewrittenUrl(candidateResponseUrl, candidateUrl, candidateResponse),
+        )
+      }
+
+      const targetResult = await adoptHttpsTarget(candidateUrl, adoptedResult)
+
+      // A target that is the source itself was tested already, so the search ends on it.
+      if (targetResult.url === source.url) {
+        return { result: source, isMoved: false }
+      }
+
+      return { result: targetResult, isMoved: targetResult.data == null }
+    }
+  }
+
+  // Searches from one source: candidate testing, then the HTTPS upgrade. A permanent redirect
+  // target the call has not searched from yet is searched in turn, as when the call starts there.
+  const searchFrom = async (source: CanonicalResult): Promise<CanonicalResult> => {
+    startedUrls.push(source.url)
+
+    // Phase 5: Generate Candidates.
+    // Include the source so Phase 7 finds the winning URL's place in the tier order.
+    const candidateUrls = new Set(
+      tiers
+        .map((tier) => {
+          // A tier can strip the scheme, and the parser accepts only absolute URLs.
+          const normalizedUrl = addMissingScheme(normalizeUrl(source.url, tier))
+
+          return parseAndApplyRewrites(normalizedUrl)
+        })
+        .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
+    )
+    candidateUrls.add(source.url)
+
+    const candidateTest = await testCandidates(candidateUrls, source)
+
+    if (candidateTest?.result.data != null) {
+      return candidateTest.result
+    }
+
+    if (candidateTest?.isMoved && isSearchable(candidateTest.result)) {
+      return searchFrom(candidateTest.result)
+    }
+
+    const winningResult = candidateTest?.result ?? source
+    const winningUrl = winningResult.url
+
+    // Phase 7: HTTPS Upgrade on winning URL.
+    if (!winningUrl.startsWith('http://')) {
+      return winningResult
+    }
+
+    // An https URL replaces an http winner when it serves the feed over https, or existsFn knows
+    // it. Results verified earlier are not reused: they hold the response of another request,
+    // which says nothing about how the URL itself is served.
+    const testHttpsUrl = async (url: string): Promise<CanonicalResult | undefined> => {
+      const httpsTest = await testCandidates([url], source, { isVerifiedReused: false })
+
+      if (!httpsTest) {
+        return
+      }
+
+      let result = httpsTest.result
+
+      if (httpsTest.isMoved && isSearchable(result)) {
+        result = await searchFrom(result)
+      }
+
+      if (result.data != null) {
+        return result
+      }
+
+      // A cleaned URL can carry the response of the URL it was cleaned from. Its own response,
+      // when the call has one, is the one that says how it is served.
+      const response = comparedResponses.get(result.url) ?? result.response
+
+      if (isServedOverHttp(result.url) || isServedOverHttp(response.url)) {
+        return
+      }
+
+      return result
+    }
+
+    const httpsUrl = upgradeScheme(winningUrl)
+    const httpsResult = await testHttpsUrl(httpsUrl)
+
+    // The https form of the URL the winner's response ended on, then of the URL its https form's
+    // response ended on, is tried next: rewritten and cleaned, then rewritten, then as it is.
+    if (!httpsResult) {
+      const httpsResponse = comparedResponses.get(httpsUrl)
+      const endUrls = [winningResult.response.url]
+
+      if (httpsResponse) {
+        endUrls.push(httpsResponse.url)
+      }
+
+      for (const endUrl of endUrls) {
+        const finalUrl = parseHttpUrl(endUrl)
+
+        if (!finalUrl) {
+          continue
         }
+
+        const httpsFinalUrl = upgradeScheme(finalUrl)
+        const rewrittenFinalUrl = applyRewrites(httpsFinalUrl, rewrites)
+
+        // Each form is tested alone, most wanted first: one that serves the feed but ends on
+        // http must not end the search.
+        for (const url of [cleanUrlFn(rewrittenFinalUrl), rewrittenFinalUrl, httpsFinalUrl]) {
+          const httpsFinalResult = await testHttpsUrl(url)
+
+          if (httpsFinalResult) {
+            return httpsFinalResult
+          }
+        }
+      }
+
+      return winningResult
+    }
+
+    // A cleaner candidate that failed over http can still serve the feed over https. A winner
+    // that is not a candidate, or whose https form moved, gets no retry.
+    if (httpsResult.url !== httpsUrl || !candidateUrls.has(winningUrl)) {
+      return httpsResult
+    }
+
+    for (const candidateUrl of candidateUrls) {
+      if (candidateUrl === winningUrl) {
+        break
+      }
+
+      const httpsCandidateResult = await testHttpsUrl(upgradeScheme(candidateUrl))
+
+      if (httpsCandidateResult) {
+        return httpsCandidateResult
       }
     }
 
-    return winningResult
-  }
-
-  // A cleaner candidate that failed over http can still serve the feed over https. A winner that
-  // is not a candidate, or whose https form moved, gets no retry.
-  if (httpsResult.url !== httpsUrl || !candidateUrls.has(winningUrl)) {
     return httpsResult
   }
 
-  for (const candidateUrl of candidateUrls) {
-    if (candidateUrl === winningUrl) {
-      break
-    }
+  const searchResult = await searchFrom(candidateSource)
 
-    const httpsCandidateResult = await testHttpsUrl(upgradeScheme(candidateUrl))
-
-    if (httpsCandidateResult) {
-      return httpsCandidateResult
-    }
+  if (!searchResult.uncleanedUrl || !hasFailed(searchResult.url)) {
+    return searchResult
   }
 
-  return httpsResult
+  // A cleaned URL trusted without a fetch was fetched later and did not serve the feed, so the
+  // URL its response came from is returned.
+  return findCanonicalResult(createResult(searchResult.uncleanedUrl, searchResult.response))
 }
