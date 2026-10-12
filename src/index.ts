@@ -20,15 +20,14 @@ import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
 // that served it, with its feed.
 type CanonicalResult = {
   url: string
-  // The URL the response came from, when url is a cleaned form of it that was not fetched.
-  uncleanedUrl?: string
+  uncleanedUrl?: string // The URL the response came from, when url is its unfetched cleaned form
   data?: unknown
   response: FetchFnResponse
   feed: unknown
 }
 
 // What testing a list of candidates ends on. A result is moved when it is the target of a
-// permanent redirect, which is where the search goes on.
+// permanent redirect that existsFn does not know, which is where the search goes on.
 type CandidateTest = {
   result: CanonicalResult
   isMoved: boolean
@@ -93,10 +92,17 @@ const resolveCanonical = async (
     tiers = defaultTiers,
     rewrites = [],
     probes = [],
-    maxHops = 20,
+    maxHops: maxHopsOption,
     onFetch,
     onMatch,
   } = options ?? {}
+
+  // Infinity would never run out, so only a finite number replaces the default.
+  let maxHops = 20
+
+  if (maxHopsOption !== undefined && Number.isFinite(maxHopsOption)) {
+    maxHops = maxHopsOption
+  }
 
   // For URLs a person or markup wrote: the input URL and the feed's self link. resolveUrl repairs
   // schemes, resolves relative paths and decodes character references. A URL a server sent is
@@ -183,8 +189,13 @@ const resolveCanonical = async (
     onFetch?.({ url, response })
 
     // A fetchFn that lists no redirects still shows one when the response ended elsewhere.
-    const isMovedResponse = parseHttpUrl(response.url) !== url
-    hopCount += Math.max(response.redirects?.length ?? 0, Number(isMovedResponse))
+    let redirectCount = response.redirects?.length ?? 0
+
+    if (redirectCount === 0 && parseHttpUrl(response.url) !== url) {
+      redirectCount = 1
+    }
+
+    hopCount += redirectCount
 
     if (response.status < 200 || response.status >= 300) {
       return
@@ -732,32 +743,12 @@ const resolveCanonical = async (
     }
   }
 
-  // Phase 5: Generate Candidates.
-  // Include the source so Phase 7 finds the winning URL's place in the tier order.
-  const generateCandidateUrls = (sourceUrl: string): Set<string> => {
-    const urls = new Set(
-      tiers
-        .map((tier) => {
-          // A tier can strip the scheme, and the parser accepts only absolute URLs.
-          const normalizedUrl = addMissingScheme(normalizeUrl(sourceUrl, tier))
-
-          return parseAndApplyRewrites(normalizedUrl)
-        })
-        .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
-    )
-    urls.add(sourceUrl)
-
-    return urls
-  }
-
-  // Every URL the search has started from. A permanent redirect moves the search to its target,
-  // and each target is searched from once.
-  const startedUrls = new Set<string>()
+  const startedUrls: Array<string> = []
 
   // A target is searched from once, and only while the call has seen no more than maxHops
   // redirects, so a server that names a new URL each time cannot keep the search going.
   const isSearchable = (result: CanonicalResult): boolean => {
-    return !startedUrls.has(result.url) && hopCount <= maxHops
+    return !startedUrls.includes(result.url) && hopCount <= maxHops
   }
 
   // Phase 6: Test Candidates (in tier order, first match wins).
@@ -819,12 +810,24 @@ const resolveCanonical = async (
   }
 
   // Searches from one source: candidate testing, then the HTTPS upgrade. A permanent redirect
-  // target the call has not searched from yet is searched in turn, as when the call starts
-  // there, so every entry URL of a feed reaches the same result.
+  // target the call has not searched from yet is searched in turn, as when the call starts there.
   const searchFrom = async (source: CanonicalResult): Promise<CanonicalResult> => {
-    startedUrls.add(source.url)
+    startedUrls.push(source.url)
 
-    const candidateUrls = generateCandidateUrls(source.url)
+    // Phase 5: Generate Candidates.
+    // Include the source so Phase 7 finds the winning URL's place in the tier order.
+    const candidateUrls = new Set(
+      tiers
+        .map((tier) => {
+          // A tier can strip the scheme, and the parser accepts only absolute URLs.
+          const normalizedUrl = addMissingScheme(normalizeUrl(source.url, tier))
+
+          return parseAndApplyRewrites(normalizedUrl)
+        })
+        .filter((candidateUrl): candidateUrl is string => !!candidateUrl),
+    )
+    candidateUrls.add(source.url)
+
     const candidateTest = await testCandidates(candidateUrls, source)
 
     if (candidateTest?.result.data != null) {

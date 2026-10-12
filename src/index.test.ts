@@ -1531,7 +1531,34 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should stop moving to redirect targets once the call has seen maxHops redirects', async () => {
+      it('should stop moving to redirect targets once the call has seen more redirects than maxHops', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 'https://www.example.com/feed/4/'
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+
+            if (url === 'https://www.example.com/feed') {
+              return { status: 200, url, body: '<feed></feed>', headers: new Headers() }
+            }
+
+            return {
+              status: 200,
+              url: `https://www.example.com/feed/${fetchCalls.length}/`,
+              body: '<feed></feed>',
+              headers: new Headers(),
+              redirects: [{ url, status: 301 }],
+            }
+          },
+          parser: createMockParser(undefined),
+          maxHops: 2,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should allow 20 redirects by default', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 22
         const fetchCalls: Array<string> = []
@@ -1552,6 +1579,64 @@ describe('findCanonical', () => {
             }
           },
           parser: createMockParser(undefined),
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls.length).toBe(expected)
+      })
+
+      it('should use the default when maxHops is Infinity', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 22
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+
+            if (url === 'https://www.example.com/feed') {
+              return { status: 200, url, body: '<feed></feed>', headers: new Headers() }
+            }
+
+            return {
+              status: 200,
+              url: `https://www.example.com/feed/${fetchCalls.length}/`,
+              body: '<feed></feed>',
+              headers: new Headers(),
+              redirects: [{ url, status: 301 }],
+            }
+          },
+          parser: createMockParser(undefined),
+          maxHops: Number.POSITIVE_INFINITY,
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls.length).toBe(expected)
+      })
+
+      it('should use the default when maxHops is NaN', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 22
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+
+            if (url === 'https://www.example.com/feed') {
+              return { status: 200, url, body: '<feed></feed>', headers: new Headers() }
+            }
+
+            return {
+              status: 200,
+              url: `https://www.example.com/feed/${fetchCalls.length}/`,
+              body: '<feed></feed>',
+              headers: new Headers(),
+              redirects: [{ url, status: 301 }],
+            }
+          },
+          parser: createMockParser(undefined),
+          maxHops: Number.NaN,
         })
 
         await findCanonical(value, options)
