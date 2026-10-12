@@ -162,6 +162,11 @@ const resolveCanonical = async (
       return
     }
 
+    // A fetchFn written without types can resolve to nothing, which is a failed request.
+    if (!response) {
+      return
+    }
+
     onFetch?.({ url, response })
 
     if (response.status < 200 || response.status >= 300) {
@@ -711,8 +716,7 @@ const resolveCanonical = async (
   }
 
   // Phase 5: Generate Candidates.
-  // Include the source so Phase 7 finds the winning URL's place in the tier order. Testing skips
-  // it, since it was verified and looked up when adopted.
+  // Include the source so Phase 7 finds the winning URL's place in the tier order.
   const generateCandidateUrls = (sourceUrl: string): Set<string> => {
     const urls = new Set(
       tiers

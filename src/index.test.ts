@@ -1070,6 +1070,22 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should keep an HTTP winner whose response URL is not an HTTP URL', async () => {
+        const value = 'http://www.example.com/feed/'
+        const expected = 'http://example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed/': { body },
+            'http://example.com/feed': { body, url: 'about:blank' },
+          }),
+          existsFn: () => undefined,
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should keep HTTP when HTTPS redirects back to it temporarily', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'
@@ -6267,6 +6283,26 @@ describe('findCanonical', () => {
       const expected = 'https://example.com/feed'
 
       expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should skip a candidate when fetch resolves to nothing for it', async () => {
+      const value = 'https://www.example.com/feed'
+      const mockFetch = createMockFetch({
+        'https://www.example.com/feed': { body: '<feed></feed>' },
+      })
+      const options = toOptions({
+        // @ts-expect-error: This is for testing purposes.
+        fetchFn: (url) => {
+          if (url === 'https://example.com/feed') {
+            return
+          }
+
+          return mockFetch(url)
+        },
+        parser: createMockParser(undefined),
+      })
+
+      expect(await findCanonical(value, options)).toBe(value)
     })
 
     it('should return undefined when fetch fails due to redirect loop', async () => {
