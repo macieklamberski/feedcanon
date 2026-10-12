@@ -989,6 +989,60 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return a cleaner HTTPS candidate after one that ends on HTTP', async () => {
+        const value = 'http://www.example.com/feed/'
+        const expected = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed/': { body },
+            'https://www.example.com/feed/': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://example.org/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 302 }],
+            },
+            'https://www.example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return the HTTPS URL an HTTP winner ends on when candidate testing restarted from it', async () => {
+        const value = 'http://example.net/feed/'
+        const expected = 'https://example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.net/feed/': { body },
+            'http://example.net/feed': {
+              body,
+              url: 'https://example.com/feed/',
+              redirects: [{ url: 'http://example.net/feed', status: 301 }],
+            },
+            'https://example.com/feed': {
+              body,
+              url: 'https://example.com/feed/',
+              redirects: [
+                { url: 'https://example.com/feed', status: 301 },
+                { url: 'http://example.org/feed', status: 302 },
+              ],
+            },
+            'http://example.org/feed': {
+              body,
+              url: 'https://example.com/feed/',
+              redirects: [{ url: 'http://example.org/feed', status: 302 }],
+            },
+            'https://example.com/feed/': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should keep HTTP when HTTPS redirects back to it temporarily', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'
@@ -5125,7 +5179,6 @@ describe('findCanonical', () => {
 
       it('should not upgrade an HTTP winner to a cleaned URL whose own response ends on HTTP', async () => {
         const value = 'http://example.com/feed'
-        const expected = 'http://example.com/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -5146,7 +5199,7 @@ describe('findCanonical', () => {
           cleanUrlFn: stripWpCron,
         })
 
-        expect(await findCanonical(value, options)).toBe(expected)
+        expect(await findCanonical(value, options)).toBe(value)
       })
 
       it('should clean the final URL of an HTTP winner before its HTTPS form is tried', async () => {
@@ -6869,6 +6922,26 @@ describe('findCanonical', () => {
         candidate.searchParams.delete(matchParam)
         return [candidate.href]
       },
+    })
+
+    it('should use a probe candidate that has whitespace around it', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = 'https://example.com/feed'
+      const body = '<feed></feed>'
+      const paddedProbe: Probe = {
+        match: (url) => url.searchParams.has('feed'),
+        getCandidates: () => [' https://example.com/feed'],
+      }
+      const options = toOptions({
+        fetchFn: createMockFetch({
+          'https://example.com/?feed=rss2': { body },
+          'https://example.com/feed': { body },
+        }),
+        parser: createMockParser(undefined),
+        probes: [paddedProbe],
+      })
+
+      expect(await findCanonical(value, options)).toBe(expected)
     })
 
     it('should not fetch a probe candidate that is not an HTTP URL', async () => {
