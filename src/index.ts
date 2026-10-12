@@ -459,7 +459,7 @@ const resolveCanonical = async (
       return result
     }
 
-    const finalResult = adoptRedirectTarget(finalUrl, result.response)
+    const finalResult = adoptQueryCleanedUrl(finalUrl, result.response)
 
     const existingFinalUrl = await findExistingUrl(finalResult.url, finalResult)
 
@@ -499,7 +499,7 @@ const resolveCanonical = async (
     }
 
     // A rewritten URL that redirects permanently is not where the feed lives, so its target is.
-    return adoptRedirectTarget(targetUrl, rewrittenResponse)
+    return adoptQueryCleanedUrl(targetUrl, rewrittenResponse)
   }
 
   const hasFailed = (url: string): boolean => {
@@ -517,16 +517,16 @@ const resolveCanonical = async (
     return { url, response, feed: initialResponseFeed }
   }
 
-  // The redirect target of a verified URL, with its query cleaned. A target the cleaner moves to
-  // another origin or path names one more URL nobody fetched, so it is kept as it is.
-  const adoptRedirectTarget = (targetUrl: string, response: FetchFnResponse): CanonicalResult => {
-    const cleanedTargetUrl = cleanUrlFn(targetUrl)
+  // A redirect target or the final URL of a response, with its query cleaned. A URL the cleaner
+  // moves to another origin or path names one more URL nobody fetched, so it is kept as it is.
+  const adoptQueryCleanedUrl = (url: string, response: FetchFnResponse): CanonicalResult => {
+    const cleanedUrl = cleanUrlFn(url)
 
-    if (!isSameLocation(targetUrl, cleanedTargetUrl) || hasFailed(cleanedTargetUrl)) {
-      return createResult(targetUrl, response)
+    if (!isSameLocation(url, cleanedUrl) || hasFailed(cleanedUrl)) {
+      return createResult(url, response)
     }
 
-    return createResult(cleanedTargetUrl, response)
+    return createResult(cleanedUrl, response)
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
@@ -563,7 +563,7 @@ const resolveCanonical = async (
     }
 
     // A cleaned URL that redirects permanently is not where the feed lives, so its target is.
-    return adoptRedirectTarget(targetUrl, cleanedResponse)
+    return adoptQueryCleanedUrl(targetUrl, cleanedResponse)
   }
 
   // The URL a matched response is kept under: where it lives after permanent redirects, cleaned
