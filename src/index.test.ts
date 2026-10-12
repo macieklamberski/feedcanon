@@ -1646,7 +1646,7 @@ describe('findCanonical', () => {
 
       it('should stop when cleanUrlFn names a new redirect target on every call', async () => {
         const value = 'https://www.example.com/feed/'
-        const expected = 'https://www.example.com/feed/?version=9'
+        const expected = 'https://www.example.com/feed/?version=13'
         let cleanCallCount = 0
         const options = toOptions({
           fetchFn: (url) => {
@@ -1680,6 +1680,34 @@ describe('findCanonical', () => {
           },
           parser: createMockParser(undefined),
           maxHops: 1,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should search from both the cleaned and the uncleaned form of one redirect target', async () => {
+        const value = 'http://example.com/feed/?utm=1'
+        const expected = 'http://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed/?utm=1': { body },
+            'http://example.com/feed': {
+              body,
+              url: 'https://www.example.com/feed?utm=1',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+            'https://www.example.com/feed?utm=1': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://www.example.com/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'http://www.example.com/feed': { body },
+          }),
+          cleanUrlFn: (url) => url.replace('?utm=1', ''),
+          parser: createMockParser(undefined),
+          maxHops: 2,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
