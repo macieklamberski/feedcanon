@@ -149,6 +149,11 @@ const resolveCanonical = async (
 
   // Fetch a URL and report it to onFetch. Returns the response only when it is a 2xx.
   const fetchSuccess = async (url: string): Promise<FetchFnResponse | undefined> => {
+    // A rewrite or a probe can hand over anything, and only an http URL is ever requested.
+    if (!parseHttpUrl(url)) {
+      return
+    }
+
     let response: FetchFnResponse
 
     try {
@@ -366,7 +371,13 @@ const resolveCanonical = async (
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
     if (comparedResponses.has(url)) {
-      return comparedResponses.get(url)
+      const comparedResponse = comparedResponses.get(url)
+
+      if (comparedResponse) {
+        reportMatch(url, comparedResponse)
+      }
+
+      return comparedResponse
     }
 
     // Every exit below is a failure except the last, so the URL counts as failed until it matches.
@@ -383,6 +394,7 @@ const resolveCanonical = async (
     }
 
     comparedResponses.set(url, response)
+    reportMatch(url, response)
 
     return response
   }
@@ -432,8 +444,6 @@ const resolveCanonical = async (
         if (lookupUrl === url && sourceUrl && sourceUrl !== url) {
           continue
         }
-
-        reportMatch(lookupUrl, response)
 
         return { url: lookupUrl, data, response, feed: initialResponseFeed }
       }
@@ -488,8 +498,6 @@ const resolveCanonical = async (
     if (!rewrittenResponse) {
       return adoptCleanedUrl(fetchedUrl, requestUrl, response)
     }
-
-    reportMatch(rewrittenUrl, rewrittenResponse)
 
     const targetUrl = getFetchedSourceUrl(rewrittenResponse, rewrittenUrl) ?? rewrittenUrl
 
@@ -554,8 +562,6 @@ const resolveCanonical = async (
       return createResult(responseUrl, response)
     }
 
-    reportMatch(cleanedUrl, cleanedResponse)
-
     const targetUrl = getFetchedSourceUrl(cleanedResponse, cleanedUrl) ?? cleanedUrl
 
     if (targetUrl === cleanedUrl) {
@@ -609,8 +615,6 @@ const resolveCanonical = async (
       return targetResult
     }
 
-    reportMatch(httpsTargetUrl, httpsTargetResponse)
-
     return findCanonicalResult(createResult(httpsTargetUrl, httpsTargetResponse))
   }
 
@@ -652,7 +656,6 @@ const resolveCanonical = async (
     const response = await fetchAndCompare(urlToTry)
 
     if (response) {
-      reportMatch(urlToTry, response)
       // A self URL whose response lands on a non-http URL is not trusted.
       const selfResult = await adoptResponseUrl(response, urlToTry, initialResult)
 
@@ -671,7 +674,6 @@ const resolveCanonical = async (
     const response = await fetchAndCompare(candidateUrl)
 
     if (response) {
-      reportMatch(candidateUrl, response)
       return adoptResponseUrl(response, candidateUrl)
     }
   })
@@ -748,8 +750,6 @@ const resolveCanonical = async (
       const candidateResponse = await fetchAndCompare(candidateUrl)
 
       if (candidateResponse) {
-        reportMatch(candidateUrl, candidateResponse)
-
         const candidateResponseUrl = getFetchedSourceUrl(candidateResponse, candidateUrl)
 
         if (!candidateResponseUrl || candidateResponseUrl === candidateUrl) {
