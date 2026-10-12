@@ -739,8 +739,10 @@ const resolveCanonical = async (
     { isRestartAllowed = false, isVerifiedReused = true } = {},
   ): Promise<CanonicalResult | undefined> => {
     for (const candidateUrl of urls) {
+      // The source was verified when adopted. Reaching it means no earlier tier served the feed,
+      // so it wins over every later one.
       if (isVerifiedReused && candidateUrl === candidateSource.url) {
-        continue
+        return
       }
 
       // A candidate equal to the initial response URL was verified and looked up when adopted.
@@ -842,8 +844,8 @@ const resolveCanonical = async (
   const httpsUrl = upgradeScheme(winningUrl)
   const httpsResult = await testHttpsUrl(httpsUrl)
 
-  // An http winner whose response, or the response of its https form, ended on another URL: the
-  // https form of that URL is tried next, rewritten and cleaned, then rewritten, then as it is.
+  // The https form of the URL the winner's response ended on, then of the URL its https form's
+  // response ended on, is tried next: rewritten and cleaned, then rewritten, then as it is.
   if (!httpsResult) {
     const httpsResponse = comparedResponses.get(httpsUrl)
     const endUrls = [winningResult.response.url]
@@ -855,7 +857,7 @@ const resolveCanonical = async (
     for (const endUrl of endUrls) {
       const finalUrl = parseHttpUrl(endUrl)
 
-      if (!finalUrl || finalUrl === winningUrl) {
+      if (!finalUrl) {
         continue
       }
 
