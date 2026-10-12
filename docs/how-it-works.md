@@ -169,7 +169,7 @@ The fastest comparison: responses must be byte-for-byte identical. This catches 
 
 When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls back to comparing feed signatures. The default parser serializes the whole parsed feed, with the parts that change between requests or between URLs taken out:
 
-- Volatile fields are left out: `lastBuildDate`, `pubDate`, `link` and `generator` in RSS, `updated` and `generator` in Atom, `link` in RDF, `feed_url` in JSON Feed
+- Volatile fields are left out: `lastBuildDate`, `pubDate`, `link` and `generator` in RSS, `updated`, `generator` and the alternate link in Atom, `link` in RDF, `feed_url` and `home_page_url` in JSON Feed
 - The self link is cleared
 - URLs on the feed's own host or on the site's host are reduced to their path, so differences in protocol, `www` or trailing slash do not count
 - Feeds on two different hosts also match when they link the same URLs and their links to those hosts or to the site's host differ only in protocol, `www` or trailing slash. Feeds that link each other's host do not, unless that host is the one their site link names

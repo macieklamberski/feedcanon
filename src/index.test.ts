@@ -2391,6 +2391,57 @@ describe('findCanonical', () => {
           expect(await findCanonical(value, options)).toBe(expected)
         })
 
+        it('should match an Atom self URL on another host when only the site link differs', async () => {
+          const value = 'https://blog.example.org/feed'
+          const expected = 'https://feeds.example.com/feed'
+          const createBody = (host: string) => {
+            return `
+              <feed xmlns="http://www.w3.org/2005/Atom">
+                <title>Example Blog</title>
+                <link rel="self" href="https://feeds.example.com/feed"/>
+                <link rel="alternate" href="https://${host}/"/>
+                <entry>
+                  <id>tag:example.org,2024:1</id>
+                  <title>First post</title>
+                  <link href="https://blog.example.org/post/1"/>
+                </entry>
+              </feed>
+            `
+          }
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://blog.example.org/feed': { body: createBody('blog.example.org') },
+              'https://feeds.example.com/feed': { body: createBody('feeds.example.com') },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should match a JSON Feed self URL on another host when only the site link differs', async () => {
+          const value = 'https://blog.example.org/feed'
+          const expected = 'https://feeds.example.com/feed'
+          const createBody = (host: string) => {
+            return JSON.stringify({
+              version: 'https://jsonfeed.org/version/1.1',
+              title: 'Example Blog',
+              home_page_url: `https://${host}/`,
+              feed_url: 'https://feeds.example.com/feed',
+              items: [{ id: '1', title: 'First post', url: 'https://blog.example.org/post/1' }],
+            })
+          }
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://blog.example.org/feed': { body: createBody('blog.example.org') },
+              'https://feeds.example.com/feed': { body: createBody('feeds.example.com') },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
         it("should not match a self URL on another host when the feeds link each other's host", async () => {
           const value = 'https://blog.example.org/feed'
           const expected = 'https://blog.example.org/feed'

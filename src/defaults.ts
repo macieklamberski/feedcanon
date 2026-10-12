@@ -183,7 +183,10 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 
     if (parsed.format === 'json') {
       contentUrl = parsed.feed.home_page_url
-      signature = createSignature(parsed.feed, [[parsed.feed, 'feed_url']])
+      signature = createSignature(parsed.feed, [
+        [parsed.feed, 'feed_url'],
+        [parsed.feed, 'home_page_url'],
+      ])
     } else {
       const selfLink = retrieveSelfLink(parsed)
 
@@ -205,11 +208,14 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
           [selfLink, 'href'],
         ])
       } else {
-        contentUrl = retrieveAlternateLink(parsed.feed)?.href
+        const alternateLink = retrieveAlternateLink(parsed.feed)
+
+        contentUrl = alternateLink?.href
         signature = createSignature(parsed.feed, [
           [parsed.feed, 'updated'],
           [parsed.feed, 'generator'],
           [selfLink, 'href'],
+          [alternateLink, 'href'],
         ])
       }
     }
