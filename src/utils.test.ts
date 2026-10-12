@@ -573,6 +573,14 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url], true)).toBe(expected)
     })
 
+    it('should keep the host in lowercase', () => {
+      const url = 'https://example.com/feed'
+      const value = JSON.stringify({ link: 'https://EXAMPLE.COM/post/1' })
+      const expected = JSON.stringify({ link: '//example.com/post/1' })
+
+      expect(neutralizeUrls(value, [url], true)).toBe(expected)
+    })
+
     it('should keep different hosts apart', () => {
       const urls = ['https://example.com/feed', 'https://example.org/feed']
       const value = JSON.stringify({

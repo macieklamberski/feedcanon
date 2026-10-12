@@ -197,7 +197,7 @@ export const neutralizeUrls = (text: string, urls: Array<string>, isHostKept = f
       path = path.slice(0, -1)
     }
 
-    const host = isHostKept ? `//${stripWww(parsed.host).toLowerCase()}` : ''
+    const host = isHostKept ? `//${stripWww(parsed.host)}` : ''
 
     result += decodedText.slice(lastIndex, start) + host + path + parsed.search + parsed.hash
     lastIndex = end
