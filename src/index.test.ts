@@ -1043,6 +1043,33 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return the rewritten HTTPS form of an HTTP winner whose own HTTPS form fails', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://new.example.com/feed'
+        const body = '<feed></feed>'
+        const hostRewrite: Rewrite = {
+          match: (url) => url.hostname === 'old.example.com',
+          rewrite: (url) => {
+            url.hostname = 'new.example.com'
+            return url
+          },
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': {
+              body,
+              url: 'http://old.example.com/feed',
+              redirects: [{ url: 'http://example.com/feed', status: 301 }],
+            },
+            'https://new.example.com/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          rewrites: [hostRewrite],
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should keep HTTP when HTTPS redirects back to it temporarily', async () => {
         const value = 'http://example.com/feed'
         const expected = 'http://example.com/feed'
@@ -2201,6 +2228,21 @@ describe('findCanonical', () => {
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should keep the source when it matches an earlier tier than a candidate that serves the feed', async () => {
+        const value = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body },
+          }),
+          tiers: [{ stripWww: false }, { stripWww: true }],
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(value)
       })
 
       it('should fall back to original when all candidates fail', async () => {
