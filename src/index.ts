@@ -859,7 +859,7 @@ const resolveCanonical = async (
   if (!httpsResult) {
     const finalUrl = parseHttpUrl(winningResult.response.url)
 
-    if (winningResult.data != null || !finalUrl || finalUrl === winningUrl) {
+    if (!finalUrl || finalUrl === winningUrl) {
       return winningResult
     }
 
