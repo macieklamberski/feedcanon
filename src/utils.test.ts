@@ -1260,10 +1260,10 @@ describe('neutralizeUrls', () => {
     it('should decode an encoded external domain URL without neutralizing it', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({
-        description: 'https://share.example.org/share?url=http%3A%2F%2Fexternal.com%2Fpost',
+        description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.net%2Fpost',
       })
       const expected = JSON.stringify({
-        description: 'https://share.example.org/share?url=http://external.com/post',
+        description: 'https://share.example.org/share?url=http://example.net/post',
       })
 
       expect(neutralizeUrls(value, [url])).toBe(expected)

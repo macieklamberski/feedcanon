@@ -4,7 +4,7 @@ title: "Customization: URL Tiers"
 
 # Customize URL Tiers
 
-Feedcanon applies URL normalization tiers to generate candidates, ordered from cleanest to least clean. The first candidate serving the same content wins.
+Feedcanon applies URL normalization tiers to generate candidates, ordered from cleanest to least clean. The first candidate serving the same content wins. The URL being cleaned takes part too, at the first tier that leaves it unchanged, and a tier listed after that one is never tried. So list your own tiers from cleanest to least clean as well.
 
 Default tiers:
 
