@@ -1644,6 +1644,47 @@ describe('findCanonical', () => {
         expect(fetchCalls.length).toBe(expected)
       })
 
+      it('should stop when cleanUrlFn names a new redirect target on every call', async () => {
+        const value = 'https://www.example.com/feed/'
+        const expected = 'https://www.example.com/feed/?version=9'
+        let cleanCallCount = 0
+        const options = toOptions({
+          fetchFn: (url) => {
+            if (url === 'https://example.com/feed') {
+              return {
+                status: 200,
+                url: value,
+                body: '<feed></feed>',
+                headers: new Headers(),
+                redirects: [{ url, status: 301 }],
+              }
+            }
+
+            if (url.startsWith(value)) {
+              return { status: 200, url, body: '<feed></feed>', headers: new Headers() }
+            }
+
+            return { status: 404, url, body: '', headers: new Headers() }
+          },
+          cleanUrlFn: (url) => {
+            cleanCallCount++
+
+            if (cleanCallCount > 1000) {
+              throw new Error('The search did not stop')
+            }
+
+            const cleanedUrl = new URL(url)
+            cleanedUrl.searchParams.set('version', String(cleanCallCount))
+
+            return cleanedUrl.href
+          },
+          parser: createMockParser(undefined),
+          maxHops: 1,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should not move to a redirect target when maxHops is zero', async () => {
         const value = 'https://www.example.com/feed'
         const expected = 'https://www.example.org/feed'

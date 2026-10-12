@@ -746,9 +746,14 @@ const resolveCanonical = async (
   const startedUrls: Array<string> = []
 
   // A target is searched from once, and only while the call has seen no more than maxHops
-  // redirects, so a server that names a new URL each time cannot keep the search going.
+  // redirects, so a server that names a new URL each time cannot keep the search going. A
+  // cleanUrlFn that does so spends no redirect, so the searches are counted too.
   const isSearchable = (result: CanonicalResult): boolean => {
-    return !startedUrls.includes(result.url) && hopCount <= maxHops
+    if (startedUrls.includes(result.url)) {
+      return false
+    }
+
+    return hopCount <= maxHops && startedUrls.length <= maxHops
   }
 
   // Phase 6: Test Candidates (in tier order, first match wins).
