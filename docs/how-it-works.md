@@ -135,7 +135,7 @@ This ensures the cleanest working URL is selected.
 
 ::: details Known candidates and redirects
 - **A candidate `existsFn` knows** is fetched before it is returned, or its response reused if this call already fetched it. One that serves a different feed or fails to fetch is skipped.
-- **A candidate that redirects permanently** is not where the feed lives, so the search moves to its redirect target, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate, and the search then starts again from it, as when the call starts there, so every entry URL of a feed reaches the same result. Each target is searched from once, so two URLs that redirect to each other end the search. When the target is the candidate's own form under the other protocol, the URL your `existsFn` knows is returned, so the feed is not stored twice.
+- **A candidate that redirects permanently** is not where the feed lives, so the search moves to its redirect target, whether `existsFn` knows the candidate or not. The target is checked against your `existsFn` like any candidate, and candidate testing and the HTTPS upgrade then run again from it, so every entry URL of a feed reaches the same result. Each target is searched from once, so two URLs that redirect to each other end the search. Once the call has seen more redirects than `maxHops`, 20 by default, the search stops moving to further targets and returns what it has. When the target is the candidate's own form under the other protocol, the URL your `existsFn` knows is returned, so the feed is not stored twice.
 - **An HTTPS candidate that redirects permanently to HTTP** uses the HTTPS form of that target when it serves the feed. Otherwise the HTTP target is used.
 :::
 
@@ -153,8 +153,8 @@ This ensures secure connections when available.
 - **An HTTPS URL that redirects back to HTTP** is not served over HTTPS. The HTTPS form of the URL it ended on is tried next, and the HTTP URL is kept when that does not serve the feed.
 - **An HTTP winner whose HTTPS form does not serve the feed** gets the HTTPS form of the URL its response ended on tried next, then of the URL its HTTPS form ended on. Each is tried in three forms and in this order: rewritten and cleaned, rewritten, then as it is. The first form that serves the feed over HTTPS is returned.
 - **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, each one alone. The first that serves the feed over HTTPS is returned, otherwise the HTTPS URL. One that ends on an HTTP URL is passed over, unless `existsFn` knows it. An HTTP and an HTTPS entry URL of the same feed usually reach the same result this way. They can differ when an HTTPS URL redirects to HTTP. Entered directly, it is kept through a temporary redirect and replaced by its HTTP target after a permanent one, while the upgrade passes it over in both cases.
-- **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
-- **Cost.** When the HTTP winner is already the cleanest candidate and its HTTPS form serves the feed, the upgrade costs one request. Each further URL it tries costs one more.
+- **An HTTPS URL that redirects permanently** moves the search to its target, as in candidate testing.
+- **Cost.** When the HTTP winner is already the cleanest candidate and its HTTPS form serves the feed, the upgrade costs one request. Each further URL it tries costs one more, and one that redirects permanently costs a search from its target.
 - **A permanent redirect target served over HTTP** is returned under its HTTPS form when that serves the feed.
 :::
 

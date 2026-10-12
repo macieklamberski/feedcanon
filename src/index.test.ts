@@ -1531,6 +1531,51 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should stop moving to redirect targets once the call has seen maxHops redirects', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 22
+        const fetchCalls: Array<string> = []
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+
+            if (url === 'https://www.example.com/feed') {
+              return { status: 200, url, body: '<feed></feed>', headers: new Headers() }
+            }
+
+            return {
+              status: 200,
+              url: `https://www.example.com/feed/${fetchCalls.length}/`,
+              body: '<feed></feed>',
+              headers: new Headers(),
+              redirects: [{ url, status: 301 }],
+            }
+          },
+          parser: createMockParser(undefined),
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls.length).toBe(expected)
+      })
+
+      it('should not move to a redirect target when maxHops is zero', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = 'https://www.example.org/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'https://www.example.org/feed' },
+            'https://example.org/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+          maxHops: 0,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should stop when two redirect targets point at each other', async () => {
         const value = 'https://www.example.com/feed'
         const body = '<feed></feed>'
@@ -1574,6 +1619,37 @@ describe('findCanonical', () => {
             'https://example.com/feed': { status: 404 },
           }),
           parser: createMockParser('https://www.example.com/feed/'),
+          cleanUrlFn: stripWpCron,
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return the uncleaned URL when its cleaned form turns out to serve another feed', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=1&id=2'
+        const expected = 'http://example.com/feed?doing_wp_cron=1&id=2'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=1&id=2': {
+              body,
+              url: 'http://example.com/feed?doing_wp_cron=1&id=2',
+              redirects: [{ url: 'https://example.com/feed?doing_wp_cron=1&id=2', status: 301 }],
+            },
+            'https://example.com/feed?id=2': {
+              body,
+              url: 'http://www.example.com/feed?id=2',
+              redirects: [{ url: 'https://example.com/feed?id=2', status: 307 }],
+            },
+            'https://www.example.com/feed?id=2': {
+              body,
+              url: 'http://www.example.com/feed?id=2',
+              redirects: [{ url: 'https://www.example.com/feed?id=2', status: 301 }],
+            },
+            'http://www.example.com/feed?id=2': { body },
+            'http://example.com/feed?id=2': { body: '<feed><title>Other</title></feed>' },
+          }),
+          parser: createMockParser(undefined),
           cleanUrlFn: stripWpCron,
         })
 

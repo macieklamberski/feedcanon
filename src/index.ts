@@ -20,6 +20,8 @@ import { applyProbes, applyRewrites, getLinkHeaderSelfUrl } from './utils.js'
 // that served it, with its feed.
 type CanonicalResult = {
   url: string
+  // The URL the response came from, when url is a cleaned form of it that was not fetched.
+  uncleanedUrl?: string
   data?: unknown
   response: FetchFnResponse
   feed: unknown
@@ -91,6 +93,7 @@ const resolveCanonical = async (
     tiers = defaultTiers,
     rewrites = [],
     probes = [],
+    maxHops = 20,
     onFetch,
     onMatch,
   } = options ?? {}
@@ -154,6 +157,9 @@ const resolveCanonical = async (
     }
   }
 
+  // Redirects in every response the call has received.
+  let hopCount = 0
+
   // Fetch a URL and report it to onFetch. Returns the response only when it is a 2xx.
   const fetchSuccess = async (url: string): Promise<FetchFnResponse | undefined> => {
     // A rewrite or a probe can hand over anything, and only an http URL is ever requested.
@@ -175,6 +181,10 @@ const resolveCanonical = async (
     }
 
     onFetch?.({ url, response })
+
+    // A fetchFn that lists no redirects still shows one when the response ended elsewhere.
+    const isMovedResponse = parseHttpUrl(response.url) !== url
+    hopCount += Math.max(response.redirects?.length ?? 0, Number(isMovedResponse))
 
     if (response.status < 200 || response.status >= 300) {
       return
@@ -546,7 +556,7 @@ const resolveCanonical = async (
       return createResult(url, response)
     }
 
-    return createResult(cleanedUrl, response)
+    return { ...createResult(cleanedUrl, response), uncleanedUrl: url }
   }
 
   // A cleaner that only edits the query is trusted. One that moves the URL to another origin or
@@ -565,7 +575,7 @@ const resolveCanonical = async (
     }
 
     if (isSameLocation(responseUrl, cleanedUrl) || cleanedUrl === requestUrl) {
-      return createResult(cleanedUrl, response)
+      return { ...createResult(cleanedUrl, response), uncleanedUrl: responseUrl }
     }
 
     const cleanedResponse = await fetchAndCompare(cleanedUrl)
@@ -744,6 +754,12 @@ const resolveCanonical = async (
   // and each target is searched from once.
   const startedUrls = new Set<string>()
 
+  // A target is searched from once, and only while the call has seen no more than maxHops
+  // redirects, so a server that names a new URL each time cannot keep the search going.
+  const isSearchable = (result: CanonicalResult): boolean => {
+    return !startedUrls.has(result.url) && hopCount <= maxHops
+  }
+
   // Phase 6: Test Candidates (in tier order, first match wins).
   // Returns the first candidate that serves the feed, with its existsFn data when existsFn knows
   // it. A candidate that redirects permanently gives its target, marked as moved.
@@ -815,7 +831,7 @@ const resolveCanonical = async (
       return candidateTest.result
     }
 
-    if (candidateTest?.isMoved && !startedUrls.has(candidateTest.result.url)) {
+    if (candidateTest?.isMoved && isSearchable(candidateTest.result)) {
       return searchFrom(candidateTest.result)
     }
 
@@ -839,7 +855,7 @@ const resolveCanonical = async (
 
       let result = httpsTest.result
 
-      if (httpsTest.isMoved && !startedUrls.has(result.url)) {
+      if (httpsTest.isMoved && isSearchable(result)) {
         result = await searchFrom(result)
       }
 
@@ -916,5 +932,13 @@ const resolveCanonical = async (
     return httpsResult
   }
 
-  return searchFrom(candidateSource)
+  const searchResult = await searchFrom(candidateSource)
+
+  if (!searchResult.uncleanedUrl || !hasFailed(searchResult.url)) {
+    return searchResult
+  }
+
+  // A cleaned URL trusted without a fetch was fetched later and did not serve the feed, so the
+  // URL its response came from is returned.
+  return findCanonicalResult(createResult(searchResult.uncleanedUrl, searchResult.response))
 }

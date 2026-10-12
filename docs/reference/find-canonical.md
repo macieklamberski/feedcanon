@@ -28,6 +28,7 @@ Finds the canonical URL for a given feed URL by fetching, parsing, and testing U
 | `tiers` | [`Tier[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | [`defaultTiers`](https://github.com/macieklamberski/feedcanon/blob/main/src/defaults.ts) | URL normalization tiers. See [URL Tiers](/guides/customization/url-tiers) |
 | `rewrites` | [`Rewrite[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | URL rewrites. See [URL Rewrites](/guides/customization/url-rewrites) |
 | `probes` | [`Probe[]`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | URL probes for testing alternate URL forms. See [URL Probes](/guides/customization/url-probes) |
+| `maxHops` | `number` | `20` | Redirects a call may see before the search stops moving to redirect targets. `0` keeps the search at the URL it started from. See [How It Works](/how-it-works) |
 | `onFetch` | [`OnFetchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback after each fetch. See [Using Callbacks](/guides/callbacks#onfetch) |
 | `onMatch` | [`OnMatchFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback when URL matches. See [Using Callbacks](/guides/callbacks#onmatch) |
 | `onExists` | [`OnExistsFn`](https://github.com/macieklamberski/feedcanon/blob/main/src/types.ts) | — | Callback when URL exists. See [Using Callbacks](/guides/callbacks#onexists) |
