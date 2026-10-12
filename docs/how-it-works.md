@@ -151,8 +151,8 @@ This ensures secure connections when available.
 
 ::: details Redirects and cleaner candidates
 - **An HTTPS URL that redirects back to HTTP** is not served over HTTPS, so the HTTP URL is kept.
-- **An HTTP winner that is not served directly,** because its response ended on another URL, gets the HTTPS form of that URL tried next. It is returned when it serves the feed over HTTPS.
-- **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. One that redirects permanently to an HTTP URL is ignored, unless `existsFn` knows that URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way.
+- **An HTTP winner that is not served directly,** because its response ended on another URL, gets the HTTPS form of that URL tried next: rewritten and cleaned first, then as it is. The first form that serves the feed over HTTPS is returned.
+- **Cleaner candidates that failed over HTTP** get their HTTPS forms tested once the upgrade matches, as in candidate testing. The first that matches is returned, otherwise the HTTPS URL. One that redirects permanently to an HTTP URL is ignored, unless `existsFn` knows that URL. An HTTP and an HTTPS entry URL of the same feed reach the same result this way, unless an HTTPS form redirects permanently to an HTTP URL with no working HTTPS form.
 - **An HTTPS URL that redirects permanently** returns its target instead, as in candidate testing.
 - **Cost.** When the HTTP winner is already the cleanest candidate, the upgrade costs one request.
 - **A permanent redirect target served over HTTP** is returned under its HTTPS form when that serves the feed.
@@ -170,7 +170,7 @@ The fastest comparison: responses must be byte-for-byte identical. This catches 
 
 When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls back to comparing feed signatures. The default parser serializes the whole parsed feed, with the parts that change between requests or between URLs taken out:
 
-- Volatile fields are left out: `lastBuildDate`, `pubDate`, `link` and `generator` in RSS, `updated`, `generator` and the alternate link in Atom, `link` in RDF, `feed_url` and `home_page_url` in JSON Feed
+- Volatile fields are left out: `lastBuildDate`, `pubDate`, `link`, `generator` and `dc:date` in RSS, `updated`, `generator` and the alternate link in Atom, `link` and `dc:date` in RDF, `feed_url` and `home_page_url` in JSON Feed
 - The self link is cleared
 - URLs on the feed's own host or on the site's host are reduced to their path, so differences in protocol, `www` or trailing slash do not count
 - Feeds on two different hosts also match when they link the same URLs and their links to those hosts or to the site's host differ only in protocol, `www` or trailing slash. Feeds that link each other's host do not, unless that host is the one their site link names
