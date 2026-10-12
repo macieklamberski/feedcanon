@@ -4368,6 +4368,44 @@ describe('findCanonical', () => {
         expect(matchCalls).toEqual(expected)
       })
 
+      it('should call onMatch for the HTTPS form of an HTTP redirect target that ends on HTTP', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = [
+          'https://www.example.com/feed',
+          'https://example.com/feed',
+          'https://www.example.org/feed',
+          'http://example.org/feed',
+          'https://example.org/feed',
+        ]
+        const body = '<feed></feed>'
+        const matchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': {
+              body,
+              url: 'http://www.example.org/feed',
+              redirects: [{ url: 'https://example.com/feed', status: 301 }],
+            },
+            'https://www.example.org/feed': {
+              body,
+              url: 'http://www.example.org/feed',
+              redirects: [{ url: 'https://www.example.org/feed', status: 302 }],
+            },
+            'http://example.org/feed': { body },
+            'https://example.org/feed': { body },
+          }),
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
+      })
+
       it('should call onMatch for the HTTPS form of an HTTP redirect target', async () => {
         const value = 'https://www.example.com/feed'
         const expected = [
@@ -6659,6 +6697,33 @@ describe('findCanonical', () => {
         candidate.searchParams.delete(matchParam)
         return [candidate.href]
       },
+    })
+
+    it('should not fetch a probe candidate that is not an HTTP URL', async () => {
+      const value = 'https://example.com/?feed=rss2'
+      const expected = ['https://example.com/?feed=rss2', 'https://example.com/']
+      const fetchCalls: Array<string> = []
+      const mockFetch = createMockFetch({
+        'https://example.com/?feed=rss2': { body: '<feed></feed>' },
+        'ftp://example.com/feed': { body: '<feed></feed>' },
+        'https://example.com/': { status: 404 },
+      })
+      const ftpProbe: Probe = {
+        match: (url) => url.searchParams.has('feed'),
+        getCandidates: () => ['ftp://example.com/feed'],
+      }
+      const options = toOptions({
+        fetchFn: (url) => {
+          fetchCalls.push(url)
+          return mockFetch(url)
+        },
+        parser: createMockParser(undefined),
+        probes: [ftpProbe],
+      })
+
+      await findCanonical(value, options)
+
+      expect(fetchCalls).toEqual(expected)
     })
 
     it('should use probe candidate when it returns equivalent content', async () => {
