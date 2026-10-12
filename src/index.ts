@@ -730,6 +730,7 @@ const resolveCanonical = async (
   const testCandidates = async (
     urls: Iterable<string>,
     isRestartAllowed = false,
+    isInitialResultReused = true,
   ): Promise<CanonicalResult | undefined> => {
     for (const candidateUrl of urls) {
       if (candidateUrl === candidateSource.url) {
@@ -737,7 +738,7 @@ const resolveCanonical = async (
       }
 
       // A candidate equal to the initial response URL was verified and looked up when adopted.
-      if (candidateUrl === initialResult.url) {
+      if (isInitialResultReused && candidateUrl === initialResult.url) {
         return initialResult
       }
 
@@ -759,7 +760,8 @@ const resolveCanonical = async (
         // A candidate that redirects permanently is not where the feed lives, so the search moves
         // to its target, known or not. A response URL kept because its cleaned form failed
         // verification matches uncleaned. Both were looked up in existsFn when adopted.
-        let adoptedResult = [candidateSource, initialResult].find(({ url }) => {
+        const adoptedResults = isInitialResultReused ? [candidateSource, initialResult] : []
+        let adoptedResult = adoptedResults.find(({ url }) => {
           return url === cleanUrlFn(candidateResponseUrl) || url === candidateResponseUrl
         })
 
@@ -811,14 +813,20 @@ const resolveCanonical = async (
   }
 
   // An https URL replaces an http winner when it serves the feed over https, or existsFn knows it.
+  // The result adopted from the initial response is not reused: it holds that response, which
+  // says nothing about how the URL itself is served.
   const testHttpsUrls = async (urls: Array<string>): Promise<CanonicalResult | undefined> => {
-    const result = await testCandidates(urls)
+    const result = await testCandidates(urls, false, false)
 
     if (!result || result.data != null) {
       return result
     }
 
-    if (isServedOverHttp(result.url) || isServedOverHttp(result.response.url)) {
+    // A cleaned URL can carry the response of the URL it was cleaned from. Its own response, when
+    // the call has one, is the one that says how it is served.
+    const response = comparedResponses.get(result.url) ?? result.response
+
+    if (isServedOverHttp(result.url) || isServedOverHttp(response.url)) {
       return
     }
 
@@ -829,7 +837,7 @@ const resolveCanonical = async (
   const httpsResult = await testHttpsUrls([httpsUrl])
 
   // An http winner whose response, or the response of its https form, ended on another URL: the
-  // https form of that URL, rewritten like any other, is tried next.
+  // https form of that URL is tried next, rewritten and cleaned, then rewritten, then as it is.
   if (!httpsResult) {
     const httpsResponse = comparedResponses.get(httpsUrl)
     const endUrls = [winningResult.response.url]
@@ -845,11 +853,17 @@ const resolveCanonical = async (
         continue
       }
 
-      const httpsFinalUrl = applyRewrites(upgradeScheme(finalUrl), rewrites)
-      const httpsFinalResult = await testHttpsUrls([httpsFinalUrl])
+      const httpsFinalUrl = upgradeScheme(finalUrl)
+      const rewrittenFinalUrl = applyRewrites(httpsFinalUrl, rewrites)
 
-      if (httpsFinalResult) {
-        return httpsFinalResult
+      // Each form is tested alone, most wanted first: one that serves the feed but ends on http
+      // must not end the search.
+      for (const url of [cleanUrlFn(rewrittenFinalUrl), rewrittenFinalUrl, httpsFinalUrl]) {
+        const httpsFinalResult = await testHttpsUrls([url])
+
+        if (httpsFinalResult) {
+          return httpsFinalResult
+        }
       }
     }
 
