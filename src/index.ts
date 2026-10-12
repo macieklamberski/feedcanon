@@ -832,42 +832,43 @@ const resolveCanonical = async (
     return winningResult
   }
 
-  const httpsUrl = upgradeScheme(winningUrl)
-  const httpsResponse = await fetchAndCompare(httpsUrl)
+  // An https URL replaces an http winner when it serves the feed over https, or existsFn knows it.
+  const testHttpsUrls = async (urls: Array<string>): Promise<CanonicalResult | undefined> => {
+    const result = await testCandidates(urls)
 
-  if (!httpsResponse) {
-    return winningResult
+    if (!result || result.data != null) {
+      return result
+    }
+
+    if (isServedOverHttp(result.url) || isServedOverHttp(result.response.url)) {
+      return
+    }
+
+    return result
   }
 
-  const sourceUrl = getFetchedSourceUrl(httpsResponse, httpsUrl) ?? httpsUrl
+  const httpsUrl = upgradeScheme(winningUrl)
+  const httpsResult = await testHttpsUrls([httpsUrl])
 
-  // An https URL whose response ends on http, through any redirect, is not served over https.
-  // The https form of its permanent redirect target still can be.
-  if (isServedOverHttp(httpsResponse.url)) {
-    const sourceResult = { url: sourceUrl, response: httpsResponse, feed: initialResponseFeed }
-    const httpsTargetResult = await adoptHttpsTarget(httpsUrl, sourceResult)
+  // An http winner whose response ended on another URL is not served directly, so the https form
+  // of that URL, rewritten like any other, is tried next.
+  if (!httpsResult) {
+    const finalUrl = parseHttpUrl(winningResult.response.url)
 
-    if (httpsTargetResult === sourceResult) {
+    if (winningResult.data != null || !finalUrl || finalUrl === winningUrl) {
       return winningResult
     }
 
-    return httpsTargetResult
-  }
+    const httpsFinalUrl = applyRewrites(upgradeScheme(finalUrl), rewrites)
+    const httpsFinalResult = await testHttpsUrls([httpsFinalUrl])
 
-  reportMatch(httpsUrl, httpsResponse)
-
-  // An https URL that redirects permanently is not where the feed lives either, as in Phase 6.
-  const targetResult = await adoptRewrittenUrl(sourceUrl, httpsUrl, httpsResponse)
-
-  if (targetResult.url !== httpsUrl) {
-    return adoptHttpsTarget(httpsUrl, await findCanonicalResult(targetResult))
+    return httpsFinalResult ?? winningResult
   }
 
   // A cleaner candidate that failed over http can still serve the feed over https. A winner that
-  // is not a candidate, such as a second redirect target, gets no retry. Phase 6 looked up both
-  // protocol forms of the winning URL, so httpsUrl is not looked up again.
-  if (!candidateUrls.has(winningUrl)) {
-    return targetResult
+  // is not a candidate, or whose https form moved, gets no retry.
+  if (httpsResult.url !== httpsUrl || !candidateUrls.has(winningUrl)) {
+    return httpsResult
   }
 
   const httpsCandidateUrls: Array<string> = []
@@ -880,26 +881,7 @@ const resolveCanonical = async (
     httpsCandidateUrls.push(upgradeScheme(candidateUrl))
   }
 
-  const httpsCandidateResult = await testCandidates(httpsCandidateUrls)
+  const httpsCandidateResult = await testHttpsUrls(httpsCandidateUrls)
 
-  if (!httpsCandidateResult) {
-    return targetResult
-  }
-
-  // A URL existsFn knows wins once it served the feed, over http too, so no duplicate is stored.
-  if (httpsCandidateResult.data != null) {
-    return httpsCandidateResult
-  }
-
-  const isHttpsCandidateOverHttp =
-    isServedOverHttp(httpsCandidateResult.url) ||
-    isServedOverHttp(httpsCandidateResult.response.url)
-
-  // An https candidate that redirects permanently to an http URL, or whose response ends on
-  // http, is not served over https.
-  if (isHttpsCandidateOverHttp) {
-    return targetResult
-  }
-
-  return httpsCandidateResult
+  return httpsCandidateResult ?? httpsResult
 }
