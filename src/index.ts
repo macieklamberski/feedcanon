@@ -389,17 +389,15 @@ const resolveCanonical = async (
 
   // Look a URL up in existsFn, including its form under the other protocol. A known form must serve
   // the same feed in this call, unless it is the URL of verifiedResult, which already did.
-  // Returns false when the URL itself is known but serves a different feed.
   const findExistingUrl = async (
     url: string,
     verifiedResult?: CanonicalResult,
-  ): Promise<CanonicalResult | false | undefined> => {
+  ): Promise<CanonicalResult | undefined> => {
     if (!existsFn) {
       return
     }
 
     const lookupUrls = [url]
-    let isMismatch = false
 
     if (url.startsWith('https://')) {
       lookupUrls.push(upgradeScheme(url, 'http'))
@@ -424,10 +422,6 @@ const resolveCanonical = async (
         const response = await fetchAndCompare(lookupUrl)
 
         if (!response) {
-          if (lookupUrl === url) {
-            isMismatch = true
-          }
-
           continue
         }
 
@@ -445,10 +439,6 @@ const resolveCanonical = async (
       }
 
       return { ...verifiedResult, data }
-    }
-
-    if (isMismatch) {
-      return false
     }
   }
 
@@ -470,10 +460,6 @@ const resolveCanonical = async (
     }
 
     const finalResult = adoptRedirectTarget(finalUrl, result.response)
-
-    if (finalResult.url === result.url) {
-      return result
-    }
 
     const existingFinalUrl = await findExistingUrl(finalResult.url, finalResult)
 
@@ -641,8 +627,6 @@ const resolveCanonical = async (
     return initialResult
   }
 
-  let initialResponseUrl = initialResult.url
-
   // Phase 3: Validate self URLs.
   // Try each self URL, then its alternate protocol if it fails (e.g., feed:// resolved to https://
   // but only http:// works). This ensures we don't lose a valid self URL due to protocol mismatch.
@@ -651,7 +635,7 @@ const resolveCanonical = async (
 
   for (const selfRequestUrl of selfRequestUrls) {
     // A self URL equal to the response URL is already verified, so the ones after it are not tried.
-    if (selfRequestUrl === initialResponseUrl) {
+    if (selfRequestUrl === initialResult.url) {
       break
     }
 
@@ -702,17 +686,15 @@ const resolveCanonical = async (
 
   // A cleaned response URL trusted without a fetch fails when a self URL or a probe names it and
   // it does not serve the feed. The response is adopted again, which keeps the URL it came from.
-  if (hasFailed(initialResponseUrl)) {
+  if (hasFailed(initialResult.url)) {
     // A self URL can adopt the same cleaned URL as a result of its own.
-    const isCandidateSource = candidateSource.url === initialResponseUrl
+    const isCandidateSource = candidateSource.url === initialResult.url
 
     initialResult = await adoptInitialResponse()
 
     if (initialResult.data != null) {
       return initialResult
     }
-
-    initialResponseUrl = initialResult.url
 
     if (isCandidateSource) {
       candidateSource = initialResult
@@ -753,7 +735,7 @@ const resolveCanonical = async (
       }
 
       // Use initial response URL if it's the cleanest candidate, verified and looked up in Phase 1.
-      if (candidateUrl === initialResponseUrl) {
+      if (candidateUrl === initialResult.url) {
         return initialResult
       }
 
@@ -761,10 +743,6 @@ const resolveCanonical = async (
 
       if (existingUrl) {
         return existingUrl
-      }
-
-      if (existingUrl === false) {
-        continue
       }
 
       const candidateResponse = await fetchAndCompare(candidateUrl)
