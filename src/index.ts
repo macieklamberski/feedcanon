@@ -759,14 +759,6 @@ const resolveCanonical = async (
         return
       }
 
-      // A candidate equal to the initial response URL was looked up when adopted. It is taken on
-      // trust only while the call has not fetched it: after that the fetch cache says how it is.
-      const isFetched = comparedResponses.has(candidateUrl)
-
-      if (isVerifiedReused && !isFetched && candidateUrl === initialResult.url) {
-        return { result: initialResult, isMoved: false }
-      }
-
       const existingUrl = await findExistingUrl(candidateUrl)
 
       if (existingUrl) {
@@ -841,8 +833,8 @@ const resolveCanonical = async (
     const testHttpsUrl = async (url: string): Promise<CanonicalResult | undefined> => {
       const httpsTest = await testCandidates([url], source, { isVerifiedReused: false })
 
-      if (!httpsTest || httpsTest.result.data != null) {
-        return httpsTest?.result
+      if (!httpsTest) {
+        return
       }
 
       let result = httpsTest.result
