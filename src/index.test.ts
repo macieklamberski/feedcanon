@@ -5566,6 +5566,34 @@ describe('findCanonical', () => {
       expect(await findCanonical(value, options)).toBeUndefined()
     })
 
+    it('should return the input URL when fetch returns headers as a plain object', async () => {
+      const value = 'https://example.com/feed'
+      const options = toOptions({
+        // @ts-expect-error: This is for testing purposes.
+        fetchFn: (url) => {
+          return { status: 200, url, body: '<feed></feed>', headers: {} }
+        },
+        parser: createMockParser(undefined),
+      })
+      const expected = 'https://example.com/feed'
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
+    it('should return the input URL when fetch returns no headers', async () => {
+      const value = 'https://example.com/feed'
+      const options = toOptions({
+        // @ts-expect-error: This is for testing purposes.
+        fetchFn: (url) => {
+          return { status: 200, url, body: '<feed></feed>' }
+        },
+        parser: createMockParser(undefined),
+      })
+      const expected = 'https://example.com/feed'
+
+      expect(await findCanonical(value, options)).toBe(expected)
+    })
+
     it('should return undefined when fetch fails due to redirect loop', async () => {
       const value = 'https://example.com/feed'
       const options = toOptions({
