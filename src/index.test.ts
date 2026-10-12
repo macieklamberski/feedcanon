@@ -4539,6 +4539,29 @@ describe('findCanonical', () => {
         expect(matchCalls).toEqual(['https://example.com/feed', 'https://example.com/?feed=rss2'])
       })
 
+      it('should call onMatch for a candidate the input URL redirected to temporarily', async () => {
+        const value = 'https://www.example.com/feed'
+        const expected = ['https://www.example.com/feed', 'https://example.com/feed']
+        const matchCalls: Array<string> = []
+        const options = toOptions({
+          parser: createMockParser(undefined),
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': {
+              body: '<feed></feed>',
+              url: 'https://example.com/feed',
+              redirects: [{ url: 'https://www.example.com/feed', status: 302 }],
+            },
+          }),
+          onMatch: ({ url }) => {
+            matchCalls.push(url)
+          },
+        })
+
+        await findCanonical(value, options)
+
+        expect(matchCalls).toEqual(expected)
+      })
+
       it('should include full response and feed in onMatch', async () => {
         const value = 'https://example.com/feed'
         const body = '<feed></feed>'
@@ -5224,6 +5247,34 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return the rewritten HTTPS form of the final URL of an HTTP winner when its cleaned form fails', async () => {
+        const value = 'http://example.com/feed'
+        const expected = 'https://new.example.com/feed?doing_wp_cron=1'
+        const body = '<feed></feed>'
+        const hostRewrite: Rewrite = {
+          match: (url) => url.hostname === 'old.example.com',
+          rewrite: (url) => {
+            url.hostname = 'new.example.com'
+            return url
+          },
+        }
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://example.com/feed': {
+              body,
+              url: 'http://old.example.com/feed?doing_wp_cron=1',
+              redirects: [{ url: 'http://example.com/feed', status: 302 }],
+            },
+            'https://new.example.com/feed?doing_wp_cron=1': { body },
+          }),
+          parser: createMockParser(undefined),
+          cleanUrlFn: stripWpCron,
+          rewrites: [hostRewrite],
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should not fetch again when cleaning only changes the query', async () => {
         const value = 'https://example.com/feed?doing_wp_cron=123'
         const expected = ['https://example.com/feed?doing_wp_cron=123']
@@ -5237,6 +5288,33 @@ describe('findCanonical', () => {
           onFetch: ({ url }) => {
             fetchCalls.push(url)
           },
+        })
+
+        await findCanonical(value, options)
+
+        expect(fetchCalls).toEqual(expected)
+      })
+
+      it('should not fetch the cleaned permanent redirect target of a self URL', async () => {
+        const value = 'https://example.com/feed'
+        const expected = ['https://example.com/feed', 'https://example.com/rss']
+        const fetchCalls: Array<string> = []
+        const body = '<feed></feed>'
+        const mockFetch = createMockFetch({
+          'https://example.com/feed': { body },
+          'https://example.com/rss': {
+            body,
+            url: 'https://example.com/atom?doing_wp_cron=1',
+            redirects: [{ url: 'https://example.com/rss', status: 301 }],
+          },
+        })
+        const options = toOptions({
+          fetchFn: (url) => {
+            fetchCalls.push(url)
+            return mockFetch(url)
+          },
+          parser: createMockParser('https://example.com/rss'),
+          cleanUrlFn: stripWpCron,
         })
 
         await findCanonical(value, options)
