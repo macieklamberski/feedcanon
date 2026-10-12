@@ -1514,9 +1514,9 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
-      it('should return the second redirect target without testing its candidates', async () => {
+      it('should test the candidates of a second redirect target', async () => {
         const value = 'https://www.example.com/feed'
-        const expected = 'https://www.example.net/feed'
+        const expected = 'https://example.net/feed'
         const body = '<feed></feed>'
         const options = toOptions({
           fetchFn: createMockFetch({
@@ -1526,6 +1526,54 @@ describe('findCanonical', () => {
             'https://example.net/feed': { body },
           }),
           parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should stop when two redirect targets point at each other', async () => {
+        const value = 'https://www.example.com/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://www.example.com/feed': { body },
+            'https://example.com/feed': { body, url: 'https://www.example.org/feed' },
+            'https://example.org/feed': { body, url: 'https://www.example.com/feed' },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(value)
+      })
+
+      it('should test the candidates of a redirect target the HTTPS upgrade reaches', async () => {
+        const value = 'http://www.example.com/feed/'
+        const expected = 'https://example.org/feed'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'http://www.example.com/feed/': { body },
+            'https://www.example.com/feed/': { body },
+            'https://www.example.com/feed': { body, url: 'https://www.example.org/feed/' },
+            'https://example.org/feed': { body },
+          }),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should not trust a cleaned input URL the call saw redirect permanently', async () => {
+        const value = 'https://example.com/feed?doing_wp_cron=1'
+        const expected = 'https://www.example.com/feed/'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed?doing_wp_cron=1': { body },
+            'https://example.com/feed': { body, url: 'https://www.example.com/feed/' },
+          }),
+          parser: createMockParser('http://example.com/feed'),
+          cleanUrlFn: stripWpCron,
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
