@@ -828,19 +828,32 @@ const resolveCanonical = async (
   const httpsUrl = upgradeScheme(winningUrl)
   const httpsResult = await testHttpsUrls([httpsUrl])
 
-  // An http winner whose response ended on another URL is not served directly, so the https form
-  // of that URL, rewritten like any other, is tried next.
+  // An http winner whose response, or the response of its https form, ended on another URL: the
+  // https form of that URL, rewritten like any other, is tried next.
   if (!httpsResult) {
-    const finalUrl = parseHttpUrl(winningResult.response.url)
+    const httpsResponse = comparedResponses.get(httpsUrl)
+    const endUrls = [winningResult.response.url]
 
-    if (winningResult.data != null || !finalUrl || finalUrl === winningUrl) {
-      return winningResult
+    if (httpsResponse) {
+      endUrls.push(httpsResponse.url)
     }
 
-    const httpsFinalUrl = applyRewrites(upgradeScheme(finalUrl), rewrites)
-    const httpsFinalResult = await testHttpsUrls([httpsFinalUrl])
+    for (const endUrl of endUrls) {
+      const finalUrl = parseHttpUrl(endUrl)
 
-    return httpsFinalResult ?? winningResult
+      if (!finalUrl || finalUrl === winningUrl) {
+        continue
+      }
+
+      const httpsFinalUrl = applyRewrites(upgradeScheme(finalUrl), rewrites)
+      const httpsFinalResult = await testHttpsUrls([httpsFinalUrl])
+
+      if (httpsFinalResult) {
+        return httpsFinalResult
+      }
+    }
+
+    return winningResult
   }
 
   // A cleaner candidate that failed over http can still serve the feed over https. A winner that
