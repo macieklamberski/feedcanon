@@ -27,17 +27,6 @@ type CanonicalResult = {
 
 const permanentRedirectStatuses = [301, 308]
 
-// The URL to keep using for a response: its final URL, or the URL before its first temporary
-// redirect, since a client keeps using the URI it requested through a 302, 303 or 307.
-// See: https://www.rfc-editor.org/rfc/rfc9110#section-15.4.
-const getSourceUrl = (response: FetchFnResponse): string => {
-  const temporaryRedirect = response.redirects?.find((redirect) => {
-    return !permanentRedirectStatuses.includes(redirect.status)
-  })
-
-  return temporaryRedirect?.url ?? response.url
-}
-
 // Overload 1: Default DefaultParserResult, parser optional.
 export function findCanonical<
   TResponse extends FetchFnResponse = FetchFnResponse,
@@ -137,6 +126,7 @@ const resolveCanonical = async (
 
   // Phase 1: Initial fetch.
   let initialRequestUrl = resolveAndApplyRewrites(inputUrl)
+
   if (!initialRequestUrl) {
     return
   }
@@ -193,9 +183,11 @@ const resolveCanonical = async (
   }
 
   const initialResponseUrlRaw = parseHttpUrl(initialResponse.url)
+
   if (!initialResponseUrlRaw) {
     return
   }
+
   // The URL that served the initial body. Self URLs resolve against it, and its signature uses it,
   // as a compared response's signature uses the URL that served that body.
   const initialBaseUrl = normalizeUrl(initialResponseUrlRaw, {
@@ -204,6 +196,7 @@ const resolveCanonical = async (
   })
 
   const initialResponseBody = initialResponse.body
+
   if (!initialResponseBody) {
     return
   }
@@ -357,11 +350,18 @@ const resolveCanonical = async (
       return requestUrl
     }
 
-    return parseHttpUrl(getSourceUrl(response))
+    // Its final URL, or the URL before its first temporary redirect, since a client keeps using
+    // the URI it requested through a 302, 303 or 307.
+    // See: https://www.rfc-editor.org/rfc/rfc9110#section-15.4.
+    const temporaryRedirect = response.redirects?.find((redirect) => {
+      return !permanentRedirectStatuses.includes(redirect.status)
+    })
+
+    return parseHttpUrl(temporaryRedirect?.url ?? response.url)
   }
 
   // Phases can adopt the same URL again, so each URL is looked up in existsFn once.
-  const existingData = new Map<string, unknown>()
+  const existingData: Record<string, unknown> = {}
 
   // Fetch URL and compare with initial response. Returns response if match, undefined otherwise.
   const fetchAndCompare = async (url: string): Promise<FetchFnResponse | undefined> => {
@@ -408,11 +408,11 @@ const resolveCanonical = async (
     }
 
     for (const lookupUrl of lookupUrls) {
-      if (!existingData.has(lookupUrl)) {
-        existingData.set(lookupUrl, await existsFn(lookupUrl))
+      if (!(lookupUrl in existingData)) {
+        existingData[lookupUrl] = await existsFn(lookupUrl)
       }
 
-      const data = existingData.get(lookupUrl)
+      const data = existingData[lookupUrl]
 
       if (data == null) {
         continue
