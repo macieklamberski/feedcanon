@@ -822,7 +822,11 @@ const resolveCanonical = async (
       return result
     }
 
-    if (isServedOverHttp(result.url) || isServedOverHttp(result.response.url)) {
+    // A cleaned URL can carry the response of the URL it was cleaned from. Its own response, when
+    // the call has one, is the one that says how it is served.
+    const response = comparedResponses.get(result.url) ?? result.response
+
+    if (isServedOverHttp(result.url) || isServedOverHttp(response.url)) {
       return
     }
 
