@@ -11,6 +11,7 @@ import { defaultNormalizeOptions } from './defaults.js'
 
 export {
   defaultFetch,
+  defaultHash,
   defaultParser,
   defaultTiers,
 } from './defaults.js'
@@ -26,6 +27,7 @@ export type {
   FetchFnRedirect,
   FetchFnResponse,
   FindCanonicalOptions,
+  HashFn,
   OnCanonicalFn,
   OnExistsFn,
   OnFetchFn,

@@ -2867,6 +2867,23 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should match when hashes are identical despite different bodies', async () => {
+        const value = 'https://example.com/feed'
+        const expected = 'https://example.com/rss.xml'
+        const body1 = '<feed><title>Test</title><updated>2024-01-01</updated></feed>'
+        const body2 = '<feed><title>Test</title><updated>2024-01-02</updated></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/feed': { body: body1 },
+            'https://example.com/rss.xml': { body: body2 },
+          }),
+          parser: createMockParser('https://example.com/rss.xml'),
+          hashFn: () => 'same-hash-for-all',
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should match when signatures are identical despite different content', async () => {
         const value = 'https://example.com/feed'
         const expected = 'https://example.com/rss.xml'
