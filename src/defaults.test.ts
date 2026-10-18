@@ -1,6 +1,19 @@
 import { afterAll, beforeEach, describe, expect, it, spyOn } from 'bun:test'
-import { defaultFetch, defaultParser } from './defaults.js'
+import { defaultFetch, defaultHash, defaultParser } from './defaults.js'
 import type { DefaultParserResult, FetchFnResponse } from './types.js'
+
+describe('defaultHash', () => {
+  it('should return the MD5 hash of the body', () => {
+    const value = 'hello world'
+    const expected = '5eb63bbbe01eeed093cb22bb8f5acdc3'
+
+    expect(defaultHash(value)).toBe(expected)
+  })
+
+  it('should return different hashes for different bodies', () => {
+    expect(defaultHash('content1')).not.toBe(defaultHash('content2'))
+  })
+})
 
 describe('defaultFetch', () => {
   type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status' | 'type'>

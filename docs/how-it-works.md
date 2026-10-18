@@ -70,8 +70,9 @@ If a self URL exists and differs from the URL kept in Phase 1, Feedcanon validat
 2. Compare the response with the initial fetch
 3. If it matches, use the self URL as the base for URL normalization
 
-The comparison uses a two-tier matching strategy:
+The comparison uses a three-tier matching strategy:
 - **Exact match**: responses are byte-for-byte identical
+- **Hash match**: the response bodies have the same hash under `hashFn`
 - **Signature match**: the parsed feeds are the same once volatile fields are left out
 
 If the self URL fails (e.g., wrong protocol), Feedcanon tries the alternate protocol (`https://` ↔ `http://`).

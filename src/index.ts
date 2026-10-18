@@ -7,7 +7,7 @@ import {
   resolveUrl,
   upgradeScheme,
 } from 'trousse'
-import { defaultFetch, defaultParser, defaultTiers } from './defaults.js'
+import { defaultFetch, defaultHash, defaultParser, defaultTiers } from './defaults.js'
 import type {
   DefaultParserResult,
   FetchFnResponse,
@@ -87,6 +87,7 @@ const resolveCanonical = async (
   const {
     parser = defaultParser,
     fetchFn = defaultFetch,
+    hashFn = defaultHash,
     cleanUrlFn = (url: string) => url,
     existsFn,
     tiers = defaultTiers,
@@ -301,9 +302,12 @@ const resolveCanonical = async (
     }
   }
 
-  // Compare initial response against another response using 2-tier matching:
+  let initialResponseHash: string | undefined
+
+  // Compare initial response against another response using 3-tier matching:
   // 1. Exact body match (fastest).
-  // 2. Signature match (semantic equality via parser).
+  // 2. Hash match (content equality, the initial hash computed on first use).
+  // 3. Signature match (semantic equality via parser).
   const compareWithInitialResponse = async (
     comparedResponseBody: string | undefined,
     comparedResponseUrl: string,
@@ -317,7 +321,16 @@ const resolveCanonical = async (
       return true
     }
 
-    // Tier 2: Signature match via parser.
+    // Tier 2: Hash match.
+    if (!initialResponseHash) {
+      initialResponseHash = hashFn(initialResponseBody)
+    }
+
+    if (initialResponseHash === hashFn(comparedResponseBody)) {
+      return true
+    }
+
+    // Tier 3: Signature match via parser.
     let comparedResponseFeed: Awaited<ReturnType<typeof parser.parse>>
 
     try {
