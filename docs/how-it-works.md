@@ -23,7 +23,7 @@ The process starts by fetching the input URL:
 If any step fails, the function returns `undefined`. A URL your `existsFn` knows ends the search, at whichever phase adopts it.
 
 ::: details Errors and feed pseudo-schemes
-- **Errors.** The promise never rejects. An error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse` or `getSelfUrl` on the initial response, makes the function return `undefined`. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
+- **Errors.** The promise never rejects. An error thrown by `existsFn`, `cleanUrlFn` or a callback at any phase, or by the parser's `parse`, `getSelfUrl` or `hasItems` on the initial response, makes the function return `undefined`. A `getSignature` error, or a `parse` error on a later response, only skips that URL, and the search continues.
 - **`feed://` and `itpc://`.** A feed pseudo-scheme doesn't say which transport to use. When the `https://` fetch throws or returns a non-2xx status, Feedcanon tries the same URL over `http://` once before giving up, so a host that only serves http still resolves. When a rewrite maps both forms to the same URL, as `bloggerRewrite` does by forcing https, that URL is fetched once. An explicit `https://` input, or `feed:https://`, is never retried over http. The `feed` scheme is [provisionally registered with IANA](https://www.iana.org/assignments/uri-schemes/prov/feed), from draft-obasanjo-feed-uri-scheme.
 :::
 
@@ -112,6 +112,8 @@ https://www.example.com/feed/?id=123&utm_source=twitter
 ```
 
 Only Tier 1 drops the query. To remove tracking params from the other tiers too, pass a `cleanUrlFn`, which runs on the response URL before the tiers (see [URL Tiers](/guides/customization/url-tiers#strip-tracking-params)).
+
+A feed with no items keeps the query parameters of the input URL. Two empty feeds look the same, so a search or a filter that returns nothing would otherwise match the URL without it. Parameters your `cleanUrlFn` removes are still dropped.
 
 ::: details Deviations from URI equivalence
 Some tiers drop parts of a URL that [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) and [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) treat as significant. That's safe because Feedcanon never returns such a candidate unseen: it fetches each one and keeps it only if it serves the same feed, even when your `existsFn` already knows the URL.

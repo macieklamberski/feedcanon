@@ -577,6 +577,58 @@ describe('defaultParser', () => {
     })
   })
 
+  describe('hasItems', () => {
+    it('should return true for RSS feed with an item', async () => {
+      const value = `
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <item>
+              <guid>https://example.com/post</guid>
+            </item>
+          </channel>
+        </rss>
+      `
+
+      expect(defaultParser.hasItems?.(await parseOrThrow(value))).toBe(true)
+    })
+
+    it('should return false for RSS feed without items', async () => {
+      const value = `
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+          </channel>
+        </rss>
+      `
+
+      expect(defaultParser.hasItems?.(await parseOrThrow(value))).toBe(false)
+    })
+
+    it('should return true for Atom feed with an entry', async () => {
+      const value = `
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test Feed</title>
+          <entry>
+            <id>https://example.com/post</id>
+          </entry>
+        </feed>
+      `
+
+      expect(defaultParser.hasItems?.(await parseOrThrow(value))).toBe(true)
+    })
+
+    it('should return false for Atom feed without entries', async () => {
+      const value = `
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Test Feed</title>
+        </feed>
+      `
+
+      expect(defaultParser.hasItems?.(await parseOrThrow(value))).toBe(false)
+    })
+  })
+
   describe('getSelfUrl', () => {
     it('should return self URL from JSON Feed', async () => {
       const value = JSON.stringify({
