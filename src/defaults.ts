@@ -169,6 +169,13 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 
     return resolveUrl(href, baseUrl)
   },
+  hasItems: (parsed) => {
+    if (parsed.format === 'atom') {
+      return !!parsed.feed.entries?.length
+    }
+
+    return !!parsed.feed.items?.length
+  },
   getSignature: (parsed, responseUrl, comparedUrls = []) => {
     // Neutralize dynamic fields before generating signature to ensure feeds that differ only in
     // self URL or timestamps are considered semantically identical.

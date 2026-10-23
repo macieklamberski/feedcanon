@@ -2806,6 +2806,120 @@ describe('findCanonical', () => {
 
         expect(await findCanonical(value, options)).toBe(value)
       })
+      describe('empty feed with a query', () => {
+        const emptyBody = `
+          <rss version="2.0">
+            <channel>
+              <title>Merge requests</title>
+            </channel>
+          </rss>
+        `
+        const fullBody = `
+          <rss version="2.0">
+            <channel>
+              <title>Merge requests</title>
+              <item>
+                <guid>https://example.com/merge_requests/1</guid>
+              </item>
+            </channel>
+          </rss>
+        `
+
+        it('should keep a filter parameter when both feeds are empty', async () => {
+          const value = 'https://example.com/merge_requests.atom?state=closed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/merge_requests.atom?state=closed': { body: emptyBody },
+              'https://example.com/merge_requests.atom': { body: emptyBody },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(value)
+        })
+
+        it('should strip a parameter the server ignores when the feed has items', async () => {
+          const value = 'https://example.com/merge_requests.atom?state=opened'
+          const expected = 'https://example.com/merge_requests.atom'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/merge_requests.atom?state=opened': { body: fullBody },
+              'https://example.com/merge_requests.atom': { body: fullBody },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should keep a tracking parameter on an empty feed without cleanUrlFn', async () => {
+          const value = 'https://example.com/feed?utm_source=newsletter'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/feed?utm_source=newsletter': { body: emptyBody },
+              'https://example.com/feed': { body: emptyBody },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(value)
+        })
+
+        it('should strip a parameter cleanUrlFn removes on an empty feed', async () => {
+          const value = 'https://www.example.com/feed?doing_wp_cron=123'
+          const expected = 'https://example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://www.example.com/feed?doing_wp_cron=123': { body: emptyBody },
+              'https://example.com/feed': { body: emptyBody },
+            }),
+            parser: defaultParser,
+            cleanUrlFn: stripWpCron,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should keep a filter parameter when an empty feed declares a self URL without it', async () => {
+          const value = 'https://example.com/search_rss?SearchableText=physics'
+          const body = `
+            <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+              <channel>
+                <title>Search results</title>
+                <atom:link rel="self" href="https://example.com/search_rss"/>
+              </channel>
+            </rss>
+          `
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/search_rss?SearchableText=physics': { body },
+              'https://example.com/search_rss': { body },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(value)
+        })
+
+        it('should not fetch a URL without the filter parameter when the feed is empty', async () => {
+          const value = 'https://example.com/merge_requests.atom?state=closed'
+          const fetchedUrls: Array<string> = []
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/merge_requests.atom?state=closed': { body: emptyBody },
+              'https://example.com/merge_requests.atom': { body: emptyBody },
+            }),
+            parser: defaultParser,
+            onFetch: ({ url }) => {
+              fetchedUrls.push(url)
+            },
+          })
+
+          await findCanonical(value, options)
+
+          expect(fetchedUrls).toEqual([value])
+        })
+      })
     })
 
     describe('response comparison', () => {

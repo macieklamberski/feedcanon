@@ -360,6 +360,23 @@ const resolveCanonical = async (
     }
   }
 
+  // A query parameter can select what the feed holds, such as a search or a filter, and two empty
+  // feeds compare equal. So an empty feed is not matched by a URL without a parameter the input
+  // carried, unless cleanUrlFn removes that parameter.
+  const isEmptyFeed = parser.hasItems ? !parser.hasItems(initialResponseFeed) : false
+  const inputParamNames: Array<string> = []
+
+  if (isEmptyFeed) {
+    const cleanedInputUrl = parseUrl(cleanUrlFn(initialRequestUrl))
+    inputParamNames.push(...(cleanedInputUrl?.searchParams.keys() ?? []))
+  }
+
+  const dropsInputParam = (url: string): boolean => {
+    const params = parseUrl(url)?.searchParams
+
+    return inputParamNames.some((name) => !params?.has(name))
+  }
+
   // Phases can try the same URL again, so each URL is fetched once and its result reused.
   const comparedResponses = new Map<string, FetchFnResponse | undefined>([
     [initialRequestUrl, initialResponse],
@@ -417,6 +434,10 @@ const resolveCanonical = async (
 
     // Every exit below is a failure except the last, so the URL counts as failed until it matches.
     comparedResponses.set(url, undefined)
+
+    if (dropsInputParam(url)) {
+      return
+    }
 
     const response = await fetchSuccess(url)
 
