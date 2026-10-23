@@ -3799,6 +3799,55 @@ describe('findCanonical', () => {
         expect(await findCanonical(value, options)).toBe(expected)
       })
 
+      it('should return existing URL spelled with a plus sign for %20 input', async () => {
+        const value = 'https://example.com/search?q=a%20b'
+        const expected = 'https://example.com/search?q=a+b'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/search?q=a%20b': { body },
+            'https://example.com/search?q=a+b': { body },
+          }),
+          existsFn: (url) => (url === 'https://example.com/search?q=a+b' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should return existing URL spelled with %3A for colon input', async () => {
+        const value = 'https://example.com/search?q=by:user'
+        const expected = 'https://example.com/search?q=by%3Auser'
+        const body = '<feed></feed>'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/search?q=by:user': { body },
+            'https://example.com/search?q=by%3Auser': { body },
+          }),
+          existsFn: (url) => {
+            return url === 'https://example.com/search?q=by%3Auser' ? { id: 42 } : undefined
+          },
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
+      it('should skip existing URL spelled with a plus sign when it serves a different feed', async () => {
+        const value = 'https://example.com/search?q=a%20b'
+        const expected = 'https://example.com/search?q=a%20b'
+        const options = toOptions({
+          fetchFn: createMockFetch({
+            'https://example.com/search?q=a%20b': { body: '<feed>search</feed>' },
+            'https://example.com/search?q=a+b': { body: '<feed>other</feed>' },
+          }),
+          existsFn: (url) => (url === 'https://example.com/search?q=a+b' ? { id: 42 } : undefined),
+          parser: createMockParser(undefined),
+        })
+
+        expect(await findCanonical(value, options)).toBe(expected)
+      })
+
       it('should fetch https candidate when only its http form is known and serves a different feed', async () => {
         const value = 'https://example.com/feed?cat=1'
         const expected = 'https://example.com/feed'
