@@ -3837,7 +3837,6 @@ describe('findCanonical', () => {
 
       it('should skip existing URL spelled with a plus sign when it serves a different feed', async () => {
         const value = 'https://example.com/search?q=a%20b'
-        const expected = 'https://example.com/search?q=a%20b'
         const options = toOptions({
           fetchFn: createMockFetch({
             'https://example.com/search?q=a%20b': { body: '<feed>search</feed>' },
@@ -3847,7 +3846,7 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
         })
 
-        expect(await findCanonical(value, options)).toBe(expected)
+        expect(await findCanonical(value, options)).toBe(value)
       })
 
       it('should fetch https candidate when only its http form is known and serves a different feed', async () => {
