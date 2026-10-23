@@ -177,6 +177,10 @@ When bodies differ (e.g., timestamps, cache headers in content), Feedcanon falls
 
 If signatures match, the feeds are considered equivalent even if the raw content differs.
 
+::: warning Limitation
+Fields inside items stay in the signature, even ones that change on every request, such as the view counts YouTube puts in `media:statistics`. Two fetches of such a feed a moment apart can then fail to match. A URL your `existsFn` knows is skipped as another feed, and the result can differ between calls. A [custom parser](/guides/customization/feed-parsing#getsignature) can leave those fields out of its signature.
+:::
+
 ## Example Flow
 
 With `rewrites: [feedburnerRewrite]`:
