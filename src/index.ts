@@ -440,7 +440,6 @@ const resolveCanonical = async (
   const findExistingUrl = async (
     url: string,
     verifiedResult?: CanonicalResult,
-    { isPermanentRedirectAccepted = false } = {},
   ): Promise<CanonicalResult | undefined> => {
     if (!existsFn) {
       return
@@ -480,7 +479,7 @@ const resolveCanonical = async (
 
         // A candidate that redirects permanently is not where the feed lives, so its target is
         // tested instead, known or not.
-        if (lookupUrl === url && sourceUrl && sourceUrl !== url && !isPermanentRedirectAccepted) {
+        if (lookupUrl === url && sourceUrl && sourceUrl !== url) {
           continue
         }
 
@@ -858,9 +857,7 @@ const resolveCanonical = async (
     // so the caller does not store it twice. A stored form that redirects permanently is kept.
     for (const candidateUrl of [...candidateUrls, winningUrl]) {
       for (const variantUrl of createUrlVariants(candidateUrl)) {
-        const existingUrl = await findExistingUrl(variantUrl, undefined, {
-          isPermanentRedirectAccepted: true,
-        })
+        const existingUrl = await findExistingUrl(variantUrl)
 
         if (existingUrl) {
           return existingUrl
