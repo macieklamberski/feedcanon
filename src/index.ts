@@ -362,13 +362,19 @@ const resolveCanonical = async (
 
   // A query parameter can select what the feed holds, such as a search or a filter, and two empty
   // feeds compare equal. So an empty feed is not matched by a URL without a parameter the input
-  // carried, unless cleanUrlFn removes that parameter.
+  // carried, unless cleanUrlFn or a redirect of the input removes that parameter.
   const isEmptyFeed = parser.hasItems ? !parser.hasItems(initialResponseFeed) : false
   const inputParamNames: Array<string> = []
 
   if (isEmptyFeed) {
     const cleanedInputUrl = parseUrl(cleanUrlFn(initialRequestUrl))
-    inputParamNames.push(...(cleanedInputUrl?.searchParams.keys() ?? []))
+    const responseParams = new URL(initialResponseUrlRaw).searchParams
+
+    for (const name of cleanedInputUrl?.searchParams.keys() ?? []) {
+      if (responseParams.has(name)) {
+        inputParamNames.push(name)
+      }
+    }
   }
 
   const dropsInputParam = (url: string): boolean => {

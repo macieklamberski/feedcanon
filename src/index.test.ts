@@ -2901,6 +2901,26 @@ describe('findCanonical', () => {
           expect(await findCanonical(value, options)).toBe(value)
         })
 
+        it('should upgrade an empty feed whose input redirect dropped the parameter', async () => {
+          const value = 'http://example.com/?feed=comments-rss2'
+          const expected = 'https://example.com/comments/feed/'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/?feed=comments-rss2': {
+                body: emptyBody,
+                url: 'http://example.com/comments/feed/',
+                redirects: [{ url: 'http://example.com/?feed=comments-rss2', status: 301 }],
+              },
+              'http://example.com/comments/feed': { status: 404 },
+              'https://example.com/comments/feed/': { body: emptyBody },
+              'https://example.com/comments/feed': { status: 404 },
+            }),
+            parser: defaultParser,
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
         it('should not fetch a URL without the filter parameter when the feed is empty', async () => {
           const value = 'https://example.com/merge_requests.atom?state=closed'
           const fetchedUrls: Array<string> = []
