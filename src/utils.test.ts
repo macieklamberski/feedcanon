@@ -44,25 +44,22 @@ describe('applyRewrites', () => {
   it('should return original URL when no rewrite matches', () => {
     const value = 'https://example.com/feed'
     const rewrites = [createRewrite('other.example.com', 'new.example.com')]
-    const expected = 'https://example.com/feed'
 
-    expect(applyRewrites(value, rewrites)).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(value)
   })
 
   it('should return original URL when rewrites array is empty', () => {
     const value = 'https://example.com/feed'
     const rewrites: Array<Rewrite> = []
-    const expected = 'https://example.com/feed'
 
-    expect(applyRewrites(value, rewrites)).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(value)
   })
 
   it('should return original string for invalid URL', () => {
     const value = 'not a valid url'
     const rewrites = [createRewrite('example.com', 'new.example.com')]
-    const expected = 'not a valid url'
 
-    expect(applyRewrites(value, rewrites)).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(value)
   })
 
   it('should return original URL when match() throws', () => {
@@ -75,9 +72,8 @@ describe('applyRewrites', () => {
         rewrite: (url) => url,
       },
     ]
-    const expected = 'https://example.com/feed'
 
-    expect(applyRewrites(value, rewrites)).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(value)
   })
 
   it('should return original URL when rewrite() throws', () => {
@@ -90,9 +86,8 @@ describe('applyRewrites', () => {
         },
       },
     ]
-    const expected = 'https://example.com/feed'
 
-    expect(applyRewrites(value, rewrites)).toBe(expected)
+    expect(applyRewrites(value, rewrites)).toBe(value)
   })
 })
 
@@ -692,9 +687,8 @@ describe('neutralizeUrls', () => {
     it('should not normalize parent domain URLs when feed is on subdomain', () => {
       const url = 'https://blog.example.com/feed'
       const value = JSON.stringify({ link: 'https://example.com/main' })
-      const expected = JSON.stringify({ link: 'https://example.com/main' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should normalize URLs when feed URL has port', () => {
@@ -708,17 +702,15 @@ describe('neutralizeUrls', () => {
     it('should not normalize different port URLs when feed URL has port', () => {
       const url = 'https://example.com:8080/feed'
       const value = JSON.stringify({ link: 'https://example.com:3000/post/1' })
-      const expected = JSON.stringify({ link: 'https://example.com:3000/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should not normalize portless URLs when feed URL has port', () => {
       const url = 'https://example.com:8080/feed'
       const value = JSON.stringify({ link: 'https://example.com/post/1' })
-      const expected = JSON.stringify({ link: 'https://example.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should handle same-domain URLs in JSON arrays', () => {
@@ -766,9 +758,8 @@ describe('neutralizeUrls', () => {
     it('should preserve root "/" path', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: '/' })
-      const expected = JSON.stringify({ link: '/' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should strip trailing slash from deep path', () => {
@@ -822,9 +813,8 @@ describe('neutralizeUrls', () => {
     it('should not strip trailing slash before fragment', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://external.com/path/#section' })
-      const expected = JSON.stringify({ link: 'https://external.com/path/#section' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should strip trailing slash before query even with fragment', () => {
@@ -856,33 +846,29 @@ describe('neutralizeUrls', () => {
     it('should not match domain suffix attack (example.com.evil.com)', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://example.com.evil.com/post/1' })
-      const expected = JSON.stringify({ link: 'https://example.com.evil.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should not normalize URLs with ports', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://example.com:8080/post/1' })
-      const expected = JSON.stringify({ link: 'https://example.com:8080/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should not match subdomains of feed domain', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://api.example.com/post/1' })
-      const expected = JSON.stringify({ link: 'https://api.example.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should not match similar domain with different prefix (notexample.com)', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://notexample.com/post/1' })
-      const expected = JSON.stringify({ link: 'https://notexample.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should handle domain with hyphen correctly', () => {
@@ -896,17 +882,15 @@ describe('neutralizeUrls', () => {
     it('should not match partial domain (example vs example.com)', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://example/post/1' })
-      const expected = JSON.stringify({ link: 'https://example/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should not match www variant of suffix attack (www.example.com.evil.com)', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://www.example.com.evil.com/post/1' })
-      const expected = JSON.stringify({ link: 'https://www.example.com.evil.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
   })
 
@@ -914,17 +898,15 @@ describe('neutralizeUrls', () => {
     it('should preserve external domain URLs', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://external.com/post/1' })
-      const expected = JSON.stringify({ link: 'https://external.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should preserve bare external domain URLs', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ href: 'https://external.com' })
-      const expected = JSON.stringify({ href: 'https://external.com' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should neutralize own-host URLs embedded in text', () => {
@@ -979,33 +961,29 @@ describe('neutralizeUrls', () => {
     it('should return original signature for invalid URL', () => {
       const url = 'not-a-valid-url'
       const value = JSON.stringify({ title: 'Test' })
-      const expected = JSON.stringify({ title: 'Test' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should handle empty signature', () => {
       const url = 'https://example.com/feed'
       const value = ''
-      const expected = ''
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should handle signature with no URLs', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ title: 'Hello', count: 42 })
-      const expected = JSON.stringify({ title: 'Hello', count: 42 })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should keep a scheme without a host unchanged', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ title: 'see https:// here' })
-      const expected = JSON.stringify({ title: 'see https:// here' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
   })
 
@@ -1031,9 +1009,8 @@ describe('neutralizeUrls', () => {
 
     it('should handle empty urls array', () => {
       const value = JSON.stringify({ link: 'https://example.com/post' })
-      const expected = JSON.stringify({ link: 'https://example.com/post' })
 
-      expect(neutralizeUrls(value, [])).toBe(expected)
+      expect(neutralizeUrls(value, [])).toBe(value)
     })
 
     it('should ignore invalid URLs and normalize using valid ones', () => {
@@ -1081,17 +1058,15 @@ describe('neutralizeUrls', () => {
     it('should not treat doubled slash in path as protocol-relative URL', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'https://example.org/archive//example.com/post' })
-      const expected = JSON.stringify({ link: 'https://example.org/archive//example.com/post' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should not treat other schemes as protocol-relative URL', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({ link: 'ftp://example.com/post/1' })
-      const expected = JSON.stringify({ link: 'ftp://example.com/post/1' })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
   })
 
@@ -1274,11 +1249,8 @@ describe('neutralizeUrls', () => {
       const value = JSON.stringify({
         description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost%ZZ',
       })
-      const expected = JSON.stringify({
-        description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost%ZZ',
-      })
 
-      expect(neutralizeUrls(value, [url])).toBe(expected)
+      expect(neutralizeUrls(value, [url])).toBe(value)
     })
 
     it('should neutralize an encoded URL with an uppercase scheme', () => {
