@@ -4530,6 +4530,87 @@ describe('findCanonical', () => {
           expect(await findCanonical(value, options)).toBe(value)
         })
 
+        it('should return a known form of an input that redirects permanently', async () => {
+          const value = 'http://example.com/feed'
+          const expected = 'https://example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/feed': {
+                body,
+                url: 'https://example.com/posts/feed',
+                redirects: [{ url: 'http://example.com/feed', status: 301 }],
+              },
+              'https://example.com/posts/feed': { body },
+              'https://example.com/feed': { body },
+            }),
+            existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should return a known form of an input whose self URL moves the search', async () => {
+          const value = 'https://www.example.com/feed'
+          const expected = 'https://example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://www.example.com/feed': { body },
+              'https://example.org/feed': { body },
+              'https://example.com/feed': { body },
+            }),
+            existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+            parser: createMockParser('https://example.org/feed'),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should return a known form of a search start left for a redirect target', async () => {
+          const value = 'https://www.example.com/feed/'
+          const expected = 'https://www.example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://www.example.com/feed/': { body },
+              'https://example.com/feed': {
+                body,
+                url: 'https://example.com/blog/feed',
+                redirects: [{ url: 'https://example.com/feed', status: 301 }],
+              },
+              'https://example.com/blog/feed': { body },
+              'https://www.example.com/feed': { body },
+            }),
+            existsFn: (url) => (url === 'https://www.example.com/feed' ? { id: 42 } : undefined),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
+        it('should skip a known form of an input when it redirects permanently', async () => {
+          const value = 'http://example.com/feed'
+          const expected = 'https://example.com/posts/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'http://example.com/feed': {
+                body,
+                url: 'https://example.com/posts/feed',
+                redirects: [{ url: 'http://example.com/feed', status: 301 }],
+              },
+              'https://example.com/posts/feed': { body },
+              'https://example.com/feed': {
+                body,
+                url: 'https://example.com/posts/feed',
+                redirects: [{ url: 'https://example.com/feed', status: 301 }],
+              },
+            }),
+            existsFn: (url) => (url === 'https://example.com/feed' ? { id: 42 } : undefined),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
         it('should fetch no less clean form when existsFn knows none', async () => {
           const value = 'https://example.com/feed'
           const fetchedUrls: Array<string> = []
