@@ -45,7 +45,6 @@
     "docs:build": "vitepress build docs"
   },
   "dependencies": {
-    "entities": "^8.1.0",
     "http-link-header": "^1.1.4"
   },
   "peerDependencies": {
