@@ -855,7 +855,7 @@ const resolveCanonical = async (
 
     // The tiers only remove www. and the trailing slash, and testing stops at the first candidate
     // that serves the feed. A feed stored under a form less clean than the winner is found here,
-    // so the caller does not store it twice. A stored form that redirects to the winner is kept.
+    // so the caller does not store it twice. A stored form that redirects permanently is kept.
     for (const candidateUrl of [...candidateUrls, winningUrl]) {
       for (const variantUrl of createUrlVariants(candidateUrl)) {
         const existingUrl = await findExistingUrl(variantUrl, undefined, {
