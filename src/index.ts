@@ -440,7 +440,7 @@ const resolveCanonical = async (
   const findExistingUrl = async (
     url: string,
     verifiedResult?: CanonicalResult,
-    isRedirectKept = false,
+    { isPermanentRedirectAccepted = false } = {},
   ): Promise<CanonicalResult | undefined> => {
     if (!existsFn) {
       return
@@ -480,7 +480,7 @@ const resolveCanonical = async (
 
         // A candidate that redirects permanently is not where the feed lives, so its target is
         // tested instead, known or not.
-        if (lookupUrl === url && sourceUrl && sourceUrl !== url && !isRedirectKept) {
+        if (lookupUrl === url && sourceUrl && sourceUrl !== url && !isPermanentRedirectAccepted) {
           continue
         }
 
@@ -856,19 +856,15 @@ const resolveCanonical = async (
     // The tiers only remove www. and the trailing slash, and testing stops at the first candidate
     // that serves the feed. A feed stored under a form less clean than the winner is found here,
     // so the caller does not store it twice. A stored form that redirects to the winner is kept.
-    const lessCleanUrls = new Set<string>()
-
     for (const candidateUrl of [...candidateUrls, winningUrl]) {
       for (const variantUrl of createUrlVariants(candidateUrl)) {
-        lessCleanUrls.add(variantUrl)
-      }
-    }
+        const existingUrl = await findExistingUrl(variantUrl, undefined, {
+          isPermanentRedirectAccepted: true,
+        })
 
-    for (const lessCleanUrl of lessCleanUrls) {
-      const existingUrl = await findExistingUrl(lessCleanUrl, undefined, true)
-
-      if (existingUrl) {
-        return existingUrl
+        if (existingUrl) {
+          return existingUrl
+        }
       }
     }
 
