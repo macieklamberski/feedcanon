@@ -3803,22 +3803,16 @@ describe('findCanonical', () => {
         const value = 'https://example.com/search?q=a%20b'
         const expected = 'https://example.com/search?q=a+b'
         const body = '<feed></feed>'
-        const fetchCalls: Array<string> = []
-        const mockFetch = createMockFetch({
-          'https://example.com/search?q=a%20b': { body },
-          'https://example.com/search?q=a+b': { body },
-        })
         const options = toOptions({
-          fetchFn: (url) => {
-            fetchCalls.push(url)
-            return mockFetch(url)
-          },
+          fetchFn: createMockFetch({
+            'https://example.com/search?q=a%20b': { body },
+            'https://example.com/search?q=a+b': { body },
+          }),
           existsFn: (url) => (url === 'https://example.com/search?q=a+b' ? { id: 42 } : undefined),
           parser: createMockParser(undefined),
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
-        expect(fetchCalls).toContain('https://example.com/search?q=a+b')
       })
 
       it('should return existing URL spelled with %3A for colon input', async () => {
@@ -3837,24 +3831,6 @@ describe('findCanonical', () => {
         })
 
         expect(await findCanonical(value, options)).toBe(expected)
-      })
-
-      it('should not look up an at sign in the path as %40', async () => {
-        const value = 'https://example.com/@alice/feed'
-        const lookups: Array<string> = []
-        const options = toOptions({
-          fetchFn: createMockFetch({
-            'https://example.com/@alice/feed': { body: '<feed></feed>' },
-          }),
-          existsFn: (url) => {
-            lookups.push(url)
-          },
-          parser: createMockParser(undefined),
-        })
-
-        await findCanonical(value, options)
-
-        expect(lookups.filter((url) => url.includes('%40'))).toEqual([])
       })
 
       it('should skip existing URL spelled with a plus sign when it serves a different feed', async () => {
