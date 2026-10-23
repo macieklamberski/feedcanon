@@ -4497,6 +4497,25 @@ describe('findCanonical', () => {
           expect(await findCanonical(value, options)).toBe(expected)
         })
 
+        it('should return a known less clean form that redirects permanently to another host', async () => {
+          const value = 'https://example.com/feed'
+          const expected = 'https://www.example.com/feed'
+          const options = toOptions({
+            fetchFn: createMockFetch({
+              'https://example.com/feed': { body },
+              'https://www.example.com/feed': {
+                body,
+                url: 'https://cdn.example.net/feed',
+                redirects: [{ url: 'https://www.example.com/feed', status: 301 }],
+              },
+            }),
+            existsFn: (url) => (url === 'https://www.example.com/feed' ? { id: 42 } : undefined),
+            parser: createMockParser(undefined),
+          })
+
+          expect(await findCanonical(value, options)).toBe(expected)
+        })
+
         it('should skip a known less clean form that serves a different feed', async () => {
           const value = 'https://example.com/feed'
           const options = toOptions({
