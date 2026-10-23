@@ -1,5 +1,6 @@
 import {
   addMissingScheme,
+  createUrlSpellings,
   isHttpUrl,
   normalizeUrl,
   parseUrl,
@@ -432,8 +433,9 @@ const resolveCanonical = async (
     return response
   }
 
-  // Look a URL up in existsFn, including its form under the other protocol. A known form must serve
-  // the same feed in this call, unless it is the URL of verifiedResult, which already did.
+  // Look a URL up in existsFn, including its form under the other protocol and the spellings of
+  // both a server reads as the same url. A known form must serve the same feed in this call, unless
+  // it is the URL of verifiedResult, which already did.
   const findExistingUrl = async (
     url: string,
     verifiedResult?: CanonicalResult,
@@ -442,15 +444,17 @@ const resolveCanonical = async (
       return
     }
 
-    const lookupUrls = [url]
+    const schemeUrls = [url]
 
     if (url.startsWith('https://')) {
-      lookupUrls.push(upgradeScheme(url, 'http'))
+      schemeUrls.push(upgradeScheme(url, 'http'))
     }
 
     if (url.startsWith('http://')) {
-      lookupUrls.push(upgradeScheme(url, 'https'))
+      schemeUrls.push(upgradeScheme(url, 'https'))
     }
+
+    const lookupUrls = new Set(schemeUrls.flatMap((schemeUrl) => createUrlSpellings(schemeUrl)))
 
     for (const lookupUrl of lookupUrls) {
       if (!(lookupUrl in existingData)) {
