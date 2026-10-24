@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { parseFeed } from 'feedsmith'
 import {
   createAcceptHeader,
@@ -8,7 +9,14 @@ import {
   parseUrl,
   resolveUrl,
 } from 'trousse'
-import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier } from './types.js'
+import type {
+  DefaultParserResult,
+  FetchFn,
+  FetchFnRedirect,
+  HashFn,
+  ParserAdapter,
+  Tier,
+} from './types.js'
 import { createSignature, isRelation, neutralizeUrls } from './utils.js'
 
 export const defaultNormalizeOptions: NormalizeOptions = {
@@ -133,6 +141,10 @@ const retrieveSelfLink = (parsed: DefaultParserResult) => {
     case 'rdf':
       return parsed.feed.atom?.links?.find((link) => link.rel && isRelation(link.rel, 'self'))
   }
+}
+
+export const defaultHash: HashFn = (body) => {
+  return createHash('md5').update(body).digest('hex')
 }
 
 export const defaultParser: ParserAdapter<DefaultParserResult> = {

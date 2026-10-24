@@ -64,6 +64,7 @@ export type FindCanonicalOptions<
 > = {
   parser?: ParserAdapter<TFeed> // Required to extract selfUrl from feed
   fetchFn?: FetchFn<TResponse>
+  hashFn?: HashFn // Hash compared bodies before parsing them
   cleanUrlFn?: (url: string) => string // Clean URLs before candidate generation (e.g., strip tracking params)
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database
   rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner)
@@ -101,6 +102,9 @@ export type FetchFnResponse = {
   status: number
   redirects?: Array<FetchFnRedirect> // Redirects followed to reach url, in order
 }
+
+// Hash function type. Bodies with equal hashes are treated as the same feed.
+export type HashFn = (body: string) => string
 
 // Custom fetch function type (adapter interface).
 export type FetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (
