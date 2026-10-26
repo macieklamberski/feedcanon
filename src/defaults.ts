@@ -7,7 +7,9 @@ import {
   type NormalizeOptions,
   parseUrl,
   resolveUrl,
+  t,
 } from 'trousse'
+import locales from './locales.json' with { type: 'json' }
 import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier } from './types.js'
 import { createSignature, isRelation, neutralizeUrls } from './utils.js'
 
@@ -91,7 +93,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
     }
 
     if (redirects.length === maxRedirects) {
-      throw new TypeError(`Too many redirects from ${url}`)
+      throw new TypeError(t(locales.errors.tooManyRedirects, { url }))
     }
 
     redirects.push({ url: requestUrl, status: response.status })
@@ -100,7 +102,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
 
     // A redirect is followed only to another http or https URL, never to data: or file:.
     if (!isHttpUrl(locationUrl)) {
-      throw new TypeError(`Redirect to a non-HTTP URL from ${url}`)
+      throw new TypeError(t(locales.errors.redirectToNonHttpUrl, { url }))
     }
 
     // Credentials for one origin never reach another.
