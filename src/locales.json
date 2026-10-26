@@ -1,0 +1,6 @@
+{
+  "errors": {
+    "tooManyRedirects": "Too many redirects from {{url}}",
+    "redirectToNonHttpUrl": "Redirect to a non-HTTP URL from {{url}}"
+  }
+}
