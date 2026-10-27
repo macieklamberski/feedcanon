@@ -19,6 +19,10 @@ const stripWpCron = (url: string): string => {
   return parsed.toString()
 }
 
+const compareStrings = (left: string, right: string): number => {
+  return left.localeCompare(right)
+}
+
 describe('findCanonical', () => {
   // Helper that provides type context for options, enabling proper callback typing.
   const toOptions = <T>(o: FindCanonicalOptions<T> & { parser: ParserAdapter<T> }) => o
@@ -3121,7 +3125,7 @@ describe('findCanonical', () => {
             parse: (body) => body,
             getSelfUrl: () => 'https://feeds.example.com/feed',
             getSignature: (_parsed, responseUrl, comparedUrls = []) => {
-              return [responseUrl, ...comparedUrls].sort().join(' ')
+              return [responseUrl, ...comparedUrls].sort(compareStrings).join(' ')
             },
           }
           const options = toOptions({
@@ -3142,7 +3146,9 @@ describe('findCanonical', () => {
             parse: (body) => body,
             getSelfUrl: () => 'https://feeds.example.com/feed',
             getSignature: (parsed, responseUrl, comparedUrls = []) => {
-              return [parsed.split(' ')[0], responseUrl, ...comparedUrls].sort().join(' ')
+              return [parsed.split(' ')[0], responseUrl, ...comparedUrls]
+                .sort(compareStrings)
+                .join(' ')
             },
           }
           const options = toOptions({

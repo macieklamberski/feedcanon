@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, spyOn } from 'bun:test'
+import type { MaybePromise } from 'trousse'
 import { defaultFetch, defaultParser } from './defaults.js'
 import type { DefaultParserResult, FetchFnResponse } from './types.js'
 
@@ -6,7 +7,7 @@ describe('defaultFetch', () => {
   type MockResponse = Pick<Response, 'headers' | 'text' | 'url' | 'status' | 'type'>
 
   const createFetchMock = (
-    implementation: (url: string, options?: RequestInit) => Response | Promise<Response>,
+    implementation: (url: string, options?: RequestInit) => MaybePromise<Response>,
   ): typeof fetch => {
     // @ts-expect-error: This is for testing purposes.
     return implementation
