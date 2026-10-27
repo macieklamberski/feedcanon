@@ -1129,6 +1129,7 @@ describe('neutralizeUrls', () => {
           <a href="https://example.com/b">B</a>
         `,
       })
+      // biome-ignore lint/plugin/noComputedExpected: Written out, the JSON of a multiline description is a run of escapes that hides what the test checks.
       const expected = JSON.stringify({
         description: `
           <a href="/a">A</a>
