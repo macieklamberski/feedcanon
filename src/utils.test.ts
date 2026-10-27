@@ -412,14 +412,21 @@ describe('getLinkHeaderSelfUrl', () => {
 
 describe('createSignature', () => {
   it('should create JSON signature from object', () => {
-    const value = { title: 'Test', link: 'https://example.com' }
+    const value = {
+      title: 'Test',
+      link: 'https://example.com',
+    }
     const expected = JSON.stringify({ title: 'Test', link: 'https://example.com' })
 
     expect(createSignature(value, [])).toBe(expected)
   })
 
   it('should neutralize single field', () => {
-    const value = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
+    const value = {
+      title: 'Test',
+      link: 'https://example.com',
+      generator: 'WordPress',
+    }
     const expected = JSON.stringify({ title: 'Test', link: 'https://example.com' })
 
     expect(createSignature(value, [[value, 'generator']])).toBe(expected)
@@ -442,8 +449,16 @@ describe('createSignature', () => {
   })
 
   it('should restore original values after creating signature', () => {
-    const value = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
-    const expected = { title: 'Test', link: 'https://example.com', generator: 'WordPress' }
+    const value = {
+      title: 'Test',
+      link: 'https://example.com',
+      generator: 'WordPress',
+    }
+    const expected = {
+      title: 'Test',
+      link: 'https://example.com',
+      generator: 'WordPress',
+    }
 
     createSignature(value, [[value, 'generator']])
 
@@ -451,14 +466,20 @@ describe('createSignature', () => {
   })
 
   it('should handle nested objects', () => {
-    const value = { title: 'Test', meta: { author: 'John', date: '2024-01-01' } }
+    const value = {
+      title: 'Test',
+      meta: { author: 'John', date: '2024-01-01' },
+    }
     const expected = JSON.stringify({ title: 'Test' })
 
     expect(createSignature(value, [[value, 'meta']])).toBe(expected)
   })
 
   it('should handle arrays', () => {
-    const value = { title: 'Test', items: [1, 2, 3] }
+    const value = {
+      title: 'Test',
+      items: [1, 2, 3],
+    }
     const expected = JSON.stringify({ title: 'Test' })
 
     expect(createSignature(value, [[value, 'items']])).toBe(expected)
@@ -503,7 +524,10 @@ describe('createSignature', () => {
   })
 
   it('should omit a key on a nested object', () => {
-    const value = { title: 'Test', dc: { creator: 'John', dates: ['2024-01-01'] } }
+    const value = {
+      title: 'Test',
+      dc: { creator: 'John', dates: ['2024-01-01'] },
+    }
     const expected = JSON.stringify({ title: 'Test', dc: { creator: 'John' } })
 
     expect(createSignature(value, [[value.dc, 'dates']])).toBe(expected)
