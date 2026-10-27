@@ -57,7 +57,8 @@
     "kvalita": "^1.26.1",
     "ogier": "^1.7.0",
     "trousse": "^2.14.2",
-    "tsdown": "^0.23.1",
+    "tsdown": "^0.23.2",
+    "typescript": "7.1.0-beta",
     "vitepress": "^2.0.0-alpha.20"
   }
 }
