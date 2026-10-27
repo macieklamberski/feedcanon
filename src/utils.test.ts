@@ -207,14 +207,14 @@ describe('applyProbes', () => {
     expect(secondProbeCalled).toBe(false)
   })
 
-  it('should propagate testCandidate errors', async () => {
+  it('should propagate testCandidate errors', () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = () => {
       throw new Error('Callback failed')
     }
 
-    await expect(applyProbes(value, probes, testCandidate)).rejects.toThrow('Callback failed')
+    expect(applyProbes(value, probes, testCandidate)).rejects.toThrow('Callback failed')
   })
 
   it('should try second probe when first does not match', async () => {
