@@ -5253,7 +5253,10 @@ describe('findCanonical', () => {
       it('should call onExists when existsFn finds match with data', async () => {
         const value = 'https://www.example.com/feed/'
         const body = '<feed></feed>'
-        const existingData = { id: 123, savedAt: '2024-01-01' }
+        const existingData = {
+          id: 123,
+          savedAt: '2024-01-01',
+        }
         let existsCallData: { url: string; data: unknown } | undefined
         const options = toOptions({
           parser: createMockParser(undefined),
