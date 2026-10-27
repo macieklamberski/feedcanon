@@ -179,7 +179,6 @@ const resolveCanonical = async (
     let response: FetchFnResponse
 
     try {
-      // biome-ignore lint/nursery/useAwaitThenable: The fetch function may return a promise.
       response = await fetchFn(url)
     } catch {
       return
@@ -461,7 +460,6 @@ const resolveCanonical = async (
 
     for (const lookupUrl of lookupUrls) {
       if (!(lookupUrl in existingData)) {
-        // biome-ignore lint/nursery/useAwaitThenable: The exists function may return a promise.
         existingData[lookupUrl] = await existsFn(lookupUrl)
       }
 
