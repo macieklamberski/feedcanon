@@ -1243,7 +1243,11 @@ describe('findCanonical', () => {
           }),
           parser: createMockParser(undefined),
           existsFn: (url) => {
-            return url === 'http://feeds.example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'http://feeds.example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -3621,7 +3625,12 @@ describe('findCanonical', () => {
           }),
           existsFn: (url) => {
             checkedUrls.push(url)
-            return url === 'https://www.example.com/feed' ? { id: 99 } : undefined
+
+            if (url !== 'https://www.example.com/feed') {
+              return
+            }
+
+            return { id: 99 }
           },
         })
 
@@ -3736,7 +3745,11 @@ describe('findCanonical', () => {
           },
         })
         const existsFn = (url: string) => {
-          return url === 'https://example.com/podcast' ? { id: 42 } : undefined
+          if (url !== 'https://example.com/podcast') {
+            return
+          }
+
+          return { id: 42 }
         }
 
         expect(await findCanonical(value, { fetchFn, existsFn })).toBe(expected)
@@ -3784,7 +3797,11 @@ describe('findCanonical', () => {
             'https://example.com/search?q=by%3Auser': { body },
           }),
           existsFn: (url) => {
-            return url === 'https://example.com/search?q=by%3Auser' ? { id: 42 } : undefined
+            if (url !== 'https://example.com/search?q=by%3Auser') {
+              return
+            }
+
+            return { id: 42 }
           },
           parser: createMockParser(undefined),
         })
@@ -5272,7 +5289,11 @@ describe('findCanonical', () => {
             'https://example.com/feed': { body, url: 'http://example.org/feed' },
           }),
           existsFn: (url) => {
-            return url === 'http://example.org/feed' ? { id: 1 } : undefined
+            if (url !== 'http://example.org/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onExists: ({ url, data }) => {
             existsCalls.push({ url, data })
@@ -5619,7 +5640,11 @@ describe('findCanonical', () => {
             'https://example.com/feed': { body },
           }),
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onCanonical: (data) => {
             canonicalData = data
@@ -5652,7 +5677,11 @@ describe('findCanonical', () => {
             'https://example.com/feed': { body },
           }),
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onCanonical: (data) => {
             canonicalData = data
@@ -6055,7 +6084,11 @@ describe('findCanonical', () => {
           parser: createMockParser('http://example.com/feed?doing_wp_cron=123'),
           cleanUrlFn: stripWpCron,
           existsFn: (url) => {
-            return url === 'https://example.com/feed?doing_wp_cron=123' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed?doing_wp_cron=123') {
+              return
+            }
+
+            return { id: 1 }
           },
           onExists: ({ url, data }) => {
             existsCalls.push({ url, data })
@@ -6352,7 +6385,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6371,7 +6408,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6399,7 +6440,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6421,7 +6466,11 @@ describe('findCanonical', () => {
           parser: createMockParser('https://example.com/rss'),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6442,7 +6491,11 @@ describe('findCanonical', () => {
           parser: createMockParser('https://example.com/rss'),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onExists: ({ url, data }) => {
             existsCalls.push({ url, data })
@@ -6468,7 +6521,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6487,9 +6544,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://track.example.org/click?url=https://example.com/feed'
-              ? { id: 1 }
-              : undefined
+            if (url !== 'https://track.example.org/click?url=https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6513,7 +6572,11 @@ describe('findCanonical', () => {
           parser: createMockParser('https://example.com/rss'),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onFetch: ({ url }) => {
             fetchCalls.push(url)
@@ -6542,7 +6605,11 @@ describe('findCanonical', () => {
           parser: createMockParser('https://example.com/rss'),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://www.example.com/blog/feed' ? { id: 1 } : undefined
+            if (url !== 'https://www.example.com/blog/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6566,7 +6633,11 @@ describe('findCanonical', () => {
           parser: createMockParser('https://example.com/rss'),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://www.example.com/blog/feed' ? { id: 1 } : undefined
+            if (url !== 'https://www.example.com/blog/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onExists: ({ url, data }) => {
             existsCalls.push({ url, data })
@@ -6601,7 +6672,11 @@ describe('findCanonical', () => {
             },
           ],
           existsFn: (url) => {
-            return url === 'https://www.example.com/blog/feed' ? { id: 1 } : undefined
+            if (url !== 'https://www.example.com/blog/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
         })
 
@@ -6625,7 +6700,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/blog/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/blog/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onExists: ({ url, data }) => {
             existsCalls.push({ url, data })
@@ -6654,7 +6733,11 @@ describe('findCanonical', () => {
           parser: createMockParser(undefined),
           cleanUrlFn: unwrapTracker,
           existsFn: (url) => {
-            return url === 'https://example.com/blog/feed' ? { id: 1 } : undefined
+            if (url !== 'https://example.com/blog/feed') {
+              return
+            }
+
+            return { id: 1 }
           },
           onExists: ({ url, data }) => {
             existsCalls.push({ url, data })
