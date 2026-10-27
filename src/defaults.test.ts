@@ -481,7 +481,7 @@ describe('defaultFetch', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(21)
   })
 
-  it('should propagate error when native fetch throws', async () => {
+  it('should propagate error when native fetch throws', () => {
     fetchSpy.mockImplementation(
       createFetchMock(() => {
         throw new TypeError('Failed to fetch')
@@ -489,10 +489,10 @@ describe('defaultFetch', () => {
     )
     const throwing = () => defaultFetch('https://example.com/feed.xml')
 
-    await expect(throwing()).rejects.toThrow('Failed to fetch')
+    expect(throwing()).rejects.toThrow('Failed to fetch')
   })
 
-  it('should propagate error when response.text() rejects', async () => {
+  it('should propagate error when response.text() rejects', () => {
     fetchSpy.mockImplementation(
       createFetchMock(() => {
         return createMockResponse({
@@ -502,7 +502,7 @@ describe('defaultFetch', () => {
     )
     const throwing = () => defaultFetch('https://example.com/feed.xml')
 
-    await expect(throwing()).rejects.toThrow('Body stream interrupted')
+    expect(throwing()).rejects.toThrow('Body stream interrupted')
   })
 })
 
