@@ -432,14 +432,13 @@ describe('createSignature', () => {
       generator: 'WordPress',
       pubDate: '2024-01-01',
     }
+    const exclusions: Array<[object, string]> = [
+      [value, 'generator'],
+      [value, 'pubDate'],
+    ]
     const expected = JSON.stringify({ title: 'Test', link: 'https://example.com' })
 
-    expect(
-      createSignature(value, [
-        [value, 'generator'],
-        [value, 'pubDate'],
-      ]),
-    ).toBe(expected)
+    expect(createSignature(value, exclusions)).toBe(expected)
   })
 
   it('should restore original values after creating signature', () => {
