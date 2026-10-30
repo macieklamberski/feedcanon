@@ -36,7 +36,7 @@ Normalizes a URL by applying transformation options.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `stripProtocol` | `true` | Remove protocol from URL |
+| `stripScheme` | `true` | Remove scheme from URL |
 | `stripAuthentication` | `false` | Remove `user:pass@` |
 | `stripWww` | `true` | Remove `www.` prefix |
 | `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
