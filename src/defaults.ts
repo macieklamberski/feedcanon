@@ -14,7 +14,7 @@ import type { DefaultParserResult, FetchFn, FetchFnRedirect, ParserAdapter, Tier
 import { createSignature, isRelation, neutralizeUrls } from './utils.js'
 
 export const defaultNormalizeOptions: NormalizeOptions = {
-  stripProtocol: true,
+  stripScheme: true,
   stripAuthentication: false,
   stripWww: true,
   stripTrailingSlash: true,
