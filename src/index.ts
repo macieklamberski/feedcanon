@@ -2,6 +2,7 @@ import {
   addMissingScheme,
   createUrlSpellings,
   createUrlVariants,
+  isFunction,
   isHttpUrl,
   isPresent,
   normalizeUrl,
@@ -274,7 +275,7 @@ const resolveCanonical = async (
   reportMatch(initialRequestUrl, initialResponse)
 
   // A fetchFn written without types can return no Headers object, which carries no Link header.
-  const hasHeaders = typeof initialResponse.headers?.get === 'function'
+  const hasHeaders = isFunction(initialResponse.headers?.get)
   const linkHeader = hasHeaders ? initialResponse.headers.get('link') : null
 
   // A self link in the Link header takes precedence over one in the feed body. The header is an
