@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { sleep } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 import {
   applyProbes,
@@ -242,7 +243,7 @@ describe('applyProbes', () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = async (url: string) => {
-      await Bun.sleep(1)
+      await sleep(1)
 
       if (url === 'https://example.com/feed') {
         return url
@@ -1267,13 +1268,24 @@ describe('neutralizeUrls', () => {
       expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
-    it('should preserve an encoded same-domain URL with a malformed escape', () => {
+    it('should neutralize an encoded same-domain URL around a malformed escape', () => {
       const url = 'https://example.com/feed'
       const value = JSON.stringify({
         description: 'https://share.example.org/share?url=http%3A%2F%2Fexample.com%2Fpost%ZZ',
       })
+      const expected = JSON.stringify({
+        description: 'https://share.example.org/share?url=/post%ZZ',
+      })
 
-      expect(neutralizeUrls(value, [url])).toBe(value)
+      expect(neutralizeUrls(value, [url])).toBe(expected)
+    })
+
+    it('should neutralize an encoded same-domain URL holding a non-UTF-8 escape', () => {
+      const url = 'https://example.com/feed'
+      const value = 'u=http%3A%2F%2Fwww.example.com%2Fcaf%E9'
+      const expected = 'u=/caf%E9'
+
+      expect(neutralizeUrls(value, [url])).toBe(expected)
     })
 
     it('should neutralize an encoded URL with an uppercase scheme', () => {
