@@ -1,6 +1,6 @@
 import LinkHeader from 'http-link-header'
 import type { MaybePromise } from 'trousse'
-import { addMissingScheme, parseUrl, stripWww } from 'trousse'
+import { addMissingScheme, decodePercent, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
@@ -122,13 +122,7 @@ const encodedUrlRegex = /https?%3A%2F%2F[^\s"'<>\\&]*/gi
 // Decoding every encoded URL, own or foreign, is safe: the output only feeds signature comparison,
 // and both copies of a feed get the same treatment.
 const decodeEncodedUrls = (text: string): string => {
-  return text.replace(encodedUrlRegex, (url) => {
-    try {
-      return decodeURIComponent(url)
-    } catch {
-      return url
-    }
-  })
+  return text.replace(encodedUrlRegex, (url) => decodePercent(url))
 }
 
 const neutralizeHost = (url: string): string | undefined => {
