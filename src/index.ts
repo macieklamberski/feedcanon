@@ -4,7 +4,6 @@ import {
   createUrlVariants,
   isFunction,
   isHttpUrl,
-  isNullish,
   isPresent,
   normalizeUrl,
   parseUrl,
@@ -74,7 +73,7 @@ export async function findCanonical(
       return
     }
 
-    if (isPresent(result.data)) {
+    if (result.data != null) {
       options?.onExists?.({ url: result.url, data: result.data })
     }
 
@@ -467,7 +466,7 @@ const resolveCanonical = async (
 
       const data = existingData[lookupUrl]
 
-      if (isNullish(data)) {
+      if (data == null) {
         continue
       }
 
@@ -641,7 +640,7 @@ const resolveCanonical = async (
     const isHttpsToHttp =
       requestUrl.startsWith('https://') && targetResult.url.startsWith('http://')
 
-    if (isPresent(targetResult.data) || !isHttpsToHttp) {
+    if (targetResult.data != null || !isHttpsToHttp) {
       return targetResult
     }
 
@@ -668,7 +667,7 @@ const resolveCanonical = async (
 
   let initialResult = await adoptInitialResponse()
 
-  if (isPresent(initialResult.data)) {
+  if (initialResult.data != null) {
     return initialResult
   }
 
@@ -700,7 +699,7 @@ const resolveCanonical = async (
       // A self URL whose response lands on a non-http URL is not trusted.
       const selfResult = await adoptResponseUrl(response, urlToTry, initialResult)
 
-      if (isPresent(selfResult.data)) {
+      if (selfResult.data != null) {
         return selfResult
       }
 
@@ -726,7 +725,7 @@ const resolveCanonical = async (
     }
   })
 
-  if (isPresent(probeResult?.data)) {
+  if (probeResult?.data != null) {
     return probeResult
   }
 
@@ -742,7 +741,7 @@ const resolveCanonical = async (
 
     initialResult = await adoptInitialResponse()
 
-    if (isPresent(initialResult.data)) {
+    if (initialResult.data != null) {
       return initialResult
     }
 
@@ -819,7 +818,7 @@ const resolveCanonical = async (
         return { result: source, isMoved: false }
       }
 
-      return { result: targetResult, isMoved: isNullish(targetResult.data) }
+      return { result: targetResult, isMoved: targetResult.data == null }
     }
   }
 
@@ -844,7 +843,7 @@ const resolveCanonical = async (
 
     const candidateTest = await testCandidates(candidateUrls, source)
 
-    if (isPresent(candidateTest?.result.data)) {
+    if (candidateTest?.result.data != null) {
       return candidateTest.result
     }
 
@@ -902,7 +901,7 @@ const resolveCanonical = async (
         result = await searchFrom(result)
       }
 
-      if (isPresent(result.data)) {
+      if (result.data != null) {
         return result
       }
 
