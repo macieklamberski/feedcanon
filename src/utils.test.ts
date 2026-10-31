@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { sleep } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 import {
   applyProbes,
@@ -242,7 +243,7 @@ describe('applyProbes', () => {
     const value = 'https://example.com/?feed=rss2'
     const probes = [createProbe('feed', '/feed')]
     const testCandidate = async (url: string) => {
-      await Bun.sleep(1)
+      await sleep(1)
 
       if (url === 'https://example.com/feed') {
         return url

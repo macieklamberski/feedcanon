@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it, spyOn } from 'bun:test'
+import { sleep } from 'trousse'
 import { defaultParser } from './defaults.js'
 import { findCanonical } from './index.js'
 import { wordpressProbe } from './probes/wordpress.js'
@@ -4676,7 +4677,7 @@ describe('findCanonical', () => {
         let parseCompleted = false
         const asyncParser: ParserAdapter<string> = {
           parse: async (body) => {
-            await new Promise((resolve) => setTimeout(resolve, 10))
+            await sleep(10)
             parseCompleted = true
             return body
           },
@@ -4701,7 +4702,7 @@ describe('findCanonical', () => {
         let comparisonParseCount = 0
         const asyncParser: ParserAdapter<{ id: string }> = {
           parse: async () => {
-            await new Promise((resolve) => setTimeout(resolve, 10))
+            await sleep(10)
             comparisonParseCount++
             return { id: 'same-feed' }
           },
