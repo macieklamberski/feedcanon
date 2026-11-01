@@ -459,7 +459,7 @@ const resolveCanonical = async (
     const lookupUrls = new Set(schemeUrls.flatMap((schemeUrl) => createUrlSpellings(schemeUrl)))
 
     for (const lookupUrl of lookupUrls) {
-      if (!(lookupUrl in existingData)) {
+      if (!Object.hasOwn(existingData, lookupUrl)) {
         existingData[lookupUrl] = await existsFn(lookupUrl)
       }
 
