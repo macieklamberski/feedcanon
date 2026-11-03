@@ -22,6 +22,9 @@
     "dedupe"
   ],
   "type": "module",
+  "bin": {
+    "feedcanon": "bin/feedcanon.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/exports.d.mts",
@@ -33,14 +36,15 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "prepare": "lefthook install",
-    "build": "tsdown src/exports.ts src/defaults.ts --format esm --dts --clean --unbundle",
+    "build": "tsdown src/exports.ts src/defaults.ts src/cli.ts --format esm --dts --clean --unbundle",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs"
   },
