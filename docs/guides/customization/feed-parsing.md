@@ -15,6 +15,7 @@ type ParserAdapter<T> = {
   parse: (body: string) => MaybePromise<T | undefined>
   getSelfUrl: (parsed: T, responseUrl?: string) => string | undefined
   getSignature: (parsed: T, responseUrl: string, comparedUrls?: Array<string>) => string
+  hasItems?: (parsed: T) => boolean
 }
 ```
 
@@ -54,6 +55,16 @@ Build the signature from fields that stay the same between requests:
 - Item timestamps
 
 Leave out fields that change with every request or with the URL the feed was fetched from, such as the build date or the self URL.
+
+### hasItems
+
+Optional. Return whether the parsed feed has at least one item:
+
+```typescript
+hasItems?: (feed: Feed) => boolean
+```
+
+Two empty feeds have equal signatures, so a search or filter URL that returns nothing would match the URL without its query. When `hasItems` returns `false`, Feedcanon does not match the feed to a URL that lacks a query parameter the input URL carried, unless your `cleanUrlFn` removes that parameter. Without `hasItems`, empty feeds are compared like any other.
 
 ## Examples
 
