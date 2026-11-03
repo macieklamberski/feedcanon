@@ -214,8 +214,9 @@ describe('applyProbes', () => {
     const testCandidate = () => {
       throw new Error('Callback failed')
     }
+    const throwing = () => applyProbes(value, probes, testCandidate)
 
-    expect(applyProbes(value, probes, testCandidate)).rejects.toThrow('Callback failed')
+    expect(throwing()).rejects.toThrow('Callback failed')
   })
 
   it('should try second probe when first does not match', async () => {

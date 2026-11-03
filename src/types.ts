@@ -35,26 +35,42 @@ export type Tier = Omit<
   normalizeUnicode?: boolean
 }
 
-// Callback fired after each fetch operation.
-export type OnFetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (data: {
+export type FetchResponseData<TResponse extends FetchFnResponse = FetchFnResponse> = {
   url: string
   response: TResponse
-}) => void
+}
+
+export type FeedResponseData<
+  TFeed = unknown,
+  TResponse extends FetchFnResponse = FetchFnResponse,
+> = {
+  url: string
+  response: TResponse
+  feed: TFeed
+}
+
+export type ExistsData<T> = {
+  url: string
+  data: T
+}
+
+// Callback fired after each fetch operation.
+export type OnFetchFn<TResponse extends FetchFnResponse = FetchFnResponse> = (
+  data: FetchResponseData<TResponse>,
+) => void
 
 // Callback fired when a URL successfully matches the initial response.
-export type OnMatchFn<
-  TFeed = unknown,
-  TResponse extends FetchFnResponse = FetchFnResponse,
-> = (data: { url: string; response: TResponse; feed: TFeed }) => void
+export type OnMatchFn<TFeed = unknown, TResponse extends FetchFnResponse = FetchFnResponse> = (
+  data: FeedResponseData<TFeed, TResponse>,
+) => void
 
 // Callback fired when existsFn found the URL findCanonical returns.
-export type OnExistsFn<T> = (data: { url: string; data: T }) => void
+export type OnExistsFn<T> = (data: ExistsData<T>) => void
 
 // Callback fired once with the URL findCanonical returns, and the response that served it.
-export type OnCanonicalFn<
-  TFeed = unknown,
-  TResponse extends FetchFnResponse = FetchFnResponse,
-> = (data: { url: string; response: TResponse; feed: TFeed }) => void
+export type OnCanonicalFn<TFeed = unknown, TResponse extends FetchFnResponse = FetchFnResponse> = (
+  data: FeedResponseData<TFeed, TResponse>,
+) => void
 
 // Options for findCanonical function.
 export type FindCanonicalOptions<
