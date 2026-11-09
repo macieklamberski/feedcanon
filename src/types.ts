@@ -10,6 +10,7 @@ export type ParserAdapter<T> = {
   parse: (body: string) => MaybePromise<T | undefined>
   getSelfUrl: (parsed: T, responseUrl?: string) => string | undefined
   getSignature: (parsed: T, responseUrl: string, comparedUrls?: Array<string>) => string
+  hasItems?: (parsed: T) => boolean
 }
 
 // URL rewrite for domain-specific normalization (e.g., FeedBurner domain aliasing).
