@@ -1,4 +1,3 @@
-import { parseUrl } from 'trousse'
 import type { Probe } from '../types.js'
 
 type FeedParam = {
@@ -28,11 +27,7 @@ const parseFeedParam = (url: URL): FeedParam | undefined => {
 }
 
 const createCandidate = (url: URL, pathname: string): string => {
-  const candidate = parseUrl(url.href)
-
-  if (!candidate) {
-    return url.href
-  }
+  const candidate = new URL(url)
 
   candidate.pathname = pathname
   candidate.searchParams.delete('feed')

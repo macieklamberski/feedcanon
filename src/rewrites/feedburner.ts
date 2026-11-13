@@ -9,11 +9,7 @@ export const feedburnerRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
-    const rewritten = parseUrl(url.href)
-
-    if (!rewritten) {
-      return url
-    }
+    const rewritten = new URL(url)
 
     // Normalize domain to feeds.feedburner.com.
     rewritten.hostname = 'feeds.feedburner.com'
