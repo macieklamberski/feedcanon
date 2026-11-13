@@ -17,7 +17,12 @@ export const bloggerRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
-    const rewritten = new URL(url)
+    const rewritten = parseUrl(url.href)
+
+    if (!rewritten) {
+      return url
+    }
+
     const isBlogger = bloggerRegex.test(rewritten.hostname)
     const isBlogspot = blogspotRegex.test(rewritten.hostname)
 
