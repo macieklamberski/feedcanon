@@ -1,4 +1,4 @@
-import { normalizeUrl } from 'trousse'
+import { normalizeUrl, parseUrl } from 'trousse'
 import type { Rewrite } from '../types.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
@@ -71,6 +71,6 @@ export const bloggerRewrite: Rewrite = {
       sortQueryParams: true,
     })
 
-    return new URL(normalized)
+    return parseUrl(normalized) ?? url
   },
 }

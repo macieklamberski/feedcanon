@@ -98,15 +98,15 @@ export const defaultFetch: FetchFn = async (url, options) => {
 
     redirects.push({ url: requestUrl, status: response.status })
     await response.body?.cancel()
-    const locationUrl = new URL(location, requestUrl)
+    const locationUrl = parseUrl(location, requestUrl)
 
     // A redirect is followed only to another http or https URL, never to data: or file:.
-    if (!isHttpUrl(locationUrl)) {
+    if (!locationUrl || !isHttpUrl(locationUrl)) {
       throw new TypeError(t(locales.errors.redirectToNonHttpUrl, { url }))
     }
 
     // Credentials for one origin never reach another.
-    if (locationUrl.origin !== new URL(requestUrl).origin) {
+    if (locationUrl.origin !== parseUrl(requestUrl)?.origin) {
       for (const name of credentialHeaders) {
         headers.delete(name)
       }
