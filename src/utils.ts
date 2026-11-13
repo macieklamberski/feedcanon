@@ -4,9 +4,13 @@ import { addMissingScheme, decodePercent, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
-  try {
-    let parsed = new URL(url)
+  let parsed = parseUrl(url)
 
+  if (!parsed) {
+    return url
+  }
+
+  try {
     for (const rewrite of rewrites) {
       if (rewrite.match(parsed)) {
         parsed = rewrite.rewrite(parsed)
@@ -27,11 +31,15 @@ export const applyProbes = async <T>(
   probes: Array<Probe>,
   testCandidate: (url: string) => MaybePromise<T | undefined>,
 ): Promise<T | undefined> => {
+  const parsed = parseUrl(url)
   let candidates: Array<string>
+
+  if (!parsed) {
+    return
+  }
 
   // Only probe errors are swallowed. Errors from testCandidate carry the caller's callbacks.
   try {
-    const parsed = new URL(url)
     // First matching probe wins.
     const probe = probes.find((probe) => probe.match(parsed))
     candidates = probe ? probe.getCandidates(parsed) : []

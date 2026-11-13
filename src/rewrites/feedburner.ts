@@ -1,4 +1,4 @@
-import { isHostOf, normalizeUrl } from 'trousse'
+import { isHostOf, normalizeUrl, parseUrl } from 'trousse'
 import type { Rewrite } from '../types.js'
 
 const hosts = ['feeds.feedburner.com', 'feeds2.feedburner.com', 'feedproxy.google.com']
@@ -9,7 +9,11 @@ export const feedburnerRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
-    const rewritten = new URL(url)
+    const rewritten = parseUrl(url.href)
+
+    if (!rewritten) {
+      return url
+    }
 
     // Normalize domain to feeds.feedburner.com.
     rewritten.hostname = 'feeds.feedburner.com'
@@ -25,6 +29,6 @@ export const feedburnerRewrite: Rewrite = {
       normalizeUnicode: true,
     })
 
-    return new URL(normalized)
+    return parseUrl(normalized) ?? url
   },
 }

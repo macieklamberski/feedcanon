@@ -465,6 +465,20 @@ describe('defaultFetch', () => {
     expect(throwing()).rejects.toThrow('Redirect to a non-HTTP URL')
   })
 
+  it('should throw when a redirect location does not parse', () => {
+    fetchSpy.mockImplementation(
+      createFetchMock(() => {
+        return createMockResponse({
+          status: 302,
+          headers: new Headers({ location: 'http://[' }),
+        })
+      }),
+    )
+    const throwing = () => defaultFetch('https://example.com/feed')
+
+    expect(throwing()).rejects.toThrow('Redirect to a non-HTTP URL')
+  })
+
   it('should throw after 20 redirects', async () => {
     fetchSpy.mockImplementation(
       createFetchMock((url: string) => {

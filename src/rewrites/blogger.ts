@@ -1,4 +1,4 @@
-import { normalizeUrl } from 'trousse'
+import { normalizeUrl, parseUrl } from 'trousse'
 import type { Rewrite } from '../types.js'
 
 // Matches blogger.com, www.blogger.com, and beta.blogger.com.
@@ -17,7 +17,12 @@ export const bloggerRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
-    const rewritten = new URL(url)
+    const rewritten = parseUrl(url.href)
+
+    if (!rewritten) {
+      return url
+    }
+
     const isBlogger = bloggerRegex.test(rewritten.hostname)
     const isBlogspot = blogspotRegex.test(rewritten.hostname)
 
@@ -71,6 +76,6 @@ export const bloggerRewrite: Rewrite = {
       sortQueryParams: true,
     })
 
-    return new URL(normalized)
+    return parseUrl(normalized) ?? url
   },
 }
