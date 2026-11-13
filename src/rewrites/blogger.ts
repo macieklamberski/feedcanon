@@ -17,6 +17,7 @@ export const bloggerRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
+    // biome-ignore lint/plugin/noBareNewUrl: Copies a parsed url, so this cannot throw.
     const rewritten = new URL(url)
 
     const isBlogger = bloggerRegex.test(rewritten.hostname)

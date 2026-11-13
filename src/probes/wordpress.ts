@@ -27,6 +27,7 @@ const parseFeedParam = (url: URL): FeedParam | undefined => {
 }
 
 const createCandidate = (url: URL, pathname: string): string => {
+  // biome-ignore lint/plugin/noBareNewUrl: Copies a parsed url, so this cannot throw.
   const candidate = new URL(url)
 
   candidate.pathname = pathname

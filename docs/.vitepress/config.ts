@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { vitepress } from 'ogier/adapters'
 import { dark } from 'ogier/themes'
 import { defineConfig } from 'vitepress'
@@ -8,15 +9,15 @@ const trailingSlashRegex = /\/$/
 
 const hostname = 'https://feedcanon.dev'
 const og = vitepress({
-  site: { hostname, favicon: { file: new URL('../public/favicon.svg', import.meta.url) } },
+  site: { hostname, favicon: { file: join(import.meta.dirname, '../public/favicon.svg') } },
   card: {
     header: {
       text: 'feedcanon',
-      icon: { file: new URL('../public/favicon.svg', import.meta.url) },
+      icon: { file: join(import.meta.dirname, '../public/favicon.svg') },
     },
     footer: {
       text: 'macieklamberski/feedcanon',
-      icon: { file: new URL('./github.svg', import.meta.url) },
+      icon: { file: join(import.meta.dirname, 'github.svg') },
     },
   },
   style: { theme: { ...dark, accent: '#4d9fff' }, background: { pattern: 'dots' } },

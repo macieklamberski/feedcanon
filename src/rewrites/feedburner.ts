@@ -9,6 +9,7 @@ export const feedburnerRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
+    // biome-ignore lint/plugin/noBareNewUrl: Copies a parsed url, so this cannot throw.
     const rewritten = new URL(url)
 
     // Normalize domain to feeds.feedburner.com.
