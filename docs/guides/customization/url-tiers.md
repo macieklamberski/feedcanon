@@ -19,22 +19,24 @@ In addition to the structural tiers, you can plug extra cleaning into the `clean
 
 ## Normalization Options
 
-Each tier accepts all `NormalizeOptions` except `stripQueryParams`. Tier options are not merged with any defaults: an option left out of a tier is off. The middle column shows the value the default Tier 2 uses, as a reference point:
+Each tier accepts all of trousse's `NormalizeOptions` except `stripQueryParams`. The [trousse README](https://github.com/macieklamberski/trousse/blob/main/README.md#normalizeurl) lists every option and what it does. Tier options are not merged with any defaults: an option left out of a tier is off. The table shows the values the default Tier 2 uses, as a reference point:
 
-| Option | Default Tier 2 | Description |
-|--------|----------------|-------------|
-| `stripScheme` | `false` | Remove the scheme (not recommended for feed URLs) |
-| `stripAuthentication` | `false` | Remove `user:pass@` |
-| `stripWww` | `true` | Remove `www.` prefix |
-| `stripHostTrailingDot` | `true` | Remove the trailing `.` of a host, `example.com.` → `example.com` |
-| `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
-| `collapseSlashes` | `true` | `///` → `/` |
-| `stripHash` | `true` | Remove `#fragment` |
-| `sortQueryParams` | `true` | Sort params alphabetically |
-| `stripQuery` | `false` | Remove entire query string |
-| `stripEmptyQuery` | `true` | Remove empty `?` |
-| `lowercaseQuery` | `false` | Lowercase query param names and values |
-| `normalizeEncoding` | `true` | Normalize `%XX` encoding |
+| Option | Default Tier 2 |
+|--------|----------------|
+| `stripScheme` | `false` |
+| `stripAuthentication` | `false` |
+| `stripWww` | `true` |
+| `stripHostTrailingDot` | `true` |
+| `stripTrailingSlash` | `true` |
+| `collapseSlashes` | `true` |
+| `stripHash` | `true` |
+| `sortQueryParams` | `true` |
+| `stripQuery` | `false` |
+| `stripEmptyQuery` | `true` |
+| `lowercaseQuery` | `false` |
+| `normalizeEncoding` | `true` |
+
+`stripScheme` is not recommended for feed URLs.
 
 ## Examples
 
