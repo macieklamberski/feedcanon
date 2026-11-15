@@ -23,33 +23,36 @@ import {
 
 ### `normalizeUrl()`
 
-Normalizes a URL by applying transformation options.
+Normalizes a URL by applying transformation options. Deprecated: import `normalizeUrl` from trousse instead. This wrapper calls it with feedcanon's defaults when `options` is omitted.
 
 #### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `url` | `string` | The URL to normalize |
-| `options` | `object` | Normalization options |
+| `options` | `NormalizeOptions` | Normalization options, `defaultNormalizeOptions` when omitted |
 
 #### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `stripScheme` | `true` | Remove scheme from URL |
-| `stripAuthentication` | `false` | Remove `user:pass@` |
-| `stripWww` | `true` | Remove `www.` prefix |
-| `stripTrailingSlash` | `true` | Remove trailing `/` from paths |
-| `stripRootSlash` | `true` | Remove `/` from root paths |
-| `collapseSlashes` | `true` | Collapse multiple slashes `///` → `/` |
-| `stripHash` | `true` | Remove `#fragment` |
-| `sortQueryParams` | `true` | Sort query params alphabetically |
-| `stripQueryParams` | — | Array of params to strip |
-| `stripQuery` | `false` | Remove entire query string |
-| `stripEmptyQuery` | `true` | Remove empty `?` |
-| `lowercaseQuery` | `false` | Lowercase query param names and values |
-| `normalizeEncoding` | `true` | Normalize `%XX` encoding |
-| `normalizeUnicode` | `true` | NFC normalization for Unicode |
+`options` is trousse's `NormalizeOptions`. The [trousse README](https://github.com/macieklamberski/trousse/blob/main/README.md#normalizeurl) lists every option and what it does.
+
+When `options` is omitted, the wrapper applies `defaultNormalizeOptions` from `feedcanon/defaults`. Options it does not list are off:
+
+| Option | Default |
+|--------|---------|
+| `stripScheme` | `true` |
+| `stripAuthentication` | `false` |
+| `stripWww` | `true` |
+| `stripTrailingSlash` | `true` |
+| `stripRootSlash` | `true` |
+| `collapseSlashes` | `true` |
+| `stripHash` | `true` |
+| `sortQueryParams` | `true` |
+| `stripQuery` | `false` |
+| `stripEmptyQuery` | `true` |
+| `lowercaseQuery` | `false` |
+| `normalizeEncoding` | `true` |
+| `normalizeUnicode` | `true` |
 
 The defaults apply only when `options` is omitted. Passing an options object replaces the whole default set, so any option you leave out is off.
 
