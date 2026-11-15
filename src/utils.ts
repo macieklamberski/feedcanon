@@ -1,6 +1,6 @@
 import LinkHeader from 'http-link-header'
 import type { MaybePromise } from 'trousse'
-import { addMissingScheme, decodePercent, parseUrl, stripWww } from 'trousse'
+import { addMissingScheme, decodePercent, isAnyOf, parseUrl, stripWww } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
@@ -59,7 +59,7 @@ export const applyProbes = async <T>(
 // A registered relation name equals its IANA IRI form (RFC 4287 §4.2.7.2) and compares
 // case-insensitively (RFC 8288 §2.1.1).
 export const isRelation = (rel: string, name: string): boolean => {
-  return rel.toLowerCase() === name || rel === `http://www.iana.org/assignments/relation/${name}`
+  return isAnyOf(rel, name) || rel === `http://www.iana.org/assignments/relation/${name}`
 }
 
 const whitespaceRunRegex = /\s{2,}/g
