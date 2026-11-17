@@ -1,4 +1,4 @@
-import { blogger, blogspot, getMainFeedUrl } from 'feedintel'
+import { blogger, blogspot, getMainFeedUrl, getMainSiteUrl } from 'feedintel'
 import { isHostOf, isSubdomainOf, normalizeUrl, parseUrl } from 'trousse'
 import type { Rewrite } from '../types.js'
 
@@ -45,8 +45,10 @@ export const bloggerRewrite: Rewrite = {
 
   rewrite: (url) => {
     const cleanedUrl = cleanUrl(url)
-    // The host, the scheme and the legacy paths of a feed come from feedintel's rows.
-    const mainUrl = parseUrl(getMainFeedUrl(cleanedUrl.href, platforms))
+    // The legacy paths of a feed and the host and scheme of any page come from feedintel's rows.
+    const mainUrl = parseUrl(
+      getMainFeedUrl(cleanedUrl.href, platforms) ?? getMainSiteUrl(cleanedUrl.href, platforms),
+    )
 
     if (!mainUrl) {
       return cleanedUrl

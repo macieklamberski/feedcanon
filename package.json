@@ -53,7 +53,7 @@
   "devDependencies": {
     "@types/bun": "^1.4.4",
     "@types/http-link-header": "^1.0.7",
-    "feedintel": "github:macieklamberski/feedintel#846b555",
+    "feedintel": "github:macieklamberski/feedintel#919d6b8",
     "feedsmith": "^3.0.1",
     "kvalita": "^1.41.0",
     "ogier": "^1.8.1",
