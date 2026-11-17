@@ -376,8 +376,10 @@ describe('bloggerRewrite', () => {
     })
 
     it('should sort query params', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?z=1&a=2')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?a=2&z=1'
+      const value = new URL(
+        'https://www.blogger.com/feeds/123/posts/default?start-index=1&max-results=2',
+      )
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?max-results=2&start-index=1'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -425,8 +427,11 @@ describe('bloggerRewrite', () => {
     })
 
     it('should sort query params on blogspot', () => {
-      const value = new URL('https://example.blogspot.com/feeds/posts/default?z=1&alt=rss&a=2')
-      const expected = 'https://example.blogspot.com/feeds/posts/default?a=2&alt=rss&z=1'
+      const value = new URL(
+        'https://example.blogspot.com/feeds/posts/default?start-index=1&alt=rss&max-results=2',
+      )
+      const expected =
+        'https://example.blogspot.com/feeds/posts/default?alt=rss&max-results=2&start-index=1'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })

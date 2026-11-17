@@ -5,18 +5,13 @@ import type { Rewrite } from '../types.js'
 const platforms = [feedburner]
 
 const cleanUrl = (url: URL): URL => {
-  // biome-ignore lint/plugin/noBareNewUrl: Copies a parsed url, so this cannot throw.
-  const cleaned = new URL(url)
-
-  // Strip all query params (FeedBurner uses them for tracking only).
-  cleaned.search = ''
-
-  const normalized = normalizeUrl(cleaned.href, {
+  const normalized = normalizeUrl(url.href, {
     stripTrailingSlash: true,
     collapseSlashes: true,
     stripHash: true,
     normalizeEncoding: true,
     normalizeUnicode: true,
+    stripEmptyQuery: true,
   })
 
   return parseUrl(normalized) ?? url
@@ -29,8 +24,11 @@ export const feedburnerRewrite: Rewrite = {
 
   rewrite: (url) => {
     const cleanedUrl = cleanUrl(url)
-    // The older hosts of a feed come from feedintel's rows.
-    const mainUrl = parseUrl(getMainFeedUrl(cleanedUrl.href, platforms))
+    // The older hosts of a feed and the parameters it drops come from feedintel's rows. A URL is
+    // tried as given first, then cleaned, since a row can write what cleaning removes.
+    const mainUrl = parseUrl(
+      getMainFeedUrl(url.href, platforms) ?? getMainFeedUrl(cleanedUrl.href, platforms),
+    )
 
     if (!mainUrl) {
       return cleanedUrl
