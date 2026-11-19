@@ -42,13 +42,6 @@ describe('feedburnerRewrite', () => {
       expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should normalize feedproxy.google.com to feeds.feedburner.com', () => {
-      const value = new URL('https://feedproxy.google.com/example')
-      const expected = 'https://feeds.feedburner.com/example'
-
-      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
-    })
-
     it('should strip all query params', () => {
       const value = new URL('https://feeds.feedburner.com/example?format=rss&utm_source=test')
       const expected = 'https://feeds.feedburner.com/example'
@@ -56,7 +49,7 @@ describe('feedburnerRewrite', () => {
       expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should preserve path', () => {
+    it('should rewrite an older host with a trailing slash', () => {
       const value = new URL('https://feedproxy.google.com/~r/ExampleBlog/~3/abc123XYZ/')
       const expected = 'https://feeds.feedburner.com/~r/ExampleBlog/~3/abc123XYZ'
 
