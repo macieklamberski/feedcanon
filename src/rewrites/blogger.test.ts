@@ -330,6 +330,61 @@ describe('bloggerRewrite', () => {
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
+
+    it('should keep the category param', () => {
+      const value = new URL('https://www.blogger.com/feeds/123/posts/default?category=tech')
+      const expected = 'https://www.blogger.com/feeds/123/posts/default?category=tech'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should keep the path param', () => {
+      const value = new URL(
+        'https://example.blogspot.com/feeds/posts/default?path=/2020/01/post.html',
+      )
+      const expected = 'https://example.blogspot.com/feeds/posts/default?path=/2020/01/post.html'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should drop a param Blogger does not define', () => {
+      const value = new URL(
+        'https://example.blogspot.com/feeds/posts/default?utm_source=newsletter',
+      )
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize the host and scheme of a page that is no feed', () => {
+      const value = new URL('http://example.blogspot.de/2020/01/post.html')
+      const expected = 'https://example.blogspot.com/2020/01/post.html'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should sort the query of a page that is no feed', () => {
+      const value = new URL(
+        'https://example.blogspot.com/search?updated-max=2024-01-01&max-results=5',
+      )
+      const expected = 'https://example.blogspot.com/search?max-results=5&updated-max=2024-01-01'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should rewrite /atom.xml with a trailing slash', () => {
+      const value = new URL('https://example.blogspot.com/atom.xml/')
+      const expected = 'https://example.blogspot.com/feeds/posts/default'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
+
+    it('should normalize percent encoding in a rewritten feed', () => {
+      const value = new URL('https://example.blogspot.com/feeds/posts/default/-/%7Etag?alt=atom')
+      const expected = 'https://example.blogspot.com/feeds/posts/default/-/~tag'
+
+      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
+    })
   })
 
   describe('normalization', () => {
