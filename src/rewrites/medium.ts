@@ -10,7 +10,7 @@ export const mediumRewrite: Rewrite = {
   },
 
   rewrite: (url) => {
-    // The two spellings of a user feed, the scheme and the `www` host come from feedintel's rows.
+    // The spelling a user feed names itself, the scheme and the `www` host come from feedintel's rows.
     // A URL the rows do not rewrite, as a page or a publication under its own host, stays as given.
     return parseUrl(getMainFeedUrl(url.href, platforms)) ?? url
   },

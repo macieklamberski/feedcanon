@@ -29,23 +29,23 @@ describe('mediumRewrite', () => {
   })
 
   describe('rewrite', () => {
-    it('should rewrite a user feed with the feed segment last', () => {
-      const value = new URL('https://medium.com/@alice/feed')
-      const expected = 'https://medium.com/feed/@alice'
+    it('should rewrite a user feed with the feed segment first', () => {
+      const value = new URL('https://medium.com/feed/@alice')
+      const expected = 'https://medium.com/@alice/feed'
 
       expect(mediumRewrite.rewrite(value).href).toBe(expected)
     })
 
     it('should rewrite a user feed on the www host over http', () => {
-      const value = new URL('http://www.medium.com/@alice/feed')
-      const expected = 'https://medium.com/feed/@alice'
+      const value = new URL('http://www.medium.com/feed/@alice')
+      const expected = 'https://medium.com/@alice/feed'
 
       expect(mediumRewrite.rewrite(value).href).toBe(expected)
     })
 
     it('should keep a user feed in its main spelling', () => {
-      const value = new URL('https://medium.com/feed/@alice')
-      const expected = 'https://medium.com/feed/@alice'
+      const value = new URL('https://medium.com/@alice/feed')
+      const expected = 'https://medium.com/@alice/feed'
 
       expect(mediumRewrite.rewrite(value).href).toBe(expected)
     })

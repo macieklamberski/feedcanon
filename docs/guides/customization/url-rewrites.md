@@ -78,12 +78,12 @@ Transformations applied:
 
 ### Medium
 
-Transforms the two spellings of a Medium user feed into one. Both serve the same feed:
+Transforms the two spellings of a Medium user feed into the one the feed names as its own URL. Both serve the same feed:
 
 | From | To |
 |------|-----|
-| `https://medium.com/@example/feed` | `https://medium.com/feed/@example` |
-| `http://www.medium.com/feed/@example` | `https://medium.com/feed/@example` |
+| `https://medium.com/feed/@example` | `https://medium.com/@example/feed` |
+| `http://www.medium.com/@example/feed` | `https://medium.com/@example/feed` |
 
 A publication under its own `medium.com` subdomain is left as given.
 
