@@ -69,6 +69,13 @@ describe('feedburnerRewrite', () => {
 
       expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
     })
+
+    it('should normalize percent encoding and strip the hash in a rewritten feed', () => {
+      const value = new URL('https://feeds2.feedburner.com/%7Eexample?format=xml#section')
+      const expected = 'https://feeds.feedburner.com/~example'
+
+      expect(feedburnerRewrite.rewrite(value).href).toBe(expected)
+    })
   })
 
   describe('normalization', () => {
