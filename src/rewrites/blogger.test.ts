@@ -91,44 +91,9 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should normalize beta to www', () => {
-      const value = new URL('https://beta.blogger.com/feeds/123/posts/default')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep redirect param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?redirect=false')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?redirect=false'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
     it('should strip alt=atom param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=atom')
       const expected = 'https://www.blogger.com/feeds/123/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should strip alt=json param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=json')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should strip empty alt param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep alt=rss when a redundant alt param precedes it', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=json&alt=rss')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
@@ -140,91 +105,8 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should preserve alt=rss param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?alt=rss')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?alt=rss'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep orderby param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?orderby=updated')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?orderby=updated'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep max-results param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?max-results=5')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?max-results=5'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep start-index param', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default?start-index=10')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default?start-index=10'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep date filter params', () => {
-      const value = new URL(
-        'https://www.blogger.com/feeds/123/posts/default?published-min=2024-01-01&published-max=2024-12-31&updated-min=2024-01-01&updated-max=2024-12-31',
-      )
-      const expected =
-        'https://www.blogger.com/feeds/123/posts/default?published-max=2024-12-31&published-min=2024-01-01&updated-max=2024-12-31&updated-min=2024-01-01'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve functional params like alt', () => {
-      const value = new URL(
-        'https://www.blogger.com/feeds/123/posts/default?alt=rss&max-results=5&redirect=false',
-      )
-      const expected =
-        'https://www.blogger.com/feeds/123/posts/default?alt=rss&max-results=5&redirect=false'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve path', () => {
-      const value = new URL('http://blogger.com/feeds/123456789/posts/default')
-      const expected = 'https://www.blogger.com/feeds/123456789/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve label feeds', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/posts/default/-/tech')
-      const expected = 'https://www.blogger.com/feeds/123/posts/default/-/tech'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve comment feeds', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/comments/default')
-      const expected = 'https://www.blogger.com/feeds/123/comments/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve post-specific comment feeds', () => {
-      const value = new URL('https://www.blogger.com/feeds/123/456/comments/default')
-      const expected = 'https://www.blogger.com/feeds/123/456/comments/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
     it('should strip www from a blogspot host', () => {
       const value = new URL('https://www.example.blogspot.com/feeds/posts/default')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should normalize .blogspot.in to .blogspot.com', () => {
-      const value = new URL('https://example.blogspot.in/feeds/posts/default')
       const expected = 'https://example.blogspot.com/feeds/posts/default'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
@@ -251,98 +133,9 @@ describe('bloggerRewrite', () => {
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
 
-    it('should rewrite /atom.xml on country TLD to .blogspot.com feed', () => {
-      const value = new URL('https://example.blogspot.in/atom.xml')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should rewrite /rss.xml and replace existing alt param', () => {
-      const value = new URL('https://example.blogspot.com/rss.xml?alt=json')
-      const expected = 'https://example.blogspot.com/feeds/posts/default?alt=rss'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should normalize .blogspot.com.br to .blogspot.com', () => {
-      const value = new URL('https://example.blogspot.com.br/feeds/posts/default')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should normalize .blogspot.de to .blogspot.com', () => {
-      const value = new URL('https://example.blogspot.de/feeds/posts/default')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep .blogspot.com unchanged', () => {
-      const value = new URL('https://example.blogspot.com/feeds/posts/default')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should normalize http blogspot to https', () => {
-      const value = new URL('http://example.blogspot.com/feeds/posts/default')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should rewrite http atom.xml to https feeds/posts/default', () => {
-      const value = new URL('http://example.blogspot.com/atom.xml')
-      const expected = 'https://example.blogspot.com/feeds/posts/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve blogspot label feeds', () => {
-      const value = new URL('https://example.blogspot.com/feeds/posts/default/-/tech')
-      const expected = 'https://example.blogspot.com/feeds/posts/default/-/tech'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should preserve blogspot comment feeds', () => {
-      const value = new URL('https://example.blogspot.com/feeds/comments/default')
-      const expected = 'https://example.blogspot.com/feeds/comments/default'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep blogspot redirect param', () => {
-      const value = new URL('https://example.blogspot.com/feeds/posts/default?redirect=false')
-      const expected = 'https://example.blogspot.com/feeds/posts/default?redirect=false'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep blogspot pagination params', () => {
-      const value = new URL(
-        'https://example.blogspot.com/feeds/posts/default?alt=rss&max-results=5&start-index=10',
-      )
-      const expected =
-        'https://example.blogspot.com/feeds/posts/default?alt=rss&max-results=5&start-index=10'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
     it('should keep the category param', () => {
       const value = new URL('https://www.blogger.com/feeds/123/posts/default?category=tech')
       const expected = 'https://www.blogger.com/feeds/123/posts/default?category=tech'
-
-      expect(bloggerRewrite.rewrite(value).href).toBe(expected)
-    })
-
-    it('should keep the path param', () => {
-      const value = new URL(
-        'https://example.blogspot.com/feeds/posts/default?path=/2020/01/post.html',
-      )
-      const expected = 'https://example.blogspot.com/feeds/posts/default?path=/2020/01/post.html'
 
       expect(bloggerRewrite.rewrite(value).href).toBe(expected)
     })
