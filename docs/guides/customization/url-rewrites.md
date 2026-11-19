@@ -76,6 +76,17 @@ Transformations applied:
 - Keeps `redirect`: without `redirect=false`, a blog that set up FeedBurner redirects its feed there, and the FeedBurner feed can carry different content
 - Keeps `orderby`, pagination (`max-results`, `start-index`) and date filters (`published-min`, `published-max`, `updated-min`, `updated-max`): a filtered view serves a different set of posts
 
+### Medium
+
+Transforms the two spellings of a Medium user feed into one. Both serve the same feed:
+
+| From | To |
+|------|-----|
+| `https://medium.com/@example/feed` | `https://medium.com/feed/@example` |
+| `http://www.medium.com/feed/@example` | `https://medium.com/feed/@example` |
+
+A publication under its own `medium.com` subdomain is left as given.
+
 ## Examples
 
 ### Using Built-in Rewrites
