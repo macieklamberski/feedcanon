@@ -18,6 +18,7 @@ export { findCanonical } from './index.js'
 export { wordpressProbe } from './probes/wordpress.js'
 export { bloggerRewrite } from './rewrites/blogger.js'
 export { feedburnerRewrite } from './rewrites/feedburner.js'
+export { mediumRewrite } from './rewrites/medium.js'
 export type {
   DefaultParserResult,
   ExistsFn,
