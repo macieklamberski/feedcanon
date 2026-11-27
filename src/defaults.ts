@@ -3,6 +3,7 @@ import {
   createAcceptHeader,
   feedMimeTypes,
   genericFeedMimeTypes,
+  getOrigin,
   isHttpUrl,
   type NormalizeOptions,
   parseUrl,
@@ -106,7 +107,7 @@ export const defaultFetch: FetchFn = async (url, options) => {
     }
 
     // Credentials for one origin never reach another.
-    if (locationUrl.origin !== parseUrl(requestUrl)?.origin) {
+    if (locationUrl.origin !== getOrigin(requestUrl)) {
       for (const name of credentialHeaders) {
         headers.delete(name)
       }

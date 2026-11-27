@@ -2,6 +2,7 @@ import {
   addMissingScheme,
   createUrlSpellings,
   createUrlVariants,
+  isFiniteNumber,
   isFunction,
   isHttpUrl,
   isNullish,
@@ -105,7 +106,7 @@ const resolveCanonical = async (
   // Infinity would never run out, so only a finite number replaces the default.
   let maxHops = 20
 
-  if (maxHopsOption !== undefined && Number.isFinite(maxHopsOption)) {
+  if (isFiniteNumber(maxHopsOption)) {
     maxHops = maxHopsOption
   }
 
