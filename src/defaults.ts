@@ -234,7 +234,7 @@ export const defaultParser: ParserAdapter<DefaultParserResult> = {
 }
 
 // URL tiers ordered from cleanest to least clean.
-export const defaultTiers: ReadonlyArray<Tier> = [
+export const defaultTiers: Array<Tier> = [
   // Tier 1: Most aggressive - strip query, www, and trailing slash.
   {
     stripScheme: false,
