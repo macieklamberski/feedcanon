@@ -1,6 +1,6 @@
 import LinkHeader from 'http-link-header'
 import type { MaybePromise } from 'trousse'
-import { addMissingScheme, decodePercent, isAnyOf, parseUrl, stripWww } from 'trousse'
+import { addMissingScheme, decodePercent, isAnyOf, parseUrl, stripWww, trimString } from 'trousse'
 import type { Probe, Rewrite } from './types.js'
 
 export const applyRewrites = (url: string, rewrites: Array<Rewrite>): string => {
@@ -76,7 +76,7 @@ export const getLinkHeaderSelfUrl = (header: string | null): string | undefined 
     const collapsedHeader = header.replace(whitespaceRunRegex, ' ')
 
     for (const ref of LinkHeader.parse(collapsedHeader).refs) {
-      const target = ref.uri.trim()
+      const target = trimString(ref.uri)
 
       // An empty reference names the response URL itself, which is already matched.
       if (!target) {
