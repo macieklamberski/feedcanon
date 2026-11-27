@@ -84,7 +84,7 @@ export type FindCanonicalOptions<
   existsFn?: ExistsFn<TExisting> // Check if URLs exist in database
   rewrites?: Array<Rewrite> // URL rewrites (e.g., FeedBurner)
   probes?: Array<Probe> // URL probes (e.g., WordPress query param → path)
-  tiers?: Array<Tier> // Normalization tiers (cleanest to least clean)
+  tiers?: ReadonlyArray<Tier> // Normalization tiers (cleanest to least clean)
   maxHops?: number // After this many redirects in one call, stop searching from further redirect targets (default: 20)
   onFetch?: OnFetchFn<TResponse> // Called after each fetch operation
   onMatch?: OnMatchFn<TFeed, TResponse> // Called when a URL matches the initial response
